@@ -1,8 +1,8 @@
 package io.github.parseworks;
 
-
+import io.github.parseworks.impl.inputs.CharArrayInput;
+import io.github.parseworks.impl.inputs.CharSequenceInput;
 import io.github.parseworks.impl.inputs.ReaderInput;
-import io.github.parseworks.impl.inputs.StringInput;
 
 import java.io.Reader;
 
@@ -20,7 +20,7 @@ public interface Input<I> {
      * @return the input stream
      */
     static Input<Character> of(char[] data) {
-        return new StringInput(data);
+        return new CharArrayInput(data);
     }
 
     /**
@@ -30,7 +30,7 @@ public interface Input<I> {
      * @return the input stream
      */
     static Input<Character> of(String s) {
-        return new StringInput(s.toCharArray());
+        return new CharSequenceInput(s);
     }
 
     /**
@@ -66,9 +66,12 @@ public interface Input<I> {
      */
     Input<I> next();
 
+    /**
+     * Returns the current position in the input stream.
+     *
+     * @return the current position in the input stream
+     */
     int position();
-
-
 
 }
 

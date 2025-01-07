@@ -1,5 +1,22 @@
 package io.github.parseworks;
 
+/**
+ * The `Functions` class provides a set of functional interfaces for functions with various arities.
+ * These interfaces can be used to define functions that take multiple arguments and return a result.
+ *
+ * <p>Each functional interface in this class represents a function with a specific number of arguments,
+ * ranging from three to eight. These interfaces are useful for functional programming and can be used
+ * in lambda expressions, method references, and other functional contexts.</p>
+ *
+ * <p>Example usage:</p>
+ * <pre>{@code
+ * Functions.Func3<Integer, Integer, Integer, Integer> addThreeNumbers = (a, b, c) -> a + b + c;
+ * int result = addThreeNumbers.apply(1, 2, 3); // result is 6
+ * }</pre>
+ *
+ * @see java.util.function.Function
+ * @see java.util.function.BiFunction
+ */
 public class Functions {
     /**
      * Function of arity 3.

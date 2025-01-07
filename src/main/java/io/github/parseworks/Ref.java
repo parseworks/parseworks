@@ -1,23 +1,29 @@
 package io.github.parseworks;
 
+/**
+ * The `Ref` class is a parser that allows for the creation of recursive parsers.
+ * It acts as a placeholder that can be set to a specific parser later.
+ *
+ * @param <I> the type of the input symbols
+ * @param <A> the type of the parsed value
+ */
 public class Ref<I, A> extends Parser<I, A> {
-    private Parser<I, A> parser;
-
+    /**
+     * Constructs a `Ref` parser that is initially uninitialized.
+     */
     public Ref() {
-        super(() -> false, in -> {
+        super( in -> {
             throw new IllegalStateException("Parser not initialized");
         });
     }
 
-    public boolean isInitialised() {
-        return parser != null;
-    }
-
+    /**
+     * Sets the parser that this `Ref` refers to.
+     *
+     * @param parser the parser to set
+     */
     public void set(Parser<I, A> parser) {
-        this.parser = parser;
+        this.applyHandler = parser.applyHandler;
     }
 
-    public Parser<I, A> get() {
-        return parser;
-    }
 }

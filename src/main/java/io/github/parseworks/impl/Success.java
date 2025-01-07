@@ -1,4 +1,7 @@
-package io.github.parseworks;
+package io.github.parseworks.impl;
+
+import io.github.parseworks.Input;
+import io.github.parseworks.Result;
 
 public class Success<I, A> extends Result<I, A> {
     private final A value;
@@ -30,6 +33,7 @@ public class Success<I, A> extends Result<I, A> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <B> Result<I, B> cast() {
         return (Result<I, B>) this;
     }
@@ -37,5 +41,10 @@ public class Success<I, A> extends Result<I, A> {
     @Override
     public <B> Result<I, B> map(java.util.function.Function<A, B> mapper) {
         return new Success<>(mapper.apply(value), next);
+    }
+
+    @Override
+    public String getError() {
+        return "No error";
     }
 }

@@ -1,6 +1,5 @@
 package io.github.parseworks.impl.inputs;
 
-
 import io.github.parseworks.Input;
 
 /**

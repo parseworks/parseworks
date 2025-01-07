@@ -1,6 +1,5 @@
 package io.github.parseworks.impl.inputs;
 
-
 import io.github.parseworks.Input;
 
 import java.io.IOException;
@@ -11,7 +10,6 @@ import java.io.Reader;
  * This class provides methods to navigate through the characters of the input.
  */
 public record ReaderInput(Reader reader, int position, int current, boolean isEof) implements Input<Character> {
-
 
     /**
      * Constructs a new {@code ReaderInput} starting at the beginning of the given {@code Reader}.

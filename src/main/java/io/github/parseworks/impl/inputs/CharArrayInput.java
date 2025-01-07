@@ -3,16 +3,16 @@ package io.github.parseworks.impl.inputs;
 
 import io.github.parseworks.Input;
 
-public record StringInput(int position, char[] data) implements Input<Character> {
+public record CharArrayInput(int position, char[] data) implements Input<Character> {
 
-    public StringInput(char[] data) {
+    public CharArrayInput(char[] data) {
         this(0, data);
     }
 
     @Override
     public String toString() {
         final String dataStr = isEof() ? "EOF" : String.valueOf(data[position]);
-        return "StringInput{" + position + ",data=\"" + dataStr + "\"";
+        return "CharArrayInput{" + position + ",data=\"" + dataStr + "\"";
     }
 
     @Override
@@ -27,7 +27,7 @@ public record StringInput(int position, char[] data) implements Input<Character>
 
     @Override
     public Input<Character> next() {
-        return new StringInput(position + 1, data);
+        return new CharArrayInput(position + 1, data);
     }
 
 }
