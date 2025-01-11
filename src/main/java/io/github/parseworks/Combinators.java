@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+import static io.github.parseworks.Parser.pure;
 import static io.github.parseworks.Utils.failure;
 
 /**
@@ -75,27 +76,29 @@ public class Combinators {
         });
     }
 
+    public <I,A,B> Parser<I, B> constant(Parser<I, A> parser, B value) {
+        return parser.then(pure(value)).map(a -> b -> b);
+    }
+
     /**
-     * Many combinator: applies the parser zero or more times and collects the results.
+     * ZeroOrMore combinator: applies the parser zero or more times and collects the results.
      *
      * @param parser the parser to apply repeatedly
      * @param <I> the type of the input symbols
      * @param <A> the type of the parsed value
      * @return a parser that applies the given parser zero or more times and collects the results
      */
-    public static <I, A> Parser<I, FList<A>> many(Parser<I, A> parser) {
-        return new Parser<>(in -> {
+    public static <I, A> Parser<I, FList<A>> zeroOrMore(Parser<I, A> parser) {
+        return new Parser<>( in -> {
             FList<A> results = new FList<>();
-            Input<I> currentInput = in;
-            while (true) {
+            for (Input<I> currentInput = in; ; ) {
                 Result<I, A> result = parser.apply(currentInput);
                 if (!result.isSuccess()) {
-                    break;
+                    return Result.success(currentInput, results);
                 }
                 results.add(result.getOrThrow());
                 currentInput = result.next();
             }
-            return Result.success(currentInput, results);
         });
     }
 
@@ -129,8 +132,8 @@ public class Combinators {
      * @param <A> the type of the parsed value
      * @return a parser that applies the given parser one or more times and collects the results
      */
-    public static <I, A> Parser<I, FList<A>> many1(Parser<I, A> parser) {
-        return parser.and(many(parser)).map(a -> l -> { l.add(0, a); return l; });
+    public static <I, A> Parser<I, FList<A>> oneOrMore(Parser<I, A> parser) {
+        return parser.then(zeroOrMore(parser)).map(a -> l -> { l.add(0, a); return l; });
     }
 
     /**
@@ -142,35 +145,35 @@ public class Combinators {
      * @return a parser that tries to apply the given parser and returns an Optional result
      */
     public static <I, A> Parser<I, Optional<A>> optional(Parser<I, A> parser) {
-        return parser.map(Optional::of).or(Parser.pure(Optional.empty()));
+        return parser.map(Optional::of).or(pure(Optional.empty()));
     }
 
     /**
-     * AndL combinator: applies two parsers in sequence and returns the result of the first parser.
+     * ThenSkip combinator: applies two parsers in sequence and returns the result of the left parser and skips the right.
      *
-     * @param left the first parser to apply
-     * @param right the second parser to apply
+     * @param left the left parser to apply
+     * @param right the right parser to apply
      * @param <I> the type of the input symbols
-     * @param <A> the type of the first parsed value
-     * @param <B> the type of the second parsed value
-     * @return a parser that applies two parsers in sequence and returns the result of the first parser
+     * @param <A> the type of the left parsed value
+     * @param <B> the type of the right parsed value
+     * @return a parser that applies two parsers in sequence and returns the result of the left parser
      */
-    public static <I, A, B> Parser<I, A> andL(Parser<I, A> left, Parser<I, B> right) {
-        return left.and(right).map(a -> b -> a);
+    public static <I, A, B> Parser<I, A> thenSkip(Parser<I, A> left, Parser<I, B> right) {
+        return left.thenSkip(right);
     }
 
     /**
-     * AndR combinator: applies two parsers in sequence and returns the result of the second parser.
+     * AndR combinator: applies two parsers in sequence and returns the result of the right parser.
      *
-     * @param left the first parser to apply
-     * @param right the second parser to apply
+     * @param left the left parser to apply
+     * @param right the right parser to apply
      * @param <I> the type of the input symbols
-     * @param <A> the type of the first parsed value
-     * @param <B> the type of the second parsed value
-     * @return a parser that applies two parsers in sequence and returns the result of the second parser
+     * @param <A> the type of the left parsed value
+     * @param <B> the type of the right parsed value
+     * @return a parser that applies two parsers in sequence and returns the result of the right parser
      */
-    public static <I, A, B> Parser<I, B> andR(Parser<I, A> left, Parser<I, B> right) {
-        return left.and(right).map(a -> b -> b);
+    public static <I, A, B> Parser<I, B> skipThen(Parser<I, A> left, Parser<I, B> right) {
+        return left.skipThen(right);
     }
 
     /**

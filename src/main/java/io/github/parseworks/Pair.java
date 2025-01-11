@@ -3,8 +3,8 @@ package io.github.parseworks;
 /**
  * The `Pair` class represents a tuple of two elements.
  *
- * @param <F> the type of the first element
- * @param <S> the type of the second element
+ * @param <L> the type of the left element
+ * @param <R> the type of the right element
  */
-public record Pair<F, S> (F first, S second) {
+public record Pair<L, R> (L left, R right) {
 }

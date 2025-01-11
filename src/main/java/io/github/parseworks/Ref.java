@@ -22,8 +22,9 @@ public class Ref<I, A> extends Parser<I, A> {
      *
      * @param parser the parser to set
      */
-    public void set(Parser<I, A> parser) {
+    public Parser<I,A> set(Parser<I, A> parser) {
         this.applyHandler = parser.applyHandler;
+        return this;
     }
 
 }

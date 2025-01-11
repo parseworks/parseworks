@@ -5,11 +5,12 @@ import java.util.List;
 import java.util.function.BinaryOperator;
 
 import static io.github.parseworks.Text.chr;
+import static io.github.parseworks.Text.digit;
 
 public class CalculatorParser {
 
     public static Parser<Character, Integer> number() {
-        return Text.digit().map(Character::getNumericValue);
+        return digit.map(Character::getNumericValue);
     }
 
     public static Parser<Character, BinaryOperator<Integer>> operator() {
@@ -22,11 +23,11 @@ public class CalculatorParser {
     }
 
     public static Ref<Character, Integer> term = Parser.ref();
-    public static Parser<Character, Integer> expression = term.chainl1(operator());
+    public static Parser<Character, Integer> expression = term.opChainLeft(operator());
 
     public static Parser<Character, Integer> term2 = Combinators.choice(List.of(
             number(),
-            chr('(').andR(expression).andL(chr(')'))));
+            chr('(').skipThen(expression).thenSkip(chr(')'))));
 
     @Test
     public void calculator() {

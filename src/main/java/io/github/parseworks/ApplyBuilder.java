@@ -7,7 +7,7 @@ import java.util.function.Function;
  * {@code ApplyBuilder} combines parsers via successive calls to {@code and} and {@code andL}.
  * <p>
  * {@code ApplyBuilder} provides a fluent interface for combining parsers.
- * The first two parsers are combined by a calling {@link Parser#map Parser.and},
+ * The left two parsers are combined by a calling {@link Parser#map Parser.and},
  * which returns an {@code ApplyBuilder} instance.
  * Each successive parser is incorporated by passing it to a call to {@code and} or {@code andL}.
  * The chain of calls is concluded by calling {@code map} with a handler for the parse results.
@@ -52,14 +52,14 @@ public class ApplyBuilder<I, A, B> {
 
 
     public <C> ApplyBuilder<I, A, B> andL(Parser<I, C> pc) {
-        return new ApplyBuilder<>(pa, pb.andL(pc));
+        return new ApplyBuilder<>(pa, pb.thenSkip(pc));
     }
 
     public <C> ApplyBuilder<I, A, B> skipRight(Parser<I, C> pc) {
-        return new ApplyBuilder<>(pa, pb.andL(pc));
+        return new ApplyBuilder<>(pa, pb.thenSkip(pc));
     }
 
-    public <C> ApplyBuilder3<C> and(Parser<I, C> pc) {
+    public <C> ApplyBuilder3<C> then(Parser<I, C> pc) {
         return new ApplyBuilder3<>(pc);
     }
 
@@ -79,10 +79,10 @@ public class ApplyBuilder<I, A, B> {
         }
 
         public <D> ApplyBuilder3<C> andL(Parser<I, D> pd) {
-            return new ApplyBuilder3<>(pc.andL(pd));
+            return new ApplyBuilder3<>(pc.thenSkip(pd));
         }
 
-        public <D> ApplyBuilder4<D> and(Parser<I, D> pd) {
+        public <D> ApplyBuilder4<D> then(Parser<I, D> pd) {
             return new ApplyBuilder4<>(pd);
         }
 
@@ -102,10 +102,10 @@ public class ApplyBuilder<I, A, B> {
             }
 
             public <E> ApplyBuilder4<D> andL(Parser<I, E> pe) {
-                return new ApplyBuilder4<>(pd.andL(pe));
+                return new ApplyBuilder4<>(pd.thenSkip(pe));
             }
 
-            public <E> ApplyBuilder5<E> and(Parser<I, E> pe) {
+            public <E> ApplyBuilder5<E> then(Parser<I, E> pe) {
                 return new ApplyBuilder5<>(pe);
             }
 
@@ -125,10 +125,10 @@ public class ApplyBuilder<I, A, B> {
                 }
 
                 public <G> ApplyBuilder5<E> andL(Parser<I, G> pg) {
-                    return new ApplyBuilder5<>(pe.andL(pg));
+                    return new ApplyBuilder5<>(pe.thenSkip(pg));
                 }
 
-                public <G> ApplyBuilder6<G> and(Parser<I, G> pg) {
+                public <G> ApplyBuilder6<G> then(Parser<I, G> pg) {
                     return new ApplyBuilder6<>(pg);
                 }
 
@@ -148,10 +148,10 @@ public class ApplyBuilder<I, A, B> {
                     }
 
                     public <H> ApplyBuilder6<G> andL(Parser<I, H> ph) {
-                        return new ApplyBuilder6<>(pg.andL(ph));
+                        return new ApplyBuilder6<>(pg.thenSkip(ph));
                     }
 
-                    public <H> ApplyBuilder7<H> and(Parser<I, H> ph) {
+                    public <H> ApplyBuilder7<H> then(Parser<I, H> ph) {
                         return new ApplyBuilder7<>(ph);
                     }
 
@@ -171,10 +171,10 @@ public class ApplyBuilder<I, A, B> {
                         }
 
                         public <J> ApplyBuilder7<H> andL(Parser<I, J> pj) {
-                            return new ApplyBuilder7<>(ph.andL(pj));
+                            return new ApplyBuilder7<>(ph.thenSkip(pj));
                         }
 
-                        public <J> ApplyBuilder8<J> and(Parser<I, J> pj) {
+                        public <J> ApplyBuilder8<J> then(Parser<I, J> pj) {
                             return new ApplyBuilder8<>(pj);
                         }
 
@@ -194,7 +194,7 @@ public class ApplyBuilder<I, A, B> {
                             }
 
                             public <K> ApplyBuilder8<J> andL(Parser<I, K> pk) {
-                                return new ApplyBuilder8<>(pj.andL(pk));
+                                return new ApplyBuilder8<>(pj.thenSkip(pk));
                             }
                         }
                     }

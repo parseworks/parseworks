@@ -11,6 +11,6 @@ public class Utils {
 
 
     static <A> A reduce(A a, List<Pair<BinaryOperator<A>, A>> lopA) {
-        return lopA.stream().reduce(a, (acc, pair) -> pair.first().apply(acc, pair.second()), (a1, a2) -> a1);
+        return lopA.stream().reduce(a, (acc, pair) -> pair.left().apply(acc, pair.right()), (a1, a2) -> a1);
     }
 }

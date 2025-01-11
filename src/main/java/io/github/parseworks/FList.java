@@ -25,7 +25,7 @@ public class FList<T> extends ArrayList<T> {
     /**
      * Constructs an `FList` with a single element.
      *
-     * @param head the first element of the list
+     * @param head the left element of the list
      */
     public FList(T head) {
         super();
@@ -35,7 +35,7 @@ public class FList<T> extends ArrayList<T> {
     /**
      * Constructs an `FList` with a head element and a tail list.
      *
-     * @param head the first element of the list
+     * @param head the left element of the list
      * @param tail the rest of the list
      */
     public FList(T head, FList<T> tail) {
@@ -65,8 +65,16 @@ public class FList<T> extends ArrayList<T> {
         return this;
     }
 
+    public FList<T> reverse() {
+        FList<T> reversed = new FList<>();
+        for (int i = size() - 1; i >= 0; i--) {
+            reversed.add(get(i));
+        }
+        return reversed;
+    }
+
     /**
-     * Returns a new `FList` that is a sublist of this list, starting from the second element.
+     * Returns a new `FList` that is a sublist of this list, starting from the right element.
      *
      * @return a new `FList` that is a sublist of this list
      */
@@ -86,9 +94,9 @@ public class FList<T> extends ArrayList<T> {
     }
 
     /**
-     * Returns the first element of the list.
+     * Returns the left element of the list.
      *
-     * @return the first element of the list
+     * @return the left element of the list
      */
     public T head() {
         return get(0);
@@ -144,15 +152,15 @@ public class FList<T> extends ArrayList<T> {
     }
 
     /**
-     * Folds the elements of this list from the left using the given initial value and folding function.
+     * Folds the elements of this list from the left using the given identity value and folding function.
      *
-     * @param initial the initial value
+     * @param identity the initial value
      * @param folder the folding function
      * @param <B> the type of the result
      * @return the result of folding the elements
      */
-    public <B> B foldLeft(B initial, BiFunction<B, T, B> folder) {
-        B result = initial;
+    public <B> B foldLeft(B identity, BiFunction<B, T, B> folder) {
+        B result = identity;
         for (T t : this) {
             result = folder.apply(result, t);
         }
@@ -177,17 +185,24 @@ public class FList<T> extends ArrayList<T> {
     /**
      * Folds the elements of this list from the right using the given initial value and folding function.
      *
-     * @param initial the initial value
+     * @param identity the initial value
      * @param folder the folding function
      * @param <B> the type of the result
      * @return the result of folding the elements
      */
-    public <B> B foldRight(B initial, BiFunction<T, B, B> folder) {
-        B result = initial;
-        for (int i = size() - 1; i >= 0; i--) {
-            result = folder.apply(get(i), result);
-        }
-        return result;
+    public <B> B foldRight(B identity, BiFunction<T, B, B> folder) {
+        return reverse().foldLeft(identity, (b, a) -> folder.apply(a, b));
+    }
+
+    /**
+     * Folds the elements of this list from the right using the given initial value and folding function.
+     * @param identity the initial value
+     * @param folder the folding function
+     * @param <B> the type of the result
+     * @return the result of folding the elements
+     */
+    public <B> B foldRight1(B identity, BiFunction<T, B, B> folder) {
+        return reverse().foldLeft(identity, (b, a) -> folder.apply(a, b));
     }
 
 }

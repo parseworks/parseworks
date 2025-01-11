@@ -21,8 +21,8 @@ public class Functions {
     /**
      * Function of arity 3.
      *
-     * @param <A> the function's first argument type
-     * @param <B> the function's second argument type
+     * @param <A> the function's left argument type
+     * @param <B> the function's right argument type
      * @param <C> the function's third argument type
      * @param <R> the function's return type
      */
@@ -31,8 +31,8 @@ public class Functions {
         /**
          * Apply this function.
          *
-         * @param a the function's first argument
-         * @param b the function's second argument
+         * @param a the function's left argument
+         * @param b the function's right argument
          * @param c the function's third argument
          * @return the result of applying this function
          */
@@ -42,8 +42,8 @@ public class Functions {
     /**
      * Function of arity 4.
      *
-     * @param <A> the function's first argument type
-     * @param <B> the function's second argument type
+     * @param <A> the function's left argument type
+     * @param <B> the function's right argument type
      * @param <C> the function's third argument type
      * @param <D> the function's fourth argument type
      * @param <R> the function's return type
@@ -54,8 +54,8 @@ public class Functions {
         /**
          * Apply this function.
          *
-         * @param a the function's first argument
-         * @param b the function's second argument
+         * @param a the function's left argument
+         * @param b the function's right argument
          * @param c the function's third argument
          * @param d the function's fourth argument
          * @return the result of applying this function
@@ -67,8 +67,8 @@ public class Functions {
     /**
      * Function of arity 5.
      *
-     * @param <A> the function's first argument type
-     * @param <B> the function's second argument type
+     * @param <A> the function's left argument type
+     * @param <B> the function's right argument type
      * @param <C> the function's third argument type
      * @param <D> the function's fourth argument type
      * @param <E> the function's fifth argument type
@@ -80,8 +80,8 @@ public class Functions {
         /**
          * Apply this function.
          *
-         * @param a the function's first argument
-         * @param b the function's second argument
+         * @param a the function's left argument
+         * @param b the function's right argument
          * @param c the function's third argument
          * @param d the function's fourth argument
          * @param e the function's fifth argument
@@ -94,8 +94,8 @@ public class Functions {
     /**
      * Function of arity 6.
      *
-     * @param <A> the function's first argument type
-     * @param <B> the function's second argument type
+     * @param <A> the function's left argument type
+     * @param <B> the function's right argument type
      * @param <C> the function's third argument type
      * @param <D> the function's fourth argument type
      * @param <E> the function's fifth argument type
@@ -107,8 +107,8 @@ public class Functions {
         /**
          * Apply this function.
          *
-         * @param a the function's first argument
-         * @param b the function's second argument
+         * @param a the function's left argument
+         * @param b the function's right argument
          * @param c the function's third argument
          * @param d the function's fourth argument
          * @param e the function's fifth argument
@@ -121,8 +121,8 @@ public class Functions {
     /**
      * Function of arity 7.
      *
-     * @param <A> the function's first argument type
-     * @param <B> the function's second argument type
+     * @param <A> the function's left argument type
+     * @param <B> the function's right argument type
      * @param <C> the function's third argument type
      * @param <D> the function's fourth argument type
      * @param <E> the function's fifth argument type
@@ -136,8 +136,8 @@ public class Functions {
         /**
          * Apply this function.
          *
-         * @param a the function's first argument
-         * @param b the function's second argument
+         * @param a the function's left argument
+         * @param b the function's right argument
          * @param c the function's third argument
          * @param d the function's fourth argument
          * @param e the function's fifth argument
@@ -152,8 +152,8 @@ public class Functions {
     /**
      * Function of arity 8.
      *
-     * @param <A> the function's first argument type
-     * @param <B> the function's second argument type
+     * @param <A> the function's left argument type
+     * @param <B> the function's right argument type
      * @param <C> the function's third argument type
      * @param <D> the function's fourth argument type
      * @param <E> the function's fifth argument type
@@ -168,8 +168,8 @@ public class Functions {
         /**
          * Apply this function.
          *
-         * @param a the function's first argument
-         * @param b the function's second argument
+         * @param a the function's left argument
+         * @param b the function's right argument
          * @param c the function's third argument
          * @param d the function's fourth argument
          * @param e the function's fifth argument
