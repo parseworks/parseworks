@@ -56,7 +56,7 @@ public interface Input<I> {
      *
      * @return the next symbol
      */
-    I get();
+    I current();
 
     /**
      * Get the next position in the input stream.

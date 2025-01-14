@@ -9,7 +9,7 @@ import java.io.Reader;
  * An implementation of the {@link Input} interface that uses a {@link Reader} as the input source.
  * This class provides methods to navigate through the characters of the input.
  */
-public record ReaderInput(Reader reader, int position, int current, boolean isEof) implements Input<Character> {
+public record ReaderInput(Reader reader, int position, int chr, boolean isEof) implements Input<Character> {
 
     /**
      * Constructs a new {@code ReaderInput} starting at the beginning of the given {@code Reader}.
@@ -47,11 +47,11 @@ public record ReaderInput(Reader reader, int position, int current, boolean isEo
      * @throws IllegalStateException if the current position is beyond the end of the input
      */
     @Override
-    public Character get() {
+    public Character current() {
         if (isEof) {
             throw new IllegalStateException("End of input");
         }
-        return (char) current;
+        return (char) chr;
     }
 
     /**
@@ -71,6 +71,6 @@ public record ReaderInput(Reader reader, int position, int current, boolean isEo
 
     @Override
     public String toString() {
-        return "ReaderInput{position=" + position + ", current=" + (char) current + ", isEof=" + isEof + "}";
+        return "ReaderInput{position=" + position + ", current=" + (char) chr + ", isEof=" + isEof + "}";
     }
 }

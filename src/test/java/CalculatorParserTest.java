@@ -7,7 +7,7 @@ import java.util.function.BinaryOperator;
 import static io.github.parseworks.Text.chr;
 import static io.github.parseworks.Text.digit;
 
-public class CalculatorParser {
+public class CalculatorParserTest {
 
     public static Parser<Character, Integer> number() {
         return digit.map(Character::getNumericValue);
@@ -27,7 +27,7 @@ public class CalculatorParser {
 
     public static Parser<Character, Integer> term2 = Combinators.choice(List.of(
             number(),
-            chr('(').skipThen(expression).thenSkip(chr(')'))));
+            chr('(').skipLeftThen(expression).thenSkipRight(chr(')'))));
 
     @Test
     public void calculator() {

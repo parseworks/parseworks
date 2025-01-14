@@ -34,7 +34,7 @@ public record CharSequenceInput(int position, CharSequence data) implements Inpu
      * @throws IndexOutOfBoundsException if the current position is beyond the end of the input
      */
     @Override
-    public Character get() {
+    public Character current() {
         return data.charAt(position);
     }
 

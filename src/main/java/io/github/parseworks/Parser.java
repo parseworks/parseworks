@@ -14,8 +14,8 @@ import java.util.function.UnaryOperator;
  */
 public class Parser<I, A> {
 
-    Function<Input<I>, Result<I, A>> applyHandler;
-    int position = -1;
+    protected Function<Input<I>, Result<I, A>> applyHandler;
+    int index = -1;
 
     public Parser() {
         this.applyHandler = in -> Result.failure(in, "Parser not initialized");
@@ -25,10 +25,27 @@ public class Parser<I, A> {
         this.applyHandler = applyHandler;
     }
 
+    /**
+     * Creates a new reference to a parser.
+     *
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     * @return a new reference to a parser
+     */
     public static <I, A> Ref<I, A> ref() {
         return new Ref<>();
     }
 
+    /**
+     * Applies a function provided by one parser to the result of another parser.
+     *
+     * @param functionProvider the parser that provides the function
+     * @param valueParser the parser that provides the value
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     * @param <B> the type of the result of the function
+     * @return a parser that applies the function to the value
+     */
     public static <I, A, B> Parser<I, B> ap(Parser<I, Function<A, B>> functionProvider, Parser<I, A> valueParser) {
         return new Parser<>(in -> {
             Result<I, Function<A, B>> functionResult = functionProvider.apply(in);
@@ -45,37 +62,78 @@ public class Parser<I, A> {
         });
     }
 
+    /**
+     * Applies a function to the result of a parser.
+     *
+     * @param f the function to apply
+     * @param pa the parser that provides the value
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     * @param <B> the type of the result of the function
+     * @return a parser that applies the function to the value
+     */
     public static <I, A, B> Parser<I, B> ap(Function<A, B> f, Parser<I, A> pa) {
         return ap(pure(f), pa);
     }
 
+    /**
+     * Applies a function provided by a parser to a constant value.
+     *
+     * @param pf the parser that provides the function
+     * @param a the constant value
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     * @param <B> the type of the result of the function
+     * @return a parser that applies the function to the value
+     */
     public static <I, A, B> Parser<I, B> ap(Parser<I, Function<A, B>> pf, A a) {
         return ap(pf, pure(a));
     }
 
+    /**
+     * Creates a parser that always succeeds with the given value.
+     *
+     * @param value the value to return
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     * @return a parser that always succeeds with the given value
+     */
     public static <I, A> Parser<I, A> pure(A value) {
-        return new Parser<>( in -> Result.success(in, value));
+        return new Parser<>(in -> Result.success(in, value));
     }
 
+    /**
+     * Parses the input and ensures that the entire input is consumed.
+     *
+     * @param in the input to parse
+     * @return the result of parsing the input
+     */
     public Result<I, A> parse(Input<I> in) {
-        return this.thenSkip(Combinators.eof()).apply(in);
+        return this.thenSkipRight(Combinators.eof()).apply(in);
     }
 
+    /**
+     * Applies this parser to the given input.
+     * If the parser detects an infinite loop, it returns a failure result.
+     *
+     * @param in the input to parse
+     * @return the result of parsing the input
+     */
     public Result<I, A> apply(Input<I> in) {
-        if (this.position == in.position()) {
+        if (this.index == in.position()) {
             return Result.failure(in, "Infinite loop detected");
         }
-        this.position = in.position();
+        this.index = in.position();
         Result<I, A> result = applyHandler.apply(in);
-        this.position = -1;
+        this.index = -1;
         return result;
     }
 
-    public <B> Parser<I, A> thenSkip(Parser<I, B> pb) {
+    public <B> Parser<I, A> thenSkipRight(Parser<I, B> pb) {
         return this.then(pb).map((a, b) -> a);
     }
 
-    public <B> Parser<I, B> skipThen(Parser<I, B> pb) {
+    public <B> Parser<I, B> skipLeftThen(Parser<I, B> pb) {
         return new Parser<>(in -> {
             Result<I, A> left = this.apply(in);
             if (!left.isSuccess()) {
@@ -97,7 +155,20 @@ public class Parser<I, A> {
      * @return a parser for expressions with enclosing symbols
      */
     public <OPEN, CLOSE> Parser<I, A> between(Parser<I, OPEN> open, Parser<I, CLOSE> close) {
-        return open.skipThen(this).thenSkip(close);
+        return open.skipLeftThen(this).thenSkipRight(close);
+    }
+
+    /**
+     * A parser for expressions with enclosing bracket symbols .
+     * Applies the open parser, then this parser, and then the close parser.
+     * If all three succeed, the result of this parser is returned.
+     *
+     * @param bracket   the close symbol parser
+     * @param <B> the close parser result type
+     * @return a parser for expressions with enclosing symbols
+     */
+    public <B> Parser<I, A> between(Parser<I, B> bracket ) {
+        return between(bracket, bracket);
     }
 
     public static <I, A> Parser<I, A> fail() {
@@ -142,15 +213,63 @@ public class Parser<I, A> {
         return this.then(plo.zeroOrMore()).map((a, lf) -> lf.isEmpty() ? a : lf.foldLeft(a, (acc, f) -> f.apply(acc)));
     }
 
+    /**
+     * Chains this parser with another parser, applying them in sequence.
+     * The result of the first parser is passed to the second parser.
+     *
+     * @param next the next parser to apply in sequence
+     * @param <B> the type of the result of the next parser
+     * @return an ApplyBuilder that allows further chaining of parsers
+     */
     public <B> ApplyBuilder<I, A, B> then(Parser<I, B> next) {
         return ApplyBuilder.of(this, next);
     }
 
+    /**
+     * Trims leading and trailing whitespace from the input, before and after applying this parser.
+     *
+     * @return a parser that trims leading and trailing whitespace
+     */
+    public Parser<I, A> trim() {
+        return new Parser<>(in -> {
+            Input<I> trimmedInput = skipWhitespace(in);
+            Result<I, A> result = this.apply(trimmedInput);
+            if (result.isSuccess()) {
+                trimmedInput = skipWhitespace(result.next());
+                return Result.success(trimmedInput, result.getOrThrow());
+            }
+            return result;
+        });
+    }
+
+    private Input<I> skipWhitespace(Input<I> in) {
+        while (!in.isEof() && in.current() instanceof Character ch && Character.isWhitespace(ch)) {
+            in = in.next();
+        }
+        return in;
+    }
+
+    /**
+     * Transforms the result of this parser using the given function.
+     *
+     * @param func the function to apply to the parsed result
+     * @param <R> the type of the transformed result
+     * @return a parser that applies the given function to the parsed result
+     */
     public <R> Parser<I, R> map(Function<A, R> func) {
         return new Parser<>( in -> apply(in).map(func));
     }
 
-
+    /**
+     * Transforms the result of this parser to a constant value.
+     *
+     * @param value the constant value to return
+     * @param <R> the type of the constant value
+     * @return a parser that returns the constant value regardless of the input
+     */
+    public <R> Parser<I, R> as(R value) {
+        return this.skipLeftThen(pure(value));
+    }
 
     /**
      * Wraps the 'this' parser to only call it if the provided parser returns a fail
@@ -389,7 +508,7 @@ public class Parser<I, A> {
      * @return a parser that applies this parser one or more times alternated with the separator parser
      */
     public <SEP> Parser<I, FList<A>> sepBy1(Parser<I, SEP> sep) {
-        return this.then(sep.skipThen(this).zeroOrMore()).map(a -> l -> {l.add(a); return l;});
+        return this.then(sep.skipLeftThen(this).zeroOrMore()).map(a -> l -> {l.add(a); return l;});
     }
 
     public Parser<I, A> opChainLeft(Parser<I, BinaryOperator<A>> op, A i) {

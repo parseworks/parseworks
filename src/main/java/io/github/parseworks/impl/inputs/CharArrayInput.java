@@ -21,7 +21,7 @@ public record CharArrayInput(int position, char[] data) implements Input<Charact
     }
 
     @Override
-    public Character get() {
+    public Character current() {
         return data[position];
     }
 

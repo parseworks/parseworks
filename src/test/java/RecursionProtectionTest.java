@@ -8,7 +8,7 @@ import static io.github.parseworks.Text.chr;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * CalculatorParser
+ * CalculatorParserTest
  * deliberately constructs a parser with recursion. This is to demonstrate the
  * ability for the parser to detect infinite recursion and fail gracefully.
  */
@@ -20,10 +20,10 @@ public class RecursionProtectionTest {
 
     public static Parser<Character, BinaryOperator<Integer>> operator() {
         return Combinators.choice(List.of(
-                chr('+').map(op -> Integer::sum),
-                chr('-').map(op -> (a, b) -> a - b),
-                chr('*').map(op -> (a, b) -> a * b),
-                chr('/').map(op -> (a, b) -> a / b)
+                chr('+').as(Integer::sum),
+                chr('-').as((a, b) -> a - b),
+                chr('*').as((a, b) -> a * b),
+                chr('/').as((a, b) -> a / b)
         ));
     }
 
@@ -33,7 +33,7 @@ public class RecursionProtectionTest {
     public static Parser<Character, Integer> term2 = Combinators.choice(List.of(
             term,
             number(),
-            chr('(').skipThen(expression).thenSkip(chr(')'))));
+            expression.between(chr('('),chr(')'))));
 
     @Test
     public void calculator() {

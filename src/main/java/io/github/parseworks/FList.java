@@ -23,16 +23,6 @@ public class FList<T> extends ArrayList<T> {
     }
 
     /**
-     * Constructs an `FList` with a single element.
-     *
-     * @param head the left element of the list
-     */
-    public FList(T head) {
-        super();
-        add(head);
-    }
-
-    /**
      * Constructs an `FList` with a head element and a tail list.
      *
      * @param head the left element of the list

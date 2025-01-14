@@ -18,6 +18,11 @@ public class Success<I, A> extends Result<I, A> {
     }
 
     @Override
+    public boolean isError() {
+        return false;
+    }
+
+    @Override
     public A getOrThrow() {
         return value;
     }
@@ -25,11 +30,6 @@ public class Success<I, A> extends Result<I, A> {
     @Override
     public Input<I> next() {
         return next;
-    }
-
-    @Override
-    public int getPosition() {
-        return next.position();
     }
 
     @Override

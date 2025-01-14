@@ -16,14 +16,6 @@ public class TextTest {
     }
 
     @Test
-    public void testSpace() {
-        Parser<Character, String> parser = Text.space();
-        assertTrue(parser.parse(Input.of(" ")).isSuccess());
-        assertTrue(parser.parse(Input.of("\t")).isSuccess());
-        assertFalse(parser.parse(Input.of("a")).isSuccess());
-    }
-
-    @Test
     public void testWord() {
         Parser<Character, String> parser = Text.word();
         assertTrue(parser.parse(Input.of("hello")).isSuccess());

@@ -21,6 +21,13 @@ public abstract class Result<I, A> {
     public abstract boolean isSuccess();
 
     /**
+     * Returns true if this result is an error.
+     *
+     * @return true if this result is an error
+     */
+    public abstract boolean isError();
+
+    /**
      * Returns the parsed value if this result is a success.
      * Throws an exception if this result is a failure.
      *
@@ -35,13 +42,6 @@ public abstract class Result<I, A> {
      * @return the remaining input
      */
     public abstract Input<I> next();
-
-    /**
-     * Returns the position in the input where this result was produced.
-     *
-     * @return the position in the input
-     */
-    public abstract int getPosition();
 
     /**
      * Creates a successful result with the given value and remaining input.
