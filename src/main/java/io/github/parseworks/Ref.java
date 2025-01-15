@@ -12,9 +12,21 @@ public class Ref<I, A> extends Parser<I, A> {
      * Constructs a `Ref` parser that is initially uninitialized.
      */
     public Ref() {
-        super( in -> {
+        super(in -> {
             throw new IllegalStateException("Parser not initialized");
         });
+    }
+
+    /**
+     * Constructs a `Ref` parser that is initialized with the given parser.
+     *
+     * @param parser the parser to initialize this `Ref` with
+     */
+    public Ref(Parser<I, A> parser) {
+        super(in -> {
+            throw new IllegalStateException("Parser not initialized");
+        });
+        set(parser);
     }
 
     /**
@@ -22,9 +34,8 @@ public class Ref<I, A> extends Parser<I, A> {
      *
      * @param parser the parser to set
      */
-    public Parser<I,A> set(Parser<I, A> parser) {
+    public void set(Parser<I, A> parser) {
         this.applyHandler = parser.applyHandler;
-        return this;
     }
 
 }

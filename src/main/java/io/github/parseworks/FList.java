@@ -75,7 +75,7 @@ public class FList<T> extends ArrayList<T> {
     /**
      * Returns a new `FList` that is a sublist of this list, from the specified index to the end index.
      *
-     * @param index the start index, inclusive
+     * @param index    the start index, inclusive
      * @param endIndex the end index, exclusive
      * @return a new `FList` that is a sublist of this list
      */
@@ -145,8 +145,8 @@ public class FList<T> extends ArrayList<T> {
      * Folds the elements of this list from the left using the given identity value and folding function.
      *
      * @param identity the initial value
-     * @param folder the folding function
-     * @param <B> the type of the result
+     * @param folder   the folding function
+     * @param <B>      the type of the result
      * @return the result of folding the elements
      */
     public <B> B foldLeft(B identity, BiFunction<B, T, B> folder) {
@@ -161,7 +161,7 @@ public class FList<T> extends ArrayList<T> {
      * Folds the elements of this list from the left using the given initial value and folding function.
      *
      * @param initial the initial value
-     * @param folder the folding function
+     * @param folder  the folding function
      * @return the result of folding the elements
      */
     public T foldLeft(T initial, BinaryOperator<T> folder) {
@@ -176,8 +176,8 @@ public class FList<T> extends ArrayList<T> {
      * Folds the elements of this list from the right using the given initial value and folding function.
      *
      * @param identity the initial value
-     * @param folder the folding function
-     * @param <B> the type of the result
+     * @param folder   the folding function
+     * @param <B>      the type of the result
      * @return the result of folding the elements
      */
     public <B> B foldRight(B identity, BiFunction<T, B, B> folder) {
@@ -186,9 +186,10 @@ public class FList<T> extends ArrayList<T> {
 
     /**
      * Folds the elements of this list from the right using the given initial value and folding function.
+     *
      * @param identity the initial value
-     * @param folder the folding function
-     * @param <B> the type of the result
+     * @param folder   the folding function
+     * @param <B>      the type of the result
      * @return the result of folding the elements
      */
     public <B> B foldRight1(B identity, BiFunction<T, B, B> folder) {

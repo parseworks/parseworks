@@ -14,26 +14,26 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 public class RecursionProtectionTest {
 
+    public static Ref<Character, Integer> term = Parser.ref();
+    public static Parser<Character, Integer> expression = term.oneOrMoreChainLeft(operator());
+    public static Parser<Character, Integer> term2 = Combinators.oneOf(List.of(
+            term,
+            number(),
+            expression.between('(', ')')
+    ));
+
     public static Parser<Character, Integer> number() {
         return Text.digit.map(Character::getNumericValue);
     }
 
     public static Parser<Character, BinaryOperator<Integer>> operator() {
-        return Combinators.choice(List.of(
+        return Combinators.oneOf(List.of(
                 chr('+').as(Integer::sum),
                 chr('-').as((a, b) -> a - b),
                 chr('*').as((a, b) -> a * b),
                 chr('/').as((a, b) -> a / b)
         ));
     }
-
-    public static Ref<Character, Integer> term = Parser.ref();
-    public static Parser<Character, Integer> expression = term.opChainLeft(operator());
-
-    public static Parser<Character, Integer> term2 = Combinators.choice(List.of(
-            term,
-            number(),
-            expression.between(chr('('),chr(')'))));
 
     @Test
     public void calculator() {

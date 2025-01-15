@@ -47,16 +47,26 @@ public class ApplyBuilder<I, A, B> {
      * @return a new parser with the mapped result
      */
     public <R> Parser<I, R> map(BiFunction<A, B, R> f) {
-        return map(a -> b -> f.apply(a, b));
+        return new Parser<>(in -> {
+            Result<I, A> ra = pa.apply(in);
+            if (ra.isError()) {
+                return ra.cast();
+            }
+            Result<I, B> rb = pb.apply(ra.next());
+            if (rb.isError()) {
+                return rb.cast();
+            }
+            return Result.success(rb.next(), f.apply(ra.getOrThrow(), rb.getOrThrow()));
+        });
     }
 
 
     public <C> ApplyBuilder<I, A, B> andL(Parser<I, C> pc) {
-        return new ApplyBuilder<>(pa, pb.thenSkipRight(pc));
+        return new ApplyBuilder<>(pa, pb.thenSkip(pc));
     }
 
     public <C> ApplyBuilder<I, A, B> skipRight(Parser<I, C> pc) {
-        return new ApplyBuilder<>(pa, pb.thenSkipRight(pc));
+        return new ApplyBuilder<>(pa, pb.thenSkip(pc));
     }
 
     public <C> ApplyBuilder3<C> then(Parser<I, C> pc) {
@@ -79,7 +89,7 @@ public class ApplyBuilder<I, A, B> {
         }
 
         public <D> ApplyBuilder3<C> andL(Parser<I, D> pd) {
-            return new ApplyBuilder3<>(pc.thenSkipRight(pd));
+            return new ApplyBuilder3<>(pc.thenSkip(pd));
         }
 
         public <D> ApplyBuilder4<D> then(Parser<I, D> pd) {
@@ -102,7 +112,7 @@ public class ApplyBuilder<I, A, B> {
             }
 
             public <E> ApplyBuilder4<D> andL(Parser<I, E> pe) {
-                return new ApplyBuilder4<>(pd.thenSkipRight(pe));
+                return new ApplyBuilder4<>(pd.thenSkip(pe));
             }
 
             public <E> ApplyBuilder5<E> then(Parser<I, E> pe) {
@@ -125,7 +135,7 @@ public class ApplyBuilder<I, A, B> {
                 }
 
                 public <G> ApplyBuilder5<E> andL(Parser<I, G> pg) {
-                    return new ApplyBuilder5<>(pe.thenSkipRight(pg));
+                    return new ApplyBuilder5<>(pe.thenSkip(pg));
                 }
 
                 public <G> ApplyBuilder6<G> then(Parser<I, G> pg) {
@@ -148,7 +158,7 @@ public class ApplyBuilder<I, A, B> {
                     }
 
                     public <H> ApplyBuilder6<G> andL(Parser<I, H> ph) {
-                        return new ApplyBuilder6<>(pg.thenSkipRight(ph));
+                        return new ApplyBuilder6<>(pg.thenSkip(ph));
                     }
 
                     public <H> ApplyBuilder7<H> then(Parser<I, H> ph) {
@@ -171,7 +181,7 @@ public class ApplyBuilder<I, A, B> {
                         }
 
                         public <J> ApplyBuilder7<H> andL(Parser<I, J> pj) {
-                            return new ApplyBuilder7<>(ph.thenSkipRight(pj));
+                            return new ApplyBuilder7<>(ph.thenSkip(pj));
                         }
 
                         public <J> ApplyBuilder8<J> then(Parser<I, J> pj) {
@@ -194,7 +204,7 @@ public class ApplyBuilder<I, A, B> {
                             }
 
                             public <K> ApplyBuilder8<J> andL(Parser<I, K> pk) {
-                                return new ApplyBuilder8<>(pj.thenSkipRight(pk));
+                                return new ApplyBuilder8<>(pj.thenSkip(pk));
                             }
                         }
                     }

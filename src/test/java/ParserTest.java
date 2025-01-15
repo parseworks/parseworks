@@ -37,7 +37,7 @@ public class ParserTest {
     public void testChainr1() {
         Parser<Character, Integer> number = Text.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('+').map(op -> Integer::sum);
-        Parser<Character, Integer> parser = number.chainr1(plus);
+        Parser<Character, Integer> parser = number.oneOrMoreChainRight(plus);
         Input<Character> input = Input.of("1+2+3");
         Result<Character, Integer> result = parser.parse(input);
         assertTrue(result.isSuccess());
@@ -47,8 +47,6 @@ public class ParserTest {
 
     @Test
     public void testBetween() {
-        Parser<Character, Character> open = chr('(');
-        Parser<Character, Character> close = chr(')');
         Parser<Character, String> content = chr(Character::isLetter).oneOrMore().map(chars -> {
             StringBuilder sb = new StringBuilder();
             for (var c : chars) {
@@ -57,7 +55,7 @@ public class ParserTest {
             return sb.toString();
         });
         String test = "compute";
-        Parser<Character, String> parser = content.between(open, close);
+        Parser<Character, String> parser = content.between('(', ')');
         Input<Character> input = Input.of("(" + test + ")");
         Result<Character, String> result = parser.parse(input);
         assertTrue(result.isSuccess());
@@ -74,13 +72,13 @@ public class ParserTest {
     }
 
     @Test
-public void testNumber() {
-    Parser<Character, Integer> parser = Text.number;
-    Input<Character> input = Input.of("12345");
-    Result<Character, Integer> result = parser.parse(input);
-    assertTrue(result.isSuccess());
-    assertEquals(12345, result.getOrThrow());
-}
+    public void testNumber() {
+        Parser<Character, Integer> parser = Text.number;
+        Input<Character> input = Input.of("12345");
+        Result<Character, Integer> result = parser.parse(input);
+        assertTrue(result.isSuccess());
+        assertEquals(12345, result.getOrThrow());
+    }
 
     @Test
     public void testFailure() {
@@ -103,7 +101,7 @@ public void testNumber() {
     public void testChainl1() {
         Parser<Character, Integer> number = Text.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('+').map(op -> Integer::sum);
-        Parser<Character, Integer> parser = number.opChainLeft(plus);
+        Parser<Character, Integer> parser = number.oneOrMoreChainLeft(plus);
         Input<Character> input = Input.of("1+2+3");
         Result<Character, Integer> result = parser.parse(input);
         assertTrue(result.isSuccess());
@@ -113,8 +111,8 @@ public void testNumber() {
     @Test
     public void testChainl() {
         Parser<Character, Integer> number = Text.number;
-        Parser<Character, BinaryOperator<Integer>> plus = chr('-').map(op ->  (a,b)-> a - b);
-        Parser<Character, Integer> parser = number.opChainLeft(plus, 0);
+        Parser<Character, BinaryOperator<Integer>> plus = chr('-').map(op -> (a, b) -> a - b);
+        Parser<Character, Integer> parser = number.oneOrMoreChainLeft(plus);
         Input<Character> input = Input.of("1-2-3");
         Result<Character, Integer> result = parser.parse(input);
         assertTrue(result.isSuccess());
@@ -124,29 +122,10 @@ public void testNumber() {
     @Test
     public void testChainr() {
         Parser<Character, Integer> number = Text.number;
-        Parser<Character, BinaryOperator<Integer>> plus = chr('-').map(op -> (a,b)-> a - b);
-        Parser<Character, Integer> parser = number.opChainRight(plus, 0);
+        Parser<Character, BinaryOperator<Integer>> plus = chr('-').map(op -> (a, b) -> a - b);
+        Parser<Character, Integer> parser = number.oneOrMoreChainRight(plus);
         Input<Character> input = Input.of("1-2-3");
         Result<Character, Integer> result = parser.parse(input);
-        assertTrue(result.isSuccess());
-        assertEquals(2, result.getOrThrow());
-    }
-
-    @Test
-    public void testZeroOrMoreOp() {
-        Parser<Character, Integer> number = Text.number;
-        Parser<Character, BinaryOperator<Integer>> plus = Text.chr('+').map(op -> Integer::sum);
-        Parser<Character, BinaryOperator<Integer>> minus = Text.chr('-').map(op -> (a, b) -> a - b);
-
-        List<Pair<Parser<Character, BinaryOperator<Integer>>, Parser.Associative>> operators = List.of(
-                new Pair<>(plus, Parser.Associative.LEFT),
-                new Pair<>(minus, Parser.Associative.RIGHT)
-        );
-
-        Parser<Character, Integer> parser = number.zeroOrMoreOp(operators);
-        Input<Character> input = Input.of("1-2-3");
-        Result<Character, Integer> result = parser.parse(input);
-
         assertTrue(result.isSuccess());
         assertEquals(2, result.getOrThrow());
     }
@@ -154,8 +133,8 @@ public void testNumber() {
     @Test
     public void testChainr2() {
         Parser<Character, Integer> number = Text.number;
-        Parser<Character, BinaryOperator<Integer>> plus = chr('-').map(op -> (a,b)-> a - b);
-        Parser<Character, Integer> parser = number.opChainRight(plus, 0);
+        Parser<Character, BinaryOperator<Integer>> plus = chr('-').as((a, b) -> a - b);
+        Parser<Character, Integer> parser = number.oneOrMoreChainRight(plus);
         Input<Character> input = Input.of("1-2-3");
         Result<Character, Integer> result = parser.parse(input);
         assertTrue(result.isSuccess());
@@ -193,11 +172,38 @@ public void testNumber() {
             return sb.toString();
         });
         String test = "example";
-        Parser<Character, String> parser = content.between(open, close);
+        Parser<Character, String> parser = content.between('[', ']');
         Input<Character> input = Input.of("[" + test + "]");
         Result<Character, String> result = parser.parse(input);
         assertTrue(result.isSuccess());
         assertEquals(test, result.getOrThrow());
+    }
+
+    @Test
+    public void testRepeat() {
+        Parser<Character, FList<Character>> parser = chr('a').repeat(3);
+        Input<Character> input = Input.of("aaa");
+        Result<Character, FList<Character>> result = parser.parse(input);
+        assertTrue(result.isSuccess());
+        assertEquals(3, result.getOrThrow().size());
+    }
+
+    @Test
+    public void testRepeatAtLeast() {
+        Parser<Character, FList<Character>> parser = chr('a').repeatAtLeast(2);
+        Input<Character> input = Input.of("aaa");
+        Result<Character, FList<Character>> result = parser.parse(input);
+        assertTrue(result.isSuccess());
+        assertEquals(3, result.getOrThrow().size());
+    }
+
+    @Test
+    public void testRepeatBetween() {
+        Parser<Character, FList<Character>> parser = chr('a').repeat(2, 4);
+        Input<Character> input = Input.of("aaa");
+        Result<Character, FList<Character>> result = parser.parse(input);
+        assertTrue(result.isSuccess());
+        assertEquals(3, result.getOrThrow().size());
     }
 
 
