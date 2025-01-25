@@ -1,404 +1,566 @@
 package io.github.parseworks;
 
-
 import java.util.Optional;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import static io.github.parseworks.Utils.LTRUE;
-import static io.github.parseworks.Utils.failureEof;
-
-
+/**
+ * The `Parser` class represents a parser that can parse input of type `I` and produce a result of type `A`.
+ *
+ * @param <I> the type of the input symbols
+ * @param <A> the type of the parsed value
+ */
 public class Parser<I, A> {
 
-    Supplier<Boolean> acceptsEmpty;
-    Function<Input<I>, Trampoline<Result<I, A>>> applyHandler;
+    protected Function<Input<I>, Result<I, A>> applyHandler;
+    int index = -1;
 
-    public Parser(Supplier<Boolean> acceptsEmpty, Function<Input<I>, Trampoline<Result<I, A>>> applyHandler) {
-        this.acceptsEmpty = acceptsEmpty;
+    public Parser() {
+        this.applyHandler = in -> Result.failure(in, "Parser not initialized");
+    }
+
+    public Parser(Function<Input<I>, Result<I, A>> applyHandler) {
         this.applyHandler = applyHandler;
     }
 
-    public Parser(Supplier<Boolean> acceptsEmpty) {
-        this(acceptsEmpty, in -> Trampoline.done(Utils.failure(in)));
-    }
-
-    public Parser(Function<Input<I>, Trampoline<Result<I, A>>> applyHandler) {
-        this(() -> false, applyHandler);
-    }
-
-    public Parser() {
-    }
-
-    public Result<I, A> parse(Input<I> in) {
-        final Parser<I, A> parserAndEof = this.andL(Combinators.eof());
-        if (acceptsEOF()) {
-            return parserAndEof.apply(in).get();
-        } else if (in.isEof()) {
-            return failureEof(this, in);
-        }
-        return parserAndEof.apply(in).get();
-    }
-
-    public boolean acceptsEOF() {
-        if (applyHandler == null) {
-            throw new RuntimeException("Uninitialised Parser");
-        }
-        return acceptsEmpty.get();
-    }
-
-    public Trampoline<Result<I, A>> apply(Input<I> in) {
-        if (applyHandler == null) {
-            throw new RuntimeException("Uninitialised Parser");
-        }
-        return applyHandler.apply(in);
-    }
-
-    public <B> Parser<I, Unit> not(Parser<I, B> p) {
-        return new Parser<>(in -> {
-            Result<I, B> result = p.apply(in).get();
-            if (result.isSuccess()) {
-                return Trampoline.done(Result.failure(in, "Unexpected success"));
-            }
-            return Trampoline.done(Result.success(Unit.UNIT, in));
-        });
-    }
-
-    public <B> Parser<I, B> lookahead(Parser<I, B> p) {
-        return new Parser<>(in -> {
-            Result<I, B> result = p.apply(in).get();
-            if (result.isSuccess()) {
-                return Trampoline.done(Result.success(result.getOrThrow(), in));
-            }
-            return Trampoline.done(result);
-        });
-    }
-
-    public <SEP> Parser<I, IList<A>> terminatedBy(Parser<I, SEP> sep) {
-        return this.andL(sep).many();
-    }
-
-    public <SEP> Parser<I, IList<A>> terminatedBy1(Parser<I, SEP> sep) {
-        return this.andL(sep).many1();
-    }
-
+    /**
+     * Creates a new reference to a parser.
+     *
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     * @return a new reference to a parser
+     */
     public static <I, A> Ref<I, A> ref() {
         return new Ref<>();
     }
 
-    public static <I, A> Parser<I, A> pure(A a) {
-        if (a == null) {
-            throw new IllegalArgumentException("The provided value cannot be null");
-        }
-        return new Parser<>(LTRUE, in -> {
-            return Trampoline.done(Result.success(a, in));
+    /**
+     * Creates a new reference to a parser.
+     *
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     * @return a new reference to a parser
+     */
+    public static <I, A> Ref<I, A> ref(Parser<I, A> parser) {
+        return new Ref<>(parser);
+    }
+
+    /**
+     * Applies a function provided by one parser to the result of another parser.
+     *
+     * @param functionProvider the parser that provides the function
+     * @param valueParser      the parser that provides the value
+     * @param <I>              the type of the input symbols
+     * @param <A>              the type of the parsed value
+     * @param <B>              the type of the result of the function
+     * @return a parser that applies the function to the value
+     */
+    public static <I, A, B> Parser<I, B> ap(Parser<I, Function<A, B>> functionProvider, Parser<I, A> valueParser) {
+        return new Parser<>(in -> {
+            Result<I, Function<A, B>> functionResult = functionProvider.apply(in);
+            if (functionResult.isError()) {
+                return functionResult.cast();
+            }
+            Function<A, B> func = functionResult.getOrThrow();
+            Input<I> in2 = functionResult.next();
+            Result<I, A> valueResult = valueParser.apply(in2);
+            if (valueResult.isError()) {
+                return valueResult.cast();
+            }
+            return valueResult.map(func);
         });
     }
 
-    public static <I, A, B> Parser<I, B> ap(Parser<I, Function<A, B>> pf, Parser<I, A> pa) {
-        return new Parser<>(() -> pf.acceptsEOF() && pa.acceptsEOF()) {
-            @Override
-            public Trampoline<Result<I, B>> apply(Input<I> in) {
-                return Trampoline.more(() -> {
-                    Result<I, Function<A, B>> r = pf.apply(in).get();
-                    if (!r.isSuccess()) {
-                        return Trampoline.done(r.cast());
-                    }
-                    Input<I> next = r.next();
-                    if (!pa.acceptsEOF() && next.isEof()) {
-                        return Trampoline.done(Result.failureEof(next, "Unexpected end of input"));
-                    }
-                    Result<I, A> r2 = pa.apply(next).get();
-                    if (!r2.isSuccess()) {
-                        return Trampoline.done(r2.cast());
-                    }
-                    return Trampoline.done(r2.map(r.getOrThrow()));
-                });
-            }
-        };
-    }
-
+    /**
+     * Applies a function to the result of a parser.
+     *
+     * @param f   the function to apply
+     * @param pa  the parser that provides the value
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     * @param <B> the type of the result of the function
+     * @return a parser that applies the function to the value
+     */
     public static <I, A, B> Parser<I, B> ap(Function<A, B> f, Parser<I, A> pa) {
         return ap(pure(f), pa);
     }
 
-    public static <I, T, U> Parser<I, IList<U>> traverse(IList<T> lt, Function<T, Parser<I, U>> f) {
-        return lt.foldRight(pure(IList.empty()),
-                (t, plu) -> ap(plu.map(lu -> lu::add), f.apply(t))
-        );
+    /**
+     * Applies a function provided by a parser to a constant value.
+     *
+     * @param pf  the parser that provides the function
+     * @param a   the constant value
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     * @param <B> the type of the result of the function
+     * @return a parser that applies the function to the value
+     */
+    public static <I, A, B> Parser<I, B> ap(Parser<I, Function<A, B>> pf, A a) {
+        return ap(pf, pure(a));
     }
 
-    public static <I, T> Parser<I, IList<T>> sequence(IList<Parser<I, T>> lpt) {
-        return lpt.foldRight(
-                pure(IList.empty()),
-                (pt, plt) -> ap(plt.map(lt -> lt::add), pt)
-        );
+    /**
+     * Creates a parser that always succeeds with the given value.
+     *
+     * @param value the value to return
+     * @param <I>   the type of the input symbols
+     * @param <A>   the type of the parsed value
+     * @return a parser that always succeeds with the given value
+     */
+    public static <I, A> Parser<I, A> pure(A value) {
+        return new Parser<>(in -> Result.success(in, value));
     }
 
-    @SafeVarargs
-    public static <I, A> Parser<I, IList<A>> sequence(Parser<I, A>... parsers) {
-        return new Parser<>(() -> {
-            for (Parser<I, A> parser : parsers) {
-                if (!parser.acceptsEOF()) {
-                    return false;
-                }
+    /**
+     * Creates a parser that always fails with a generic error message.
+     *
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     * @return a parser that always fails
+     */
+    public static <I, A> Parser<I, A> fail() {
+        return new Parser<>(in -> Result.failure(in, "Parser failed"));
+    }
+
+    /**
+     * OneOrMore combinator: applies the parser one or more times and collects the results.
+     *
+     * @param parser the parser to apply repeatedly
+     * @param <I>    the type of the input symbols
+     * @param <A>    the type of the parsed value
+     * @return a parser that applies the given parser one or more times and collects the results
+     */
+    public static <I, A> Parser<I, FList<A>> oneOrMore(Parser<I, A> parser) {
+        return parser.then(parser.zeroOrMore()).map((a, l) -> l.push(a));
+    }
+
+    /**
+     * Parses the input and ensures that the entire input is consumed.
+     *
+     * @param in the input to parse
+     * @return the result of parsing the input
+     */
+    public Result<I, A> parse(Input<I> in) {
+        return this.thenSkip(Combinators.eof()).apply(in);
+    }
+
+    /**
+     * Parses the input string and ensures that the entire input is consumed.
+     *
+     * @param input the input string to parse
+     * @return the result of parsing the input string
+     */
+    @SuppressWarnings("unchecked")
+    public Result<I, A> parse(String input) {
+        Input<I> in = (Input<I>) Input.of(input);
+        return this.parse(in);
+    }
+
+    /**
+     * Applies this parser to the given input.
+     * If the parser detects an infinite loop, it returns a failure result.
+     *
+     * @param in the input to parse
+     * @return the result of parsing the input
+     */
+    public Result<I, A> apply(Input<I> in) {
+        if (this.index == in.position()) {
+            return Result.failure(in, "Infinite loop detected");
+        }
+        this.index = in.position();
+        Result<I, A> result = applyHandler.apply(in);
+        this.index = -1;
+        return result;
+    }
+
+    /**
+     * Chains this parser with another parser, applying them in sequence.
+     * The result of the first parser is returned, and the result of the second parser is ignored.
+     *
+     * @param pb  the next parser to apply in sequence
+     * @param <B> the type of the result of the next parser
+     * @return a parser that applies this parser and then the next parser, returning the result of this parser
+     */
+    public <B> Parser<I, A> thenSkip(Parser<I, B> pb) {
+        return this.then(pb).map((a, b) -> a);
+    }
+
+    /**
+     * Chains this parser with another parser, applying them in sequence.
+     * The result of the first parser is ignored, and the result of the second parser is returned.
+     *
+     * @param pb  the next parser to apply in sequence
+     * @param <B> the type of the result of the next parser
+     * @return a parser that applies this parser and then the next parser, returning the result of the next parser
+     */
+    public <B> Parser<I, B> skipThen(Parser<I, B> pb) {
+        return new Parser<>(in -> {
+            Result<I, A> left = this.apply(in);
+            if (left.isError()) {
+                return left.cast();
             }
-            return true;
-        }, in -> {
-            IList<A> results = IList.empty();
-            Input<I> currentInput = in;
-            for (Parser<I, A> parser : parsers) {
-                Result<I, A> result = parser.apply(currentInput).get();
-                if (!result.isSuccess()) {
-                    return Trampoline.done(Result.failure(currentInput, "Parsing failed"));
-                }
-                results = results.add(result.getOrThrow());
-                currentInput = result.next();
-            }
-            return Trampoline.done(Result.success(results.reverse(), currentInput));
+            return pb.apply(left.next());
         });
     }
 
-    public <B> Parser<I, B> map(Function<A, B> f) {
-        Supplier<Boolean> acceptsEmpty = this::acceptsEOF;
-        return new Parser<>(acceptsEmpty) {
-            @Override
-            public Trampoline<Result<I, B>> apply(Input<I> in) {
-                return Parser.this.apply(in).map(result -> result.map(f));
+    /**
+     * A parser for expressions with enclosing symbols.
+     * Validates the open symbol, then this parser, and then the close symbol.
+     * If all three succeed, the result of this parser is returned.
+     *
+     * @param open  the open symbol
+     * @param close the close symbol
+     * @return a parser for expressions with enclosing symbols
+     */
+    public Parser<I, A> between(I open, I close) {
+        return new Parser<>(in -> {
+            if (in.isEof() || !in.current().equals(open)) {
+                return Result.failure(in, "Expected open value: " + open);
             }
-        };
-    }
-
-    public <B extends A> Parser<I, A> or(Parser<I, B> rhs) {
-        return new Parser<>(() -> Parser.this.acceptsEOF() || rhs.acceptsEOF()) {
-            @Override
-            public Trampoline<Result<I, A>> apply(Input<I> in) {
-                if (in.isEof()) {
-                    if (Parser.this.acceptsEOF()) {
-                        return Parser.this.apply(in);
-                    } else if (rhs.acceptsEOF()) {
-                        return rhs.apply(in).map(result -> result.cast());
-                    }
-                    return Trampoline.done(failureEof(this, in));
-                }
-                Result<I, A> result = Parser.this.apply(in).get();
-                if (result.isSuccess()) {
-                    return Trampoline.done(result);
-                }
-                return rhs.apply(in).map(r -> r.cast());
+            Input<I> nextInput = in.next();
+            Result<I, A> thisResult = this.apply(nextInput);
+            if (!thisResult.isSuccess()) {
+                return thisResult;
             }
-        };
+            nextInput = thisResult.next();
+            if (nextInput.isEof() || !nextInput.current().equals(close)) {
+                return Result.failure(nextInput, "Expected close value: " + close);
+            }
+            return Result.success(nextInput.next(), thisResult.getOrThrow());
+        });
     }
 
-    public <B> ApplyBuilder.ApplyBuilder2<I, A, B> and(Parser<I, B> pb) {
-        return new ApplyBuilder.ApplyBuilder2<>(this, pb);
+    /**
+     * A parser for expressions with enclosing symbols.
+     * Validates the open symbol, then this parser, and then the close symbol.
+     * If all three succeed, the result of this parser is returned.
+     *
+     * @param open  the open symbol
+     * @param close the close symbol
+     * @return a parser for expressions with enclosing symbols
+     */
+    public Parser<I, A> between(Parser<I, A> open, Parser<I, A> close) {
+        return open.skipThen(this).thenSkip(close);
     }
 
-    public <B> Parser<I, A> andL(Parser<I, B> pb) {
-        return this.and(pb).map((a, b) -> a);
+    /**
+     * A parser for expressions with enclosing bracket symbols.
+     * Validates the open bracket, then this parser, and then the close bracket.
+     * If all three succeed, the result of this parser is returned.
+     *
+     * @param bracket the bracket symbol
+     * @return a parser for expressions with enclosing bracket symbols
+     */
+    public <B> Parser<I, A> between(I bracket) {
+        return between(bracket, bracket);
     }
 
-    public <B> Parser<I, B> andR(Parser<I, B> pb) {
-        return this.and(pb).map((a, b) -> b);
+    /**
+     * A parser for expressions with enclosing bracket symbols.
+     * Validates the open bracket, then this parser, and then the close bracket.
+     * If all three succeed, the result of this parser is returned.
+     *
+     * @param bracket the bracket symbol
+     * @return a parser for expressions with enclosing bracket symbols
+     */
+    public <B> Parser<I, A> between(Parser<I, A> bracket) {
+        return between(bracket, bracket);
     }
 
-    public Parser<I, IList<A>> many() {
-        if (Utils.ifRefClass(this).map(Ref::isInitialised).orElse(true) && acceptsEOF()) {
-            throw new RuntimeException("Cannot construct a many parser from one that accepts empty");
+    /**
+     * A parser that applies this parser zero or more times until it fails,
+     * and then returns a list of the results.
+     * If this parser fails on the first attempt, an empty list is returned.
+     *
+     * @return a parser that applies this parser repeatedly until it fails
+     */
+    public Parser<I, FList<A>> zeroOrMore() {
+        return new Parser<>(in -> {
+            FList<A> results = new FList<>();
+            for (Input<I> currentInput = in; ; ) {
+                Result<I, A> result = this.apply(currentInput);
+                if (!result.isSuccess()) {
+                    return Result.success(currentInput, results);
+                }
+                results.add(result.getOrThrow());
+                currentInput = result.next();
+            }
+        });
+    }
+
+
+    /**
+     * Chains this parser with another parser, applying them in sequence.
+     * The result of the first parser is passed to the second parser.
+     *
+     * @param next the next parser to apply in sequence
+     * @param <B>  the type of the result of the next parser
+     * @return an ApplyBuilder that allows further chaining of parsers
+     */
+    public <B> ApplyBuilder<I, A, B> then(Parser<I, B> next) {
+        return ApplyBuilder.of(this, next);
+    }
+
+    /**
+     * Trims leading and trailing whitespace from the input, before and after applying this parser.
+     *
+     * @return a parser that trims leading and trailing whitespace
+     */
+    public Parser<I, A> trim() {
+        return new Parser<>(in -> {
+            Input<I> trimmedInput = skipWhitespace(in);
+            Result<I, A> result = this.apply(trimmedInput);
+            if (result.isSuccess()) {
+                trimmedInput = skipWhitespace(result.next());
+                return Result.success(trimmedInput, result.getOrThrow());
+            }
+            return result;
+        });
+    }
+
+    private Input<I> skipWhitespace(Input<I> in) {
+        while (!in.isEof() && in.current() instanceof Character ch && Character.isWhitespace(ch)) {
+            in = in.next();
         }
-
-        return new Parser<>(LTRUE, in -> Trampoline.more(() -> {
-            Input<I> currentInput = in;
-            IList<A> accumulator = IList.empty();
-            while (!currentInput.isEof()) {
-                Result<I, A> result = Parser.this.apply(currentInput).get();
-                if (result.isSuccess()) {
-                    Success<I, A> success = (Success<I, A>) result;
-                    accumulator = accumulator.add(success.getOrThrow());
-                    currentInput = success.next();
-                } else {
-                    if (result.getPosition() > in.position()) {
-                        return Trampoline.done(Result.failure(result.next(), "result.getError()"));
-                    }
-                    break;
-                }
-            }
-            return Trampoline.done(Result.success(accumulator.reverse(), currentInput));
-        }));
+        return in;
     }
 
-    public Parser<I, IList<A>> repeat(int n) {
-        if (n < 0) {
-            throw new IllegalArgumentException("The number of repetitions cannot be negative");
+    /**
+     * Transforms the result of this parser using the given function.
+     *
+     * @param func the function to apply to the parsed result
+     * @param <R>  the type of the transformed result
+     * @return a parser that applies the given function to the parsed result
+     */
+    public <R> Parser<I, R> map(Function<A, R> func) {
+        return new Parser<>(in -> apply(in).map(func));
+    }
+
+    /**
+     * Transforms the result of this parser to a constant value.
+     *
+     * @param value the constant value to return
+     * @param <R>   the type of the constant value
+     * @return a parser that returns the constant value regardless of the input
+     */
+    public <R> Parser<I, R> as(R value) {
+        return this.skipThen(pure(value));
+    }
+
+    /**
+     * Wraps the 'this' parser to only call it if the provided parser returns a fail
+     *
+     * @param parser the parser to negate
+     * @return a parser that succeeds if the given parser fails, and fails if the given parser succeeds
+     */
+    public Parser<I, A> not(Parser<I, A> parser) {
+        return new Parser<>(in -> {
+            Result<I, A> result = parser.apply(in);
+            if (result.isSuccess()) {
+                return Result.failure(in, "Parse was successful for what we didn't want");
+            }
+            return this.apply(in);
+        });
+    }
+
+    /**
+     * Chains this parser with an operator parser, applying them in sequence based on the specified associativity.
+     * The result of the first parser is combined with the results of subsequent parsers using the operator.
+     *
+     * @param op            the parser for the binary operator
+     * @param associativity the associativity of the operator (LEFT or RIGHT)
+     * @return a parser that applies this parser and the operator parser in sequence
+     */
+    public Parser<I, A> chain(Parser<I, BinaryOperator<A>> op, Associativity associativity) {
+        if (associativity == Associativity.LEFT) {
+            final Parser<I, UnaryOperator<A>> plo =
+                    op.then(this)
+                            .map((f, y) -> x -> f.apply(x, y));
+            return this.then(plo.zeroOrMore())
+                    .map((a, lf) -> lf.foldLeft(a, (acc, f) -> f.apply(acc)));
+        } else {
+            return this.then(op.then(this).map(Pair::new).zeroOrMore())
+                    .map((a, pairs) -> pairs.stream().reduce(a, (acc, tuple) -> tuple.left().apply(tuple.right(), acc), (a1, a2) -> a1));
         }
-        return new Parser<>(() -> n == 0, in -> Trampoline.more(() -> {
-            IList<A> accumulator = IList.empty();
-            Input<I> currentInput = in;
-            for (int i = 0; i < n; i++) {
-                if (currentInput.isEof()) {
-                    return Trampoline.done(Result.failureEof(currentInput, "Unexpected end of input"));
-                }
-                Result<I, A> result = this.apply(currentInput).get();
-                if (result.isSuccess()) {
-                    Success<I, A> success = (Success<I, A>) result;
-                    accumulator = accumulator.add(success.getOrThrow());
-                    currentInput = success.next();
-                } else {
-                    return Trampoline.done(Result.failure(currentInput, "Parsing failed before reaching the required number of repetitions"));
-                }
-            }
-            return Trampoline.done(Result.success(accumulator.reverse(), currentInput));
-        }));
     }
 
-    public Parser<I, IList<A>> repeat(int min, int max) {
+
+    /**
+     * A parser for an operand, followed by zero or more operands that are separated by operators.
+     * The operators are right-associative.
+     *
+     * @param op the parser for the operator
+     * @param a  the value to return if there are no operands
+     * @return a parser for operator expressions
+     */
+
+    public Parser<I, A> zeroOrMoreChainRight(Parser<I, BinaryOperator<A>> op, A a) {
+        return this.oneOrMoreChainRight(op).or(pure(a));
+    }
+
+    /**
+     * Parse right-associative operator expressions.
+     *
+     * @param op the parser for the binary operator
+     * @return a parser that parses right-associative operator expressions
+     */
+    public Parser<I, A> oneOrMoreChainRight(Parser<I, BinaryOperator<A>> op) {
+        return chain(op, Associativity.RIGHT);
+    }
+
+
+    /**
+     * A parser for an operand, followed by zero or more operands that are separated by operators.
+     * The operators are left-associative.
+     * This can, for example, be used to eliminate left recursion
+     * which typically occurs in expression grammars.
+     *
+     * @param op the parser for the operator
+     * @param a  the value to return if there are no operands
+     * @return a parser for operator expressions
+     */
+    public Parser<I, A> zeroOrMoreChainLeft(Parser<I, BinaryOperator<A>> op, A a) {
+        return this.oneOrMoreChainLeft(op).or(pure(a));
+    }
+
+
+    /**
+     * A parser for an operand, followed by one or more operands that are separated by operators.
+     * The operators are left-associative.
+     * This can, for example, be used to eliminate left recursion
+     * which typically occurs in expression grammars.
+     *
+     * @param op the parser for the operator
+     * @return a parser for operator expressions
+     */
+    public Parser<I, A> oneOrMoreChainLeft(Parser<I, BinaryOperator<A>> op) {
+        return chain(op, Associativity.LEFT);
+    }
+
+
+    /**
+     * A parser that applies this parser one or more times until it fails,
+     * and then returns a non-empty list of the results.
+     * If this parser fails on the left attempt, the parser fails.
+     *
+     * @return a parser that applies this parser repeatedly until it fails
+     */
+    public Parser<I, FList<A>> oneOrMore() {
+        return this.then(this.zeroOrMore()).map(a -> l -> l.push(a));
+    }
+
+    public Parser<I, A> or(Parser<I, A> other) {
+        return new Parser<>(in -> {
+            Result<I, A> result = this.apply(in);
+            return result.isSuccess() ? result : other.apply(in);
+        });
+    }
+
+    /**
+     * A parser that applies this parser the `target` number of times
+     * If the parser fails before reaching the target of repetitions, the parser fails.
+     * If the parser succeeds at least `target` times, the results are collected in a list and returned by the parser.
+     *
+     * @param target the target number of times to apply this parser
+     * @return a parser that applies this parser the 'target' number of times
+     * @throws IllegalArgumentException if the target of repetitions is negative or if target is greater than max
+     */
+    public Parser<I, FList<A>> repeat(int target) {
+        return repeat(target, target);
+    }
+
+    /**
+     * A parser that applies this parser the `target` number of times
+     * If the parser fails before reaching the target of repetitions, the parser fails.
+     * If the parser succeeds at least `target` times, the results are collected in a list and returned by the parser.
+     *
+     * @param target the target number of times to apply this parser
+     * @return a parser that applies this parser the 'target' number of times
+     * @throws IllegalArgumentException if the target of repetitions is negative or if target is greater than max
+     */
+    public Parser<I, FList<A>> repeatAtLeast(int target) {
+        return repeat(target, Integer.MAX_VALUE);
+    }
+
+    /**
+     * A parser that applies this parser between `min` and `max` times.
+     * If the parser fails before reaching the minimum number of repetitions, the parser fails.
+     * If the parser succeeds at least `min` times and at most `max` times, the results are collected in a list and returned by the parser.
+     *
+     * @param min the minimum number of times to apply this parser
+     * @param max the maximum number of times to apply this parser
+     * @return a parser that applies this parser between `min` and `max` times
+     * @throws IllegalArgumentException if the number of repetitions is negative or if min is greater than max
+     */
+    public Parser<I, FList<A>> repeat(int min, int max) {
         if (min < 0 || max < 0) {
             throw new IllegalArgumentException("The number of repetitions cannot be negative");
         }
         if (min > max) {
             throw new IllegalArgumentException("The minimum number of repetitions cannot be greater than the maximum");
         }
-        return new Parser<>(() -> min == 0, in -> Trampoline.more(() -> {
-            IList<A> accumulator = IList.empty();
+        return new Parser<>(in -> {
+            FList<A> accumulator = new FList<>();
             Input<I> currentInput = in;
             int count = 0;
             while (count < max) {
                 if (currentInput.isEof()) {
                     if (count >= min) {
-                        return Trampoline.done(Result.success(accumulator.reverse(), currentInput));
+                        return Result.success(currentInput, accumulator);
                     } else {
-                        return Trampoline.done(Result.failureEof(currentInput, "Unexpected end of input"));
+                        return Result.failureEof(currentInput, "Unexpected end of input");
                     }
                 }
-                Result<I, A> result = this.apply(currentInput).get();
+                Result<I, A> result = this.apply(currentInput);
                 if (result.isSuccess()) {
-                    Success<I, A> success = (Success<I, A>) result;
-                    accumulator = accumulator.add(success.getOrThrow());
-                    currentInput = success.next();
+                    accumulator.add(result.getOrThrow());
+                    currentInput = result.next();
                     count++;
                 } else {
                     if (count >= min) {
-                        return Trampoline.done(Result.success(accumulator.reverse(), currentInput));
+                        return Result.success(currentInput, accumulator);
                     } else {
-                        return Trampoline.done(Result.failure(currentInput, "Parsing failed before reaching the required number of repetitions"));
+                        return Result.failure(currentInput, "Parsing failed before reaching the required number of repetitions");
                     }
                 }
             }
-            return Trampoline.done(Result.success(accumulator.reverse(), currentInput));
-        }));
-    }
-
-    public <B> Parser<I, IList<A>> manyTill(Parser<I, B> end) {
-        return new Parser<>(end::acceptsEOF, in -> Trampoline.more(() -> {
-            Input<I> currentInput = in;
-            IList<A> accumulator = IList.empty();
-            while (true) {
-                if (currentInput.isEof()) {
-                    return Trampoline.done(Result.failureEof(currentInput, "Unexpected end of input"));
-                }
-                Result<I, B> endResult = end.apply(currentInput).get().cast();
-                if (endResult.isSuccess()) {
-                    return Trampoline.done(Result.success(accumulator.reverse(), ((Success<I, B>) endResult).next()));
-                }
-                Result<I, A> result = Parser.this.apply(in).get();
-                if (result.isSuccess()) {
-                    Success<I, A> success = (Success<I, A>) result;
-                    accumulator = accumulator.add(success.getOrThrow());
-                    currentInput = success.next();
-                } else {
-                    return Trampoline.done(Result.failure(in, "Parsing failed before reaching the end parser"));
-                }
-            }
-        }));
-    }
-
-    public Parser<I, IList<A>> many1() {
-        return this.and(this.many()).map((a, l) -> l.add(a));
-    }
-
-    public Parser<I, Unit> skipMany() {
-        return this.many()
-                .map(u -> Unit.UNIT);
-    }
-
-    public <SEP> Parser<I, IList<A>> sepBy(Parser<I, SEP> sep) {
-        return this.sepBy1(sep).map(l -> l)
-                .or(pure(IList.empty()));
-    }
-
-    public <SEP> Parser<I, IList<A>> sepBy1(Parser<I, SEP> sep) {
-        return this.and(sep.andR(this).many())
-                .map((a, l) -> l.add(a));
-    }
-
-    public Parser<I, Optional<A>> optional() {
-        return this.map(Optional::of)
-                .or(pure(Optional.empty()));
-    }
-
-    public <OPEN, CLOSE> Parser<I, A> between(Parser<I, OPEN> open, Parser<I, CLOSE> close) {
-        return open.andR(this).andL(close);
-    }
-
-    public Parser<I, A> chainr(Parser<I, BinaryOperator<A>> op, A a) {
-        return this.chainr1(op).or(pure(a));
-    }
-
-    public Parser<I, A> chainr1(Parser<I, BinaryOperator<A>> op) {
-        return this.and(
-                op.and(this)
-                        .map(Tuple::of)
-                        .many()
-        ).map((a, lopA) -> {
-            A result = a;
-            while (lopA.hasNext()) {
-                Tuple<BinaryOperator<A>, A> tuple = lopA.next();
-                result = tuple.getFirst().apply(result, tuple.getSecond());
-            }
-            return result;
+            return Result.success(currentInput, accumulator);
         });
     }
 
-    public Parser<I, A> chainl(Parser<I, BinaryOperator<A>> op, A a) {
-        return this.chainl1(op).or(pure(a));
+
+    /**
+     * A parser that applies this parser zero or more times until it fails,
+     * alternating with calls to the separator parser.
+     * The results of this parser are collected in a list and returned by the parser.
+     *
+     * @param sep   the separator parser
+     * @param <SEP> the separator type
+     * @return a parser that applies this parser zero or more times alternated with the separator parser
+     */
+    public <SEP> Parser<I, FList<A>> separatedBy(Parser<I, SEP> sep) {
+        return this.sepBy1(sep).map(l -> l).or(pure(new FList<>()));
     }
 
-    public Parser<I, A> chainl1(Parser<I, BinaryOperator<A>> op) {
-        final Parser<I, UnaryOperator<A>> plo =
-                op.and(this)
-                        .map((f, y) -> x -> f.apply(x, y));
-        return this.and(plo.many())
-                .map((a, lf) -> lf.foldLeft(a, (acc, f) -> f.apply(acc)));
+    /**
+     * A parser that applies this parser one or more times until it fails,
+     * alternating with calls to the separator parser.
+     * The results of this parser are collected in a non-empty list and returned by the parser.
+     *
+     * @param sep   the separator parser
+     * @param <SEP> the separator type
+     * @return a parser that applies this parser one or more times alternated with the separator parser
+     */
+    public <SEP> Parser<I, FList<A>> sepBy1(Parser<I, SEP> sep) {
+        return this.then(sep.skipThen(this).zeroOrMore()).map(a -> l -> {
+            l.add(a);
+            return l;
+        });
     }
 
-    public static Parser<Character, String> regex(String regex) {
-        Pattern pattern = Pattern.compile(regex);
-        return new Parser<>(() -> false, in -> Trampoline.more(() -> {
-            StringBuilder sb = new StringBuilder();
-            Input<Character> currentInput = in;
-            while (!currentInput.isEof()) {
-                sb.append(currentInput.get());
-                Matcher matcher = pattern.matcher(sb.toString());
-                if (matcher.matches()) {
-                    currentInput = currentInput.next();
-                } else if (matcher.hitEnd()) {
-                    currentInput = currentInput.next();
-                } else {
-                    sb.deleteCharAt(sb.length() - 1);
-                    break;
-                }
-            }
-            Matcher finalMatcher = pattern.matcher(sb.toString());
-            if (finalMatcher.matches()) {
-                return Trampoline.done(Result.success(sb.toString(), currentInput));
-            } else {
-                return Trampoline.done(Result.failure(in, "Input does not match the regular expression"));
-            }
-        }));
-    }
 
+    public Parser<I, Optional<A>> optional() {
+        return this.map(Optional::of).or(pure(Optional.empty()));
+    }
 }

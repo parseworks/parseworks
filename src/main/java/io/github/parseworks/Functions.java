@@ -1,11 +1,28 @@
 package io.github.parseworks;
 
+/**
+ * The `Functions` class provides a set of functional interfaces for functions with various arities.
+ * These interfaces can be used to define functions that take multiple arguments and return a result.
+ *
+ * <p>Each functional interface in this class represents a function with a specific number of arguments,
+ * ranging from three to eight. These interfaces are useful for functional programming and can be used
+ * in lambda expressions, method references, and other functional contexts.</p>
+ *
+ * <p>Example usage:</p>
+ * <pre>{@code
+ * Functions.Func3<Integer, Integer, Integer, Integer> addThreeNumbers = (a, b, c) -> a + b + c;
+ * int result = addThreeNumbers.apply(1, 2, 3); // result is 6
+ * }</pre>
+ *
+ * @see java.util.function.Function
+ * @see java.util.function.BiFunction
+ */
 public class Functions {
     /**
      * Function of arity 3.
      *
-     * @param <A> the function's first argument type
-     * @param <B> the function's second argument type
+     * @param <A> the function's left argument type
+     * @param <B> the function's right argument type
      * @param <C> the function's third argument type
      * @param <R> the function's return type
      */
@@ -14,8 +31,8 @@ public class Functions {
         /**
          * Apply this function.
          *
-         * @param a the function's first argument
-         * @param b the function's second argument
+         * @param a the function's left argument
+         * @param b the function's right argument
          * @param c the function's third argument
          * @return the result of applying this function
          */
@@ -25,8 +42,8 @@ public class Functions {
     /**
      * Function of arity 4.
      *
-     * @param <A> the function's first argument type
-     * @param <B> the function's second argument type
+     * @param <A> the function's left argument type
+     * @param <B> the function's right argument type
      * @param <C> the function's third argument type
      * @param <D> the function's fourth argument type
      * @param <R> the function's return type
@@ -37,8 +54,8 @@ public class Functions {
         /**
          * Apply this function.
          *
-         * @param a the function's first argument
-         * @param b the function's second argument
+         * @param a the function's left argument
+         * @param b the function's right argument
          * @param c the function's third argument
          * @param d the function's fourth argument
          * @return the result of applying this function
@@ -50,8 +67,8 @@ public class Functions {
     /**
      * Function of arity 5.
      *
-     * @param <A> the function's first argument type
-     * @param <B> the function's second argument type
+     * @param <A> the function's left argument type
+     * @param <B> the function's right argument type
      * @param <C> the function's third argument type
      * @param <D> the function's fourth argument type
      * @param <E> the function's fifth argument type
@@ -63,8 +80,8 @@ public class Functions {
         /**
          * Apply this function.
          *
-         * @param a the function's first argument
-         * @param b the function's second argument
+         * @param a the function's left argument
+         * @param b the function's right argument
          * @param c the function's third argument
          * @param d the function's fourth argument
          * @param e the function's fifth argument
@@ -77,8 +94,8 @@ public class Functions {
     /**
      * Function of arity 6.
      *
-     * @param <A> the function's first argument type
-     * @param <B> the function's second argument type
+     * @param <A> the function's left argument type
+     * @param <B> the function's right argument type
      * @param <C> the function's third argument type
      * @param <D> the function's fourth argument type
      * @param <E> the function's fifth argument type
@@ -90,8 +107,8 @@ public class Functions {
         /**
          * Apply this function.
          *
-         * @param a the function's first argument
-         * @param b the function's second argument
+         * @param a the function's left argument
+         * @param b the function's right argument
          * @param c the function's third argument
          * @param d the function's fourth argument
          * @param e the function's fifth argument
@@ -104,8 +121,8 @@ public class Functions {
     /**
      * Function of arity 7.
      *
-     * @param <A> the function's first argument type
-     * @param <B> the function's second argument type
+     * @param <A> the function's left argument type
+     * @param <B> the function's right argument type
      * @param <C> the function's third argument type
      * @param <D> the function's fourth argument type
      * @param <E> the function's fifth argument type
@@ -119,8 +136,8 @@ public class Functions {
         /**
          * Apply this function.
          *
-         * @param a the function's first argument
-         * @param b the function's second argument
+         * @param a the function's left argument
+         * @param b the function's right argument
          * @param c the function's third argument
          * @param d the function's fourth argument
          * @param e the function's fifth argument
@@ -135,8 +152,8 @@ public class Functions {
     /**
      * Function of arity 8.
      *
-     * @param <A> the function's first argument type
-     * @param <B> the function's second argument type
+     * @param <A> the function's left argument type
+     * @param <B> the function's right argument type
      * @param <C> the function's third argument type
      * @param <D> the function's fourth argument type
      * @param <E> the function's fifth argument type
@@ -151,8 +168,8 @@ public class Functions {
         /**
          * Apply this function.
          *
-         * @param a the function's first argument
-         * @param b the function's second argument
+         * @param a the function's left argument
+         * @param b the function's right argument
          * @param c the function's third argument
          * @param d the function's fourth argument
          * @param e the function's fifth argument
