@@ -15,7 +15,7 @@ import java.util.List;
 public class Failure<I, A> extends Result<I, A> {
     private final Input<I> input;
     private final String message;
-    private final Failure<I, A> cause;
+    private final Failure<?, ?> cause;
 
     /**
      * Constructs a new Failure with the specified input and message.
@@ -34,7 +34,7 @@ public class Failure<I, A> extends Result<I, A> {
      * @param message the error message
      * @param cause   the previous Failure that caused this failure
      */
-    public Failure(Input<I> input, String message, Failure<I, A> cause) {
+    public Failure(Input<I> input, String message, Failure<?, ?> cause) {
         this.input = input;
         this.message = message;
         this.cause = cause;
@@ -122,7 +122,7 @@ public class Failure<I, A> extends Result<I, A> {
      */
     public String getFullErrorMessage() {
         List<String> messages = new ArrayList<>();
-        Failure<I, A> current = this;
+        Failure<?, ?> current = this;
         while (current != null) {
             if (current.message != null) {
                 messages.add(current.message);

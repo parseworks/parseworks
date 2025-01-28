@@ -19,7 +19,7 @@ public class TextTest {
     public void testWord() {
         Parser<Character, String> parser = Text.word();
         assertTrue(parser.parse(Input.of("hello")).isSuccess());
-        assertFalse(parser.parse(Input.of("hello1")).isSuccess());
+        assertFalse(parser.parseAll(Input.of("hello1")).isSuccess());
         assertFalse(parser.parse(Input.of("123")).isSuccess());
     }
 

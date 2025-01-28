@@ -1,5 +1,7 @@
 package io.github.parseworks;
 
+import io.github.parseworks.impl.parser.TrackingParser;
+
 import java.util.Optional;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
@@ -21,6 +23,9 @@ public class Parser<I, A> {
     }
 
     public Parser(Function<Input<I>, Result<I, A>> applyHandler) {
+        if (applyHandler == null) {
+            throw new IllegalArgumentException("applyHandler cannot be null");
+        }
         this.applyHandler = applyHandler;
     }
 
@@ -33,17 +38,6 @@ public class Parser<I, A> {
      */
     public static <I, A> Ref<I, A> ref() {
         return new Ref<>();
-    }
-
-    /**
-     * Creates a new reference to a parser.
-     *
-     * @param <I> the type of the input symbols
-     * @param <A> the type of the parsed value
-     * @return a new reference to a parser
-     */
-    public static <I, A> Ref<I, A> ref(Parser<I, A> parser) {
-        return new Ref<>(parser);
     }
 
     /**
@@ -136,13 +130,41 @@ public class Parser<I, A> {
     }
 
     /**
+     * Parses the input and optionally ensures that the entire input is consumed.
+     *
+     * @param in the input to parse
+     * @param consumeAll whether to consume the entire input
+     * @return the result of parsing the input
+     */
+    public Result<I, A> parse(Input<I> in, boolean consumeAll) {
+        Result<I, A> result = this.apply(in);
+        if (consumeAll && result.isSuccess()) {
+            result = result.next().isEof() ? result : Result.failure(result.next(), "Expected end of input");
+        }
+        return result;
+    }
+
+    /**
+     * Parses the input string and optionally ensures that the entire input is consumed.
+     *
+     * @param input the input string to parse
+     * @param consumeAll whether to consume the entire input
+     * @return the result of parsing the input string
+     */
+    @SuppressWarnings("unchecked")
+    public Result<I, A> parse(String input, boolean consumeAll) {
+        Input<I> in = (Input<I>) Input.of(input);
+        return this.parse(in, consumeAll);
+    }
+
+    /**
      * Parses the input and ensures that the entire input is consumed.
      *
      * @param in the input to parse
      * @return the result of parsing the input
      */
     public Result<I, A> parse(Input<I> in) {
-        return this.thenSkip(Combinators.eof()).apply(in);
+        return this.parse(in,false);
     }
 
     /**
@@ -154,7 +176,28 @@ public class Parser<I, A> {
     @SuppressWarnings("unchecked")
     public Result<I, A> parse(String input) {
         Input<I> in = (Input<I>) Input.of(input);
-        return this.parse(in);
+        return this.parse(in,false);
+    }
+
+    /**
+     * Parses the input and ensures that the entire input is consumed.
+     *
+     * @param input the input to parse
+     * @return the result of parsing the input
+     */
+    public Result<I, A> parseAll(Input<I> input) {
+        return this.parse(input, true);
+    }
+
+    /**
+     * Parses the input and ensures that the entire input is consumed.
+     *
+     * @param input the input to parse
+     * @return the result of parsing the input
+     */
+    @SuppressWarnings("unchecked")
+    public Result<I, A> parseAll(String input) {;
+        return this.parse(input,true);
     }
 
     /**
@@ -276,7 +319,7 @@ public class Parser<I, A> {
      * @return a parser that applies this parser repeatedly until it fails
      */
     public Parser<I, FList<A>> zeroOrMore() {
-        return new Parser<>(in -> {
+        return new TrackingParser<>(in -> {
             FList<A> results = new FList<>();
             for (Input<I> currentInput = in; ; ) {
                 Result<I, A> result = this.apply(currentInput);

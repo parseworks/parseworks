@@ -1,6 +1,7 @@
 package io.github.parseworks;
 
-import io.github.parseworks.impl.NoCheckParser;
+import io.github.parseworks.impl.parser.NoCheckParser;
+import io.github.parseworks.impl.parser.TrackingParser;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +17,24 @@ import static io.github.parseworks.Utils.failure;
  * by combining simpler ones. These combinators include choice, sequence, many, and satisfy.
  */
 public class Combinators {
+
+    private Combinators() {
+    }
+
+    /**
+     * Creates a parser that always succeeds with the given value, without consuming any input.
+     */
+    public static <I> Parser<I,I> any(Class<I> klass) {
+        return new Parser<>(input -> {
+            if (input.isEof()) {
+                return Result.failure(input, "Unexpected end of input");
+            } else {
+                return Result.success(input.next(), input.current());
+            }
+        });
+    }
+
+
 
     /**
      * Creates a parser that succeeds if the input is at the end of the file (EOF).
@@ -50,23 +69,6 @@ public class Combinators {
         });
     }
 
-    /**
-     * Not combinator: succeeds if the given parser fails, and fails if the given parser succeeds.
-     *
-     * @param parser the parser to negate
-     * @param <I>    the type of the input symbols
-     * @return a parser that succeeds if the given parser fails, and fails if the given parser succeeds
-     */
-    public static <I> Parser<I, Void> not(Parser<I, ?> parser) {
-        return new Parser<>(in -> {
-            Result<I, ?> result = parser.apply(in);
-            if (result.isSuccess()) {
-                return Result.failure(in, "Unexpected success");
-            } else {
-                return Result.success(in, null);
-            }
-        });
-    }
 
     /**
      * Optional combinator: tries to apply the parser and returns an `Optional` result.
@@ -271,7 +273,7 @@ public class Combinators {
      * @return a parser that applies the given parser zero or more times and collects the results in a `FList`
      */
     public static <I, A> Parser<I, FList<A>> zeroOrMore(Parser<I, A> parser) {
-        return new Parser<>(in -> {
+        return new TrackingParser<>(in -> {
             FList<A> results = new FList<>();
             for (Input<I> currentInput = in; ; ) {
                 Result<I, A> result = parser.apply(currentInput);

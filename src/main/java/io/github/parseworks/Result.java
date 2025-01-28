@@ -39,6 +39,10 @@ public abstract class Result<I, A> {
         return new Failure<>(input, message);
     }
 
+    public static <I, A> Result<I, A> failure(Input<I> input, String message, Result<I, ?> cause) {
+        return new Failure<>(input, message, (Failure<I, A>) cause);
+    }
+
     /**
      * Creates a failure result due to an unexpected end of input.
      *
@@ -50,6 +54,10 @@ public abstract class Result<I, A> {
      */
     public static <I, A> Result<I, A> failureEof(Input<I> input, String message) {
         return new Failure<>(input, message);
+    }
+
+    public static <I, A> Result<I, A> failureEof(Input<I> input, String message, Failure<I, ?> cause) {
+        return new Failure<>(input, message, cause);
     }
 
     /**

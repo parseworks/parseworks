@@ -1,6 +1,7 @@
 package io.github.parseworks;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
@@ -194,6 +195,13 @@ public class FList<T> extends ArrayList<T> {
      */
     public <B> B foldRight1(B identity, BiFunction<T, B, B> folder) {
         return reverse().foldLeft(identity, (b, a) -> folder.apply(a, b));
+    }
+
+    @SafeVarargs
+    public static <T> FList<T> of(T... elements) {
+        FList<T> list = new FList<>();
+        list.addAll(Arrays.asList(elements));
+        return list;
     }
 
 }
