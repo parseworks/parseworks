@@ -1,7 +1,5 @@
-<img src="./resources/parseWorks.png" alt="uWu a parse works logo" width="300" align="right" >
-
-
 # Introduction
+<img src="./resources/parseWorks.png" alt="uWu a parse works logo" width="300" align="right" >
 
 **parseWorks** is a Java parser combinator framework for constructing [LL(*) parsers](http://en.wikipedia.org/wiki/LL_parser). This library draws inspiration from Jon Hanson's [ParsecJ](https://github.com/jon-hanson/parsecj) and [FuncJ](https://github.com/typemeta/funcj) libraries.
 
