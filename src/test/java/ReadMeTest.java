@@ -16,6 +16,12 @@ public class ReadMeTest {
 
         int result = sum.parse(Input.of("1+2")).getOrThrow();
         System.out.println(result); // 3
+
+        try {
+            sum.parse(Input.of("1+z")).getOrThrow();
+        } catch (Exception e) {
+            System.out.println(e.getMessage()); // Failure at position 2, saw 'z', expected <number>
+        }
     }
 
 }

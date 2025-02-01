@@ -1,3 +1,6 @@
+<img src="./resources/parseWorks.png" alt="uWu a parse works logo" width="300" align="right" >
+
+
 # Introduction
 
 **parseWorks** is a Java parser combinator framework for constructing [LL(*) parsers](http://en.wikipedia.org/wiki/LL_parser). This library draws inspiration from Jon Hanson's [ParsecJ](https://github.com/jon-hanson/parsecj) and [FuncJ](https://github.com/typemeta/funcj) libraries.
@@ -9,13 +12,12 @@
 - **Thread-Safe**: Uses immutable parsers and inputs.
 - **Lightweight**: Zero dependencies, except for JUnit in tests.
 - **Left-Recursion Failsafe**: Prevents common pitfalls.
-- **Recursive Empty Input Detection**: Detects infinite loops on empty inputs.
+- **Looping Empty Input Detection**: Detects infinite loops on empty inputs.
 - **Readable Syntax**: Provides user-friendly method names and error messages.
 
 ---
 
 # Table of Contents
-<img src="./resources/athena_1.png" alt="Dammit Hedgewig I hate boring readmes!" width="300" height="300" title="Title for the image" style="float: right;box-shadow: 0 0 2px 1px rgba(0, 140, 186, 0.5)">
 
 1. [Introduction](#introduction)
 2. [Getting Started](#getting-started)
@@ -49,6 +51,7 @@ Add the following dependency to your Maven `pom.xml`:
 # Parser Combinators
 
 ## Overview
+<img src="./resources/athena_1.png" alt="Dammit Hedgewig I hate boring readmes!" width="300" height="300" align="right" >
 
 Traditionally, parsers are implemented using tools like Yacc/Bison or ANTLR, which rely on external grammar definitions and code generation. Parser combinators offer an alternative approach by allowing grammar rules to be directly expressed in the host programming language, combining the flexibility of recursive descent parsing with better abstraction and composability.
 
@@ -187,8 +190,11 @@ Here is a sample list of the parsers available in the `Parser`, `Combinators`, a
 #### Error Handling
 
 ```java
-sum.parse(Input.of("1+z")).get();
-// Throws: Failure at position 2, expected=+ - <digit>
+try {
+    sum.parse(Input.of("1+z")).getOrThrow();
+} catch (Exception e) {
+    System.out.println(e.getMessage()); // Failure at position 2, saw 'z', expected <number>
+}
 ```
 
 ### Arithmetic Expressions
@@ -247,7 +253,10 @@ assert result == 24;
 
 ### Left-Recursion Handling
 
-Left-recursive grammars are traditionally challenging for recursive-descent parsers. `parseWorks` includes a mechanism to detect and handle left-recursion safely, ensuring parsers remain performant.
+Left-recursive grammars are traditionally challenging for recursive-descent parsers. `parseWorks` includes a mechanism to detect and handle left-recursion safely, ensuring parsers remain performant. This is done by having, by default, parsers track the index that they are about to parse, and if parse fails to advance the index on the next execution of that specific parser. Will return a Failure with a message indicating that the parser is stuck in a loop.
+
+### Looping Empty Input Detection
+This issue occurs when you have two parsers nested parsers that can succeed with no consumption of input. If the top level parser is iterative, this can lead to infinite loops. To prevent this, `parseWorks` will detect when a parser in a loop fails to proceed and return a Failure with a message indicating that the parser is stuck in a loop.
 
 ---
 
