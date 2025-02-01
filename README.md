@@ -8,12 +8,14 @@
 - **Informative Error Messages**: Pinpoints parse failures effectively.
 - **Thread-Safe**: Uses immutable parsers and inputs.
 - **Lightweight**: Zero dependencies, except for JUnit in tests.
-- **Failsafe Left-Recursion Handling**: Prevents common pitfalls.
+- **Left-Recursion Failsafe**: Prevents common pitfalls.
+- **Recursive Empty Input Detection**: Detects infinite loops on empty inputs.
 - **Readable Syntax**: Provides user-friendly method names and error messages.
 
 ---
 
 # Table of Contents
+<img src="./resources/athena_1.png" alt="Dammit Hedgewig I hate boring readmes!" width="300" height="300" title="Title for the image" style="float: right;box-shadow: 0 0 2px 1px rgba(0, 140, 186, 0.5)">
 
 1. [Introduction](#introduction)
 2. [Getting Started](#getting-started)
@@ -79,7 +81,7 @@ Input<Character> rdrInput = Input.of(new CharArrayReader(charData));
 
 ### `Result` Type
 
-`Result<I, T>` encapsulates the outcome of parsing:
+`Result<I, A>` encapsulates the outcome of parsing:
 
 - **`Success`**: Contains the parsed value and the next `Input` position.
 - **`Failure`**: Contains an error message and the failure position.
@@ -98,7 +100,7 @@ String output = result.match(
 
 ### `Parser` Type
 
-`Parser<I, T>` defines the core interface for parsers. Use the `Parser.parse` method to apply a parser to an `Input`, returning a `Result`.
+`Parser<I, A>` defines the core interface for parsers. Use the `Parser.parse` method to apply a parser to an `Input`, returning a `Result`.
 
 #### Recursive Parsers with `Parser.Ref`
 
@@ -106,11 +108,10 @@ Recursive grammars require special handling. Use `Parser.Ref` to create uninitia
 
 ```java
 Ref<Character, String> expr = Parser.ref();
-expr.set(
-    chr('x').or(
+Ref<Character, String> temp = chr('x').or(
         chr('a').and(expr).and(chr('b')).map(a -> e -> b -> a + e + b)
-    )
 );
+expr.set(temp);
 ```
 
 ---
@@ -128,18 +129,16 @@ sum ::= integer '+' integer
 #### Implementation
 
 ```java
-Parser<Character, Integer> sum =
-    digit.thenSkip(chr('+')).then(digit).map(Integer::sum);
+Parser<Character, Integer> sum = 
+        number.thenSkip(chr('+')).then(number).map(Integer::sum);
 
-int result = sum.parse(Input.of("1+2")).get();
+int result = sum.parse(Input.of("1+2")).getOrThrow();
 assert result == 3;
 ```
 
 Here is a sample list of the parsers available in the `Parser`, `Combinators`, and `Text` classes:
 
 ### `Parser` Class Parsers
-- **`ref()`**: Creates a new reference to a parser.
-- **`ap(Parser<I, Function<A, B>> functionProvider, Parser<I, A> valueParser)`**: Applies a function provided by one parser to the result of another parser.
 - **`pure(A value)`**: Creates a parser that always succeeds with the given value.
 - **`thenSkip(Parser<I, B> pb)`**: Chains this parser with another parser, applying them in sequence. The result of the first parser is returned, and the result of the second parser is ignored.
 - **`skipThen(Parser<I, B> pb)`**: Chains this parser with another parser, applying them in sequence. The result of the first parser is ignored, and the result of the second parser is returned.
