@@ -5,6 +5,7 @@ import io.github.parseworks.Result;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Represents a failure result in a parser combinator.
@@ -15,7 +16,7 @@ import java.util.List;
 public class Failure<I, A> extends Result<I, A> {
     private final Input<I> input;
     private final String message;
-    private final Failure<?, ?> cause;
+    private final Result<?, ?> cause;
 
     /**
      * Constructs a new Failure with the specified input and message.
@@ -34,7 +35,7 @@ public class Failure<I, A> extends Result<I, A> {
      * @param message the error message
      * @param cause   the previous Failure that caused this failure
      */
-    public Failure(Input<I> input, String message, Failure<?, ?> cause) {
+    public Failure(Input<I> input, String message, Result<?, ?> cause) {
         this.input = input;
         this.message = message;
         this.cause = cause;
@@ -122,13 +123,34 @@ public class Failure<I, A> extends Result<I, A> {
      */
     public String getFullErrorMessage() {
         List<String> messages = new ArrayList<>();
-        Failure<?, ?> current = this;
+        Result<?, ?> current = this;
         while (current != null) {
-            if (current.message != null) {
-                messages.add(current.message);
+            if (current.getError() != null) {
+                messages.add(current.getError());
             }
-            current = current.cause;
+            current = current.cause();
         }
         return String.join(" -> ", messages);
+    }
+
+    /**
+     * Returns the cause of this failure.
+     *
+     * @return the cause of this failure
+     */
+    @Override
+    public Result<?, ?> cause() {
+        return cause;
+    }
+
+    /**
+     * Handles the result by calling the appropriate consumer.
+     *
+     * @param success the consumer to call if this is a success
+     * @param failure the consumer to call if this is a failure
+     */
+    @Override
+    public void handle(Consumer<Success<I, A>> success, Consumer<Failure<I, A>> failure) {
+        failure.accept(this);
     }
 }

@@ -3,6 +3,8 @@ package io.github.parseworks.impl;
 import io.github.parseworks.Input;
 import io.github.parseworks.Result;
 
+import java.util.function.Consumer;
+
 public class Success<I, A> extends Result<I, A> {
     private final A value;
     private final Input<I> next;
@@ -46,5 +48,20 @@ public class Success<I, A> extends Result<I, A> {
     @Override
     public String getError() {
         return "No error";
+    }
+
+    @Override
+    public String getFullErrorMessage() {
+        return "";
+    }
+
+    @Override
+    public Result<?, ?> cause() {
+        return null;
+    }
+
+    @Override
+    public void handle(Consumer<Success<I, A>> success, Consumer<Failure<I, A>> failure) {
+        success.accept(this);
     }
 }

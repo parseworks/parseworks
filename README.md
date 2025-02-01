@@ -1,5 +1,5 @@
 # Introduction
-<img src="./resources/parseWorks.png" alt="uWu a parse works logo" width="300" align="right" >
+<img src="./resources/parseWorks.png" alt="a nifty looking parse works logo" title="UwU It's a logo!" width="300" align="right">
 
 **parseWorks** is a Java parser combinator framework for constructing [LL(*) parsers](http://en.wikipedia.org/wiki/LL_parser). This library draws inspiration from Jon Hanson's [ParsecJ](https://github.com/jon-hanson/parsecj) and [FuncJ](https://github.com/typemeta/funcj) libraries.
 
@@ -19,14 +19,20 @@
 
 1. [Introduction](#introduction)
 2. [Getting Started](#getting-started)
-  - [Requirements](#requirements)
-  - [Installation](#installation)
+    1. [Requirements](#requirements)
+    2. [Installation](#installation)
 3. [Parser Combinators](#parser-combinators)
-  - [Overview](#overview)
-  - [Types](#types)
-4. [Examples](#examples)
-5. [Advanced Topics](#advanced-topics)
-6. [Performance Considerations](#performance-considerations)
+    1. [Overview](#overview)
+    2. [Types](#types)
+4. [Existing Parsers](#existing-parsers)
+    1. [`Parser` Class Parsers](#parser-class-parsers)
+    2. [`Combinators` Class Parsers](#combinators-class-parsers)
+    3. [`Text` Class Parsers](#text-class-parsers)
+5. [Examples](#examples)
+    1. [Simple Expression Parser](#simple-expression-parser)
+    2. [Arithmetic Expressions](#arithmetic-expressions)
+6. [Advanced Topics](#advanced-topics)
+7. [Performance Considerations](#performance-considerations)
 
 ---
 
@@ -49,7 +55,7 @@ Add the following dependency to your Maven `pom.xml`:
 # Parser Combinators
 
 ## Overview
-<img src="./resources/athena_1.png" alt="Dammit Hedgewig I hate boring readmes!" width="300" height="300" align="right" >
+<img src="./resources/athena_1.png" alt="An obviously AI generated image of Athena with an Owl on it's shield to break the monotony" title="Dammit Hedgewig I hate boring readmes!" width="300" height="300" align="right" >
 
 Traditionally, parsers are implemented using tools like Yacc/Bison or ANTLR, which rely on external grammar definitions and code generation. Parser combinators offer an alternative approach by allowing grammar rules to be directly expressed in the host programming language, combining the flexibility of recursive descent parsing with better abstraction and composability.
 
@@ -93,7 +99,7 @@ Input<Character> rdrInput = Input.of(new CharArrayReader(charData));
 Result<Character, String> result = parser.parse(Input.of("ABCD"));
 
 // Handle success or failure
-String output = result.match(
+String output = result.handle(
     success -> success.value,
     failure -> "Error: " + failure.message
 );
@@ -115,27 +121,7 @@ Ref<Character, String> temp = chr('x').or(
 expr.set(temp);
 ```
 
----
-
-# Examples
-
-### Simple Expression Parser
-
-Consider a grammar for parsing expressions like `x+y`:
-
-```
-sum ::= integer '+' integer
-```
-
-#### Implementation
-
-```java
-Parser<Character, Integer> sum = 
-        number.thenSkip(chr('+')).then(number).map(Integer::sum);
-
-int result = sum.parse(Input.of("1+2")).getOrThrow();
-assert result == 3;
-```
+## Existing Parsers
 
 Here is a sample list of the parsers available in the `Parser`, `Combinators`, and `Text` classes:
 
@@ -184,7 +170,29 @@ Here is a sample list of the parsers available in the `Parser`, `Combinators`, a
 - **`whitespace()`**: Matches a single whitespace character.
 - **`word()`**: Matches a sequence of alphabetic characters.
 - **`integer()`**: Matches an integer.
-- 
+
+---
+
+# Examples
+
+### Simple Expression Parser
+
+Consider a grammar for parsing expressions like `x+y`:
+
+```
+sum ::= integer '+' integer
+```
+
+#### Implementation
+
+```java
+Parser<Character, Integer> sum = 
+        number.thenSkip(chr('+')).then(number).map(Integer::sum);
+
+int result = sum.parse(Input.of("1+2")).getOrThrow();
+assert result == 3;
+```
+
 #### Error Handling
 
 ```java
@@ -194,6 +202,18 @@ try {
     System.out.println(e.getMessage()); // Failure at position 2, saw 'z', expected <number>
 }
 ```
+An error can be caught and handled by the handle method, which takes a function for botha success and failure.
+
+```java
+sum.parse(Input.of("1+z")).handle(
+    success -> System.out.println("Success: no way!"),
+    failure -> "Error: " + failure.message
+);
+
+```
+
+
+
 
 ### Arithmetic Expressions
 
@@ -211,36 +231,37 @@ BINEXPR ::= '(' EXPR BINOP EXPR ')'
 
 ```java
 enum BinOp {
-    ADD { Op2<Integer> op() { return Integer::sum; } },
-    SUB { Op2<Integer> op() { return (a, b) -> a - b; } },
-    MUL { Op2<Integer> op() { return (a, b) -> a * b; } },
-    DIV { Op2<Integer> op() { return (a, b) -> a / b; } };
-    abstract Op2<Integer> op();
+   ADD { BinaryOperator<Integer> op() { return Integer::sum; } },
+   SUB { BinaryOperator<Integer> op() { return (a, b) -> a - b; } },
+   MUL { BinaryOperator<Integer> op() { return (a, b) -> a * b; } },
+   DIV { BinaryOperator<Integer> op() { return (a, b) -> a / b; } };
+   abstract BinaryOperator<Integer> op();
 }
 
-Ref<Character, Op<Integer>> expr = Parser.ref();
+Ref<Character, UnaryOperator<Integer>> expr = Parser.ref();
 
-Parser<Character, Op<Integer>> var = chr('x').map(x -> v -> v);
-Parser<Character, Op<Integer>> num = intr.map(i -> v -> i);
+Parser<Character, UnaryOperator<Integer>> var = chr('x').map(x -> v -> v);
+Parser<Character, UnaryOperator<Integer>> num = intr.map(i -> v -> i);
 Parser<Character, BinOp> binOp = oneOf(
-    chr('+').as(BinOp.ADD),
-    chr('-').as(BinOp.SUB),
-    chr('*').as(BinOp.MUL),
-    chr('/').as(BinOp.DIV)
+        chr('+').as(BinOp.ADD),
+        chr('-').as(BinOp.SUB),
+        chr('*').as(BinOp.MUL),
+        chr('/').as(BinOp.DIV)
 );
 
-Parser<Character, Op<Integer>> binExpr =
-    chr('(').skipThen(expr).then(binOp).then(expr).thenSkip(chr(')')).map(
-        left -> op -> right -> x -> op.op().apply(left.apply(x), right.apply(x))
-    );
+Parser<Character, UnaryOperator<Integer>> binExpr = chr('(')
+        .skipThen(expr)
+        .then(binOp)
+        .then(expr.thenSkip(chr(')')))
+        .map(left -> op -> right -> x ->  op.op().apply(left.apply(x), right.apply(x)));
 
-expr.set(choice(var, num, binExpr));
+expr.set(oneOf(var, num, binExpr));
 ```
 
 #### Usage
 
 ```java
-Op2<Integer> eval = expr.parse(Input.of("(x*((x/2)+x))")).getOrThrow();
+UnaryOperator<Integer> eval = expr.parse(Input.of("(x*((x/2)+x))")).getOrThrow();
 int result = eval.apply(4);
 assert result == 24;
 ```

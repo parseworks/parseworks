@@ -3,6 +3,8 @@ package io.github.parseworks;
 import io.github.parseworks.impl.Failure;
 import io.github.parseworks.impl.Success;
 
+import java.util.function.Consumer;
+
 /**
  * The `Result` class represents the outcome of applying a parser to an input.
  * It can either be a success, containing the parsed value and the remaining input,
@@ -39,6 +41,7 @@ public abstract class Result<I, A> {
         return new Failure<>(input, message);
     }
 
+    @SuppressWarnings("unchecked")
     public static <I, A> Result<I, A> failure(Input<I> input, String message, Result<I, ?> cause) {
         return new Failure<>(input, message, (Failure<I, A>) cause);
     }
@@ -54,10 +57,6 @@ public abstract class Result<I, A> {
      */
     public static <I, A> Result<I, A> failureEof(Input<I> input, String message) {
         return new Failure<>(input, message);
-    }
-
-    public static <I, A> Result<I, A> failureEof(Input<I> input, String message, Failure<I, ?> cause) {
-        return new Failure<>(input, message, cause);
     }
 
     /**
@@ -113,4 +112,24 @@ public abstract class Result<I, A> {
      * @return the error message, or an empty string if this result is a success
      */
     public abstract String getError();
+
+    /**
+     * Returns the full error message if this result is a failure.
+     *
+     * @return the full error message, or an empty string if this result is a success
+     */
+    public abstract String getFullErrorMessage();
+
+    /**
+     * Returns the input at which the failure occurred.
+     */
+    public abstract Result<?, ?> cause();
+
+    /**
+     * Handles the result by calling the appropriate consumer.
+     *
+     * @param success the consumer to call if this result is a success
+     * @param failure the consumer to call if this result is a failure
+     */
+    public abstract void handle(Consumer<Success<I, A>> success, Consumer<Failure<I, A>> failure);
 }
