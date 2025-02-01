@@ -68,7 +68,11 @@ public record ReaderInput(Reader reader, int position, int chr, boolean isEof) i
         return new ReaderInput(reader, position + 1, nextChar, nextChar == -1);
     }
 
-
+    /**
+     * Returns a string representation of the {@code ReaderInput}.
+     *
+     * @return a string representation of the {@code ReaderInput}
+     */
     @Override
     public String toString() {
         return "ReaderInput{position=" + position + ", current=" + (char) chr + ", isEof=" + isEof + "}";

@@ -1,7 +1,5 @@
 package io.github.parseworks;
 
-import io.github.parseworks.impl.parser.TrackingParser;
-
 import java.util.Optional;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
@@ -319,11 +317,11 @@ public class Parser<I, A> {
      * @return a parser that applies this parser repeatedly until it fails
      */
     public Parser<I, FList<A>> zeroOrMore() {
-        return new TrackingParser<>(in -> {
+        return new Parser<>(in -> {
             FList<A> results = new FList<>();
             for (Input<I> currentInput = in; ; ) {
                 Result<I, A> result = this.apply(currentInput);
-                if (!result.isSuccess()) {
+                if (!result.isSuccess() || currentInput.position() == result.next().position()) {
                     return Result.success(currentInput, results);
                 }
                 results.add(result.getOrThrow());

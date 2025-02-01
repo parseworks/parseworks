@@ -47,4 +47,14 @@ public record CharSequenceInput(int position, CharSequence data) implements Inpu
     public Input<Character> next() {
         return new CharSequenceInput(position + 1, data);
     }
+
+    /**
+     * Returns a string representation of the {@code CharSequenceInput}.
+     *
+     * @return a string representation of the {@code CharSequenceInput}
+     */
+    @Override
+    public String toString() {
+        return "ReaderInput{position=" + position + ", current=" + (char) current() + ", isEof=" + isEof() + "}";
+    }
 }

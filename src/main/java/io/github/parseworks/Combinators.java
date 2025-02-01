@@ -1,7 +1,6 @@
 package io.github.parseworks;
 
 import io.github.parseworks.impl.parser.NoCheckParser;
-import io.github.parseworks.impl.parser.TrackingParser;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -273,11 +272,11 @@ public class Combinators {
      * @return a parser that applies the given parser zero or more times and collects the results in a `FList`
      */
     public static <I, A> Parser<I, FList<A>> zeroOrMore(Parser<I, A> parser) {
-        return new TrackingParser<>(in -> {
+        return new Parser<>(in -> {
             FList<A> results = new FList<>();
             for (Input<I> currentInput = in; ; ) {
                 Result<I, A> result = parser.apply(currentInput);
-                if (!result.isSuccess()) {
+                if (!result.isSuccess() || currentInput.position() == result.next().position()) {
                     return Result.success(currentInput, results);
                 }
                 results.add(result.getOrThrow());
