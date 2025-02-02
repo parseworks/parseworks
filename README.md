@@ -53,10 +53,9 @@ Add the following dependency to your Maven `pom.xml`:
 ---
 
 # Parser Combinators
+<img src="./resources/hatter.png" alt="An image of the mad hatter lamenting his lack of using parse works" title="If only I wasn't a fictional character!" width="300"  align="right" >
 
 ## Overview
-<img src="./resources/athena_1.png" alt="An obviously AI generated image of Athena with an Owl on it's shield to break the monotony" title="Dammit Hedgewig I hate boring readmes!" width="300" height="300" align="right" >
-
 Traditionally, parsers are implemented using tools like Yacc/Bison or ANTLR, which rely on external grammar definitions and code generation. Parser combinators offer an alternative approach by allowing grammar rules to be directly expressed in the host programming language, combining the flexibility of recursive descent parsing with better abstraction and composability.
 
 ### Benefits of Parser Combinators
@@ -228,6 +227,7 @@ BINEXPR ::= '(' EXPR BINOP EXPR ')'
 ```
 
 #### Implementation
+The parser can handle arithmetic expressions with variables, numbers, and binary expressions recursively.
 
 ```java
 enum BinOp {
