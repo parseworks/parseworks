@@ -8,9 +8,11 @@ import java.io.Reader;
 
 /**
  * {@code Input} represents a position in a stream of input symbols,
- * that {@link Parser}s operate on.
+ * that {@link io.github.parseworks.Parser}s operate on.
  *
  * @param <I> the input stream symbol type
+ * @author jason bailey
+ * @version $Id: $Id
  */
 public interface Input<I> {
     /**

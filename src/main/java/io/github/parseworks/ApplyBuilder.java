@@ -7,13 +7,16 @@ import java.util.function.Function;
  * {@code ApplyBuilder} combines parsers via successive calls to {@code and} and {@code andL}.
  * <p>
  * {@code ApplyBuilder} provides a fluent interface for combining parsers.
- * The left two parsers are combined by a calling {@link Parser#map Parser.and},
+ * The left two parsers are combined by a calling {@link io.github.parseworks.Parser#map Parser.and},
  * which returns an {@code ApplyBuilder} instance.
  * Each successive parser is incorporated by passing it to a call to {@code and} or {@code andL}.
  * The chain of calls is concluded by calling {@code map} with a handler for the parse results.
  * <p>
- * ApplyBuilder is a more readable way of using {@link Parser#ap Parser.ap}.
+ * ApplyBuilder is a more readable way of using {@link io.github.parseworks.Parser#ap Parser.ap}.
  * For example, {@code pa.and(pb).and(pc).map(f)} is equivalent to {@code ap(ap(ap(pa.map(f), pb), pc), pd)}.
+ *
+ * @author jason bailey
+ * @version $Id: $Id
  */
 public class ApplyBuilder<I, A, B> {
     private final Parser<I, A> pa;
@@ -24,6 +27,16 @@ public class ApplyBuilder<I, A, B> {
         this.pb = pb;
     }
 
+    /**
+     * <p>of.</p>
+     *
+     * @param pa a {@link io.github.parseworks.Parser} object
+     * @param pb a {@link io.github.parseworks.Parser} object
+     * @param <I> a I class
+     * @param <A> a A class
+     * @param <B> a B class
+     * @return a {@link io.github.parseworks.ApplyBuilder} object
+     */
     public static <I, A, B> ApplyBuilder<I, A, B> of(Parser<I, A> pa, Parser<I, B> pb) {
         return new ApplyBuilder<>(pa, pb);
     }
@@ -61,14 +74,35 @@ public class ApplyBuilder<I, A, B> {
     }
 
 
+    /**
+     * <p>andL.</p>
+     *
+     * @param pc a {@link io.github.parseworks.Parser} object
+     * @param <C> a C class
+     * @return a {@link io.github.parseworks.ApplyBuilder} object
+     */
     public <C> ApplyBuilder<I, A, B> andL(Parser<I, C> pc) {
         return new ApplyBuilder<>(pa, pb.thenSkip(pc));
     }
 
+    /**
+     * <p>skipRight.</p>
+     *
+     * @param pc a {@link io.github.parseworks.Parser} object
+     * @param <C> a C class
+     * @return a {@link io.github.parseworks.ApplyBuilder} object
+     */
     public <C> ApplyBuilder<I, A, B> skipRight(Parser<I, C> pc) {
         return new ApplyBuilder<>(pa, pb.thenSkip(pc));
     }
 
+    /**
+     * <p>then.</p>
+     *
+     * @param pc a {@link io.github.parseworks.Parser} object
+     * @param <C> a C class
+     * @return a {@link io.github.parseworks.ApplyBuilder.ApplyBuilder3} object
+     */
     public <C> ApplyBuilder3<C> then(Parser<I, C> pc) {
         return new ApplyBuilder3<>(pc);
     }

@@ -6,6 +6,8 @@ package io.github.parseworks;
  *
  * @param <I> the type of the input symbols
  * @param <A> the type of the parsed value
+ * @author jason bailey
+ * @version $Id: $Id
  */
 public class Ref<I, A> extends Parser<I, A> {
     /**

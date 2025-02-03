@@ -10,16 +10,26 @@ import java.util.function.UnaryOperator;
  *
  * @param <I> the type of the input symbols
  * @param <A> the type of the parsed value
+ * @author jason bailey
+ * @version $Id: $Id
  */
 public class Parser<I, A> {
 
     protected Function<Input<I>, Result<I, A>> applyHandler;
     int index = -1;
 
+    /**
+     * <p>Constructor for Parser.</p>
+     */
     public Parser() {
         this.applyHandler = in -> Result.failure(in, "Parser not initialized");
     }
 
+    /**
+     * <p>Constructor for Parser.</p>
+     *
+     * @param applyHandler a {@link java.util.function.Function} object
+     */
     public Parser(Function<Input<I>, Result<I, A>> applyHandler) {
         if (applyHandler == null) {
             throw new IllegalArgumentException("applyHandler cannot be null");
@@ -292,6 +302,7 @@ public class Parser<I, A> {
      *
      * @param bracket the bracket symbol
      * @return a parser for expressions with enclosing bracket symbols
+     * @param <B> a B class
      */
     public <B> Parser<I, A> between(I bracket) {
         return between(bracket, bracket);
@@ -304,6 +315,7 @@ public class Parser<I, A> {
      *
      * @param bracket the bracket symbol
      * @return a parser for expressions with enclosing bracket symbols
+     * @param <B> a B class
      */
     public <B> Parser<I, A> between(Parser<I, A> bracket) {
         return between(bracket, bracket);
@@ -435,7 +447,6 @@ public class Parser<I, A> {
      * @param a  the value to return if there are no operands
      * @return a parser for operator expressions
      */
-
     public Parser<I, A> zeroOrMoreChainRight(Parser<I, BinaryOperator<A>> op, A a) {
         return this.oneOrMoreChainRight(op).or(pure(a));
     }
@@ -491,6 +502,12 @@ public class Parser<I, A> {
         return this.then(this.zeroOrMore()).map(a -> l -> l.push(a));
     }
 
+    /**
+     * <p>or.</p>
+     *
+     * @param other a {@link io.github.parseworks.Parser} object
+     * @return a {@link io.github.parseworks.Parser} object
+     */
     public Parser<I, A> or(Parser<I, A> other) {
         return new Parser<>(in -> {
             Result<I, A> result = this.apply(in);
@@ -505,7 +522,7 @@ public class Parser<I, A> {
      *
      * @param target the target number of times to apply this parser
      * @return a parser that applies this parser the 'target' number of times
-     * @throws IllegalArgumentException if the target of repetitions is negative or if target is greater than max
+     * @throws java.lang.IllegalArgumentException if the target of repetitions is negative or if target is greater than max
      */
     public Parser<I, FList<A>> repeat(int target) {
         return repeat(target, target);
@@ -518,7 +535,7 @@ public class Parser<I, A> {
      *
      * @param target the target number of times to apply this parser
      * @return a parser that applies this parser the 'target' number of times
-     * @throws IllegalArgumentException if the target of repetitions is negative or if target is greater than max
+     * @throws java.lang.IllegalArgumentException if the target of repetitions is negative or if target is greater than max
      */
     public Parser<I, FList<A>> repeatAtLeast(int target) {
         return repeat(target, Integer.MAX_VALUE);
@@ -532,7 +549,7 @@ public class Parser<I, A> {
      * @param min the minimum number of times to apply this parser
      * @param max the maximum number of times to apply this parser
      * @return a parser that applies this parser between `min` and `max` times
-     * @throws IllegalArgumentException if the number of repetitions is negative or if min is greater than max
+     * @throws java.lang.IllegalArgumentException if the number of repetitions is negative or if min is greater than max
      */
     public Parser<I, FList<A>> repeat(int min, int max) {
         if (min < 0 || max < 0) {
@@ -601,6 +618,11 @@ public class Parser<I, A> {
     }
 
 
+    /**
+     * <p>optional.</p>
+     *
+     * @return a {@link io.github.parseworks.Parser} object
+     */
     public Parser<I, Optional<A>> optional() {
         return this.map(Optional::of).or(pure(Optional.empty()));
     }

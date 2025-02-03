@@ -10,6 +10,9 @@ import static io.github.parseworks.Combinators.satisfy;
 /**
  * The `Text` class provides a set of parsers for common text parsing tasks,
  * such as parsing specific characters, digits, letters, whitespace, and strings.
+ *
+ * @author jason bailey
+ * @version $Id: $Id
  */
 public class Text {
 

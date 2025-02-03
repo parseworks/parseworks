@@ -13,6 +13,8 @@ import java.util.function.Predicate;
  * It provides additional methods for functional programming, such as `map`, `filter`, and `fold`.
  *
  * @param <T> the type of elements in this list
+ * @author jason bailey
+ * @version $Id: $Id
  */
 public class FList<T> extends ArrayList<T> {
 
@@ -56,6 +58,11 @@ public class FList<T> extends ArrayList<T> {
         return this;
     }
 
+    /**
+     * <p>reverse.</p>
+     *
+     * @return a {@link io.github.parseworks.FList} object
+     */
     public FList<T> reverse() {
         FList<T> reversed = new FList<>();
         for (int i = size() - 1; i >= 0; i--) {
@@ -74,11 +81,9 @@ public class FList<T> extends ArrayList<T> {
     }
 
     /**
-     * Returns a new `FList` that is a sublist of this list, from the specified index to the end index.
+     * {@inheritDoc}
      *
-     * @param index    the start index, inclusive
-     * @param endIndex the end index, exclusive
-     * @return a new `FList` that is a sublist of this list
+     * Returns a new `FList` that is a sublist of this list, from the specified index to the end index.
      */
     public FList<T> subList(int index, int endIndex) {
         return new FList<>(super.subList(index, endIndex));
@@ -103,10 +108,9 @@ public class FList<T> extends ArrayList<T> {
     }
 
     /**
-     * Returns the element at the specified position in this list.
+     * {@inheritDoc}
      *
-     * @param index the index of the element to return
-     * @return the element at the specified position in this list
+     * Returns the element at the specified position in this list.
      */
     public T get(int index) {
         return super.get(index);
@@ -117,6 +121,7 @@ public class FList<T> extends ArrayList<T> {
      *
      * @param mapper the function to apply to each element
      * @return a new `FList` with the mapped elements
+     * @param <R> a R class
      */
     public <R> FList<R> map(Function<T, R> mapper) {
         FList<R> mapped = new FList<>();
@@ -197,6 +202,13 @@ public class FList<T> extends ArrayList<T> {
         return reverse().foldLeft(identity, (b, a) -> folder.apply(a, b));
     }
 
+    /**
+     * <p>of.</p>
+     *
+     * @param elements a T object
+     * @param <T> a T class
+     * @return a {@link io.github.parseworks.FList} object
+     */
     @SafeVarargs
     public static <T> FList<T> of(T... elements) {
         FList<T> list = new FList<>();

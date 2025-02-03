@@ -16,6 +16,8 @@ package io.github.parseworks;
  *
  * @see java.util.function.Function
  * @see java.util.function.BiFunction
+ * @author jason bailey
+ * @version $Id: $Id
  */
 public class Functions {
     /**

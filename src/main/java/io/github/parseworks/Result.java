@@ -12,6 +12,8 @@ import java.util.function.Consumer;
  *
  * @param <I> the type of the input symbols
  * @param <A> the type of the parsed value
+ * @author jason bailey
+ * @version $Id: $Id
  */
 public abstract class Result<I, A> {
 
@@ -41,6 +43,16 @@ public abstract class Result<I, A> {
         return new Failure<>(input, message);
     }
 
+    /**
+     * <p>failure.</p>
+     *
+     * @param input a {@link io.github.parseworks.Input} object
+     * @param message a {@link java.lang.String} object
+     * @param cause a {@link io.github.parseworks.Result} object
+     * @param <I> a I class
+     * @param <A> a A class
+     * @return a {@link io.github.parseworks.Result} object
+     */
     @SuppressWarnings("unchecked")
     public static <I, A> Result<I, A> failure(Input<I> input, String message, Result<I, ?> cause) {
         return new Failure<>(input, message, (Failure<I, A>) cause);
@@ -78,7 +90,7 @@ public abstract class Result<I, A> {
      * Throws an exception if this result is a failure.
      *
      * @return the parsed value
-     * @throws RuntimeException if this result is a failure
+     * @throws java.lang.RuntimeException if this result is a failure
      */
     public abstract A getOrThrow();
 
@@ -122,6 +134,8 @@ public abstract class Result<I, A> {
 
     /**
      * Returns the input at which the failure occurred.
+     *
+     * @return a {@link io.github.parseworks.Result} object
      */
     public abstract Result<?, ?> cause();
 

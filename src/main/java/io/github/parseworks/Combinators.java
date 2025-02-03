@@ -14,6 +14,9 @@ import static io.github.parseworks.Utils.failure;
 /**
  * The `Combinators` class provides a set of combinator functions for creating complex parsers
  * by combining simpler ones. These combinators include choice, sequence, many, and satisfy.
+ *
+ * @author jason bailey
+ * @version $Id: $Id
  */
 public class Combinators {
 
@@ -22,6 +25,10 @@ public class Combinators {
 
     /**
      * Creates a parser that always succeeds with the given value, without consuming any input.
+     *
+     * @param klass a {@link java.lang.Class} object
+     * @param <I> a I class
+     * @return a {@link io.github.parseworks.Parser} object
      */
     public static <I> Parser<I,I> any(Class<I> klass) {
         return new Parser<>(input -> {
@@ -100,6 +107,8 @@ public class Combinators {
      *
      * @param <I> the type of the input symbols
      * @param <A> the type of the parsed value
+     * @param parserA a {@link io.github.parseworks.Parser} object
+     * @param parserB a {@link io.github.parseworks.Parser} object
      * @return a parser that tries each parser in the list until one succeeds
      */
     public static <I, A> Parser<I, A> oneOf(Parser<I, A> parserA, Parser<I, A> parserB) {

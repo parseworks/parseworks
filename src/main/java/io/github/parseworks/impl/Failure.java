@@ -12,6 +12,8 @@ import java.util.function.Consumer;
  *
  * @param <I> the type of the input symbols
  * @param <A> the type of the parsed value
+ * @author jason bailey
+ * @version $Id: $Id
  */
 public class Failure<I, A> extends Result<I, A> {
     private final Input<I> input;
@@ -42,9 +44,9 @@ public class Failure<I, A> extends Result<I, A> {
     }
 
     /**
-     * Returns false as this represents a failure.
+     * {@inheritDoc}
      *
-     * @return false
+     * Returns false as this represents a failure.
      */
     @Override
     public boolean isSuccess() {
@@ -61,10 +63,9 @@ public class Failure<I, A> extends Result<I, A> {
     }
 
     /**
-     * Throws a RuntimeException with the full error message.
+     * {@inheritDoc}
      *
-     * @return never returns normally
-     * @throws RuntimeException always thrown with the full error message
+     * Throws a RuntimeException with the full error message.
      */
     @Override
     public A getOrThrow() {
@@ -72,9 +73,9 @@ public class Failure<I, A> extends Result<I, A> {
     }
 
     /**
-     * Returns the input at the point of failure.
+     * {@inheritDoc}
      *
-     * @return the input at the point of failure
+     * Returns the input at the point of failure.
      */
     @Override
     public Input<I> next() {
@@ -82,10 +83,9 @@ public class Failure<I, A> extends Result<I, A> {
     }
 
     /**
-     * Casts the result to another type.
+     * {@inheritDoc}
      *
-     * @param <B> the new type of the result
-     * @return this failure cast to the new type
+     * Casts the result to another type.
      */
     @Override
     @SuppressWarnings("unchecked")
@@ -94,11 +94,9 @@ public class Failure<I, A> extends Result<I, A> {
     }
 
     /**
-     * Maps the result to another type.
+     * {@inheritDoc}
      *
-     * @param <B>    the new type of the result
-     * @param mapper the function to apply to the result
-     * @return this failure cast to the new type
+     * Maps the result to another type.
      */
     @Override
     @SuppressWarnings("unchecked")
@@ -107,9 +105,9 @@ public class Failure<I, A> extends Result<I, A> {
     }
 
     /**
-     * Returns the error message.
+     * {@inheritDoc}
      *
-     * @return the error message, or "No error message" if none is provided
+     * Returns the error message.
      */
     @Override
     public String getError() {
@@ -134,9 +132,9 @@ public class Failure<I, A> extends Result<I, A> {
     }
 
     /**
-     * Returns the cause of this failure.
+     * {@inheritDoc}
      *
-     * @return the cause of this failure
+     * Returns the cause of this failure.
      */
     @Override
     public Result<?, ?> cause() {
@@ -144,10 +142,9 @@ public class Failure<I, A> extends Result<I, A> {
     }
 
     /**
-     * Handles the result by calling the appropriate consumer.
+     * {@inheritDoc}
      *
-     * @param success the consumer to call if this is a success
-     * @param failure the consumer to call if this is a failure
+     * Handles the result by calling the appropriate consumer.
      */
     @Override
     public void handle(Consumer<Success<I, A>> success, Consumer<Failure<I, A>> failure) {
