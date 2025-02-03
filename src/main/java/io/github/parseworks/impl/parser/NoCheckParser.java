@@ -25,7 +25,9 @@ public class NoCheckParser<I, A> extends Parser<I, A> {
         super(applyHandler);
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Result<I, A> apply(Input<I> in) {
         return applyHandler.apply(in);

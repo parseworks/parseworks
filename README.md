@@ -138,10 +138,10 @@ Here is a sample list of the parsers available in the `Parser`, `Combinators`, a
 - **`as(R value)`**: Transforms the result of this parser to a constant value.
 - **`not(Parser<I, A> parser)`**: Wraps the 'this' parser to only call it if the provided parser returns a fail.
 - **`chain(Parser<I, BinaryOperator<A>> op, Associativity associativity)`**: Chains this parser with an operator parser, applying them in sequence based on the specified associativity. The result of the first parser is combined with the results of subsequent parsers using the operator.
-- **`chainr(Parser<I, BinaryOperator<A>> op, A a)`**: A parser for an operand, followed by zero or more operands that are separated by operators. The operators are right-associative.
-- **`chainr1(Parser<I, BinaryOperator<A>> op)`**: Parse right-associative operator expressions.
-- **`chainl(Parser<I, BinaryOperator<A>> op, A a)`**: A parser for an operand, followed by zero or more operands that are separated by operators. The operators are left-associative.
-- **`chainl1(Parser<I, BinaryOperator<A>> op)`**: A parser for an operand, followed by one or more operands that are separated by operators. The operators are left-associative.
+- **`zeroOrMoreChainRight(Parser<I, BinaryOperator<A>> op, A a)`**: A parser for an operand, followed by zero or more operands that are separated by operators. The operators are right-associative.
+- **`oneOrMoreChainRight(Parser<I, BinaryOperator<A>> op)`**: Parse right-associative operator expressions.
+- **`zeroOrMoreChainLeft(Parser<I, BinaryOperator<A>> op, A a)`**: A parser for an operand, followed by zero or more operands that are separated by operators. The operators are left-associative.
+- **`oneOrMoreChainRight(Parser<I, BinaryOperator<A>> op)`**: A parser for an operand, followed by one or more operands that are separated by operators. The operators are left-associative.
 - **`repeat(int target)`**: A parser that applies this parser the `target` number of times. If the parser fails before reaching the target of repetitions, the parser fails.
 - **`repeatAtLeast(int target)`**: A parser that applies this parser the `target` number of times. If the parser fails before reaching the target of repetitions, the parser fails.
 - **`repeat(int min, int max)`**: A parser that applies this parser between `min` and `max` times. If the parser fails before reaching the minimum number of repetitions, the parser fails.

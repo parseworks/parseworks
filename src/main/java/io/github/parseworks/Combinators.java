@@ -24,13 +24,15 @@ public class Combinators {
     }
 
     /**
-     * Creates a parser that always succeeds with the given value, without consuming any input.
+     * Creates a parser that succeeds if the input is not at the end of the file (EOF).
+     * This parser will return a successful result with the current input symbol if the input is not at EOF,
+     * and will fail with an error message "Unexpected end of input" if the input is at EOF.
      *
      * @param klass a {@link java.lang.Class} object
-     * @param <I> a I class
+     * @param <I> Type of the input symbols
      * @return a {@link io.github.parseworks.Parser} object
      */
-    public static <I> Parser<I,I> any(Class<I> klass) {
+    public static <I> Parser<I, I> any(Class<I> klass) {
         return new Parser<>(input -> {
             if (input.isEof()) {
                 return Result.failure(input, "Unexpected end of input");
@@ -39,7 +41,6 @@ public class Combinators {
             }
         });
     }
-
 
 
     /**
@@ -61,7 +62,9 @@ public class Combinators {
     }
 
     /**
-     * Many combinator: applies the parser one or more times and collects the results in a `FList`.
+     * Applies the parser one or more times and collects the results in a `FList`.
+     * This parser will succeed if the given parser succeeds at least once, and will return a non-empty list of the results.
+     * If the parser fails on the first attempt, the parser fails.
      *
      * @param parser the parser to apply repeatedly
      * @param <I>    the type of the input symbols
@@ -69,12 +72,8 @@ public class Combinators {
      * @return a parser that applies the given parser one or more times and collects the results in a `FList`
      */
     public static <I, A> Parser<I, FList<A>> oneOrMore(Parser<I, A> parser) {
-        return parser.then(zeroOrMore(parser)).map(a -> l -> {
-            l.add(0, a);
-            return l;
-        });
+        return parser.then(parser.zeroOrMore()).map((a, l) -> l.push(a));
     }
-
 
     /**
      * Optional combinator: tries to apply the parser and returns an `Optional` result.
@@ -105,8 +104,8 @@ public class Combinators {
     /**
      * Choice combinator: tries each parser in the list until one succeeds.
      *
-     * @param <I> the type of the input symbols
-     * @param <A> the type of the parsed value
+     * @param <I>     the type of the input symbols
+     * @param <A>     the type of the parsed value
      * @param parserA a {@link io.github.parseworks.Parser} object
      * @param parserB a {@link io.github.parseworks.Parser} object
      * @return a parser that tries each parser in the list until one succeeds

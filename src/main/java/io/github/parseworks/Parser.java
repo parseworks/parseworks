@@ -126,21 +126,9 @@ public class Parser<I, A> {
     }
 
     /**
-     * OneOrMore combinator: applies the parser one or more times and collects the results.
-     *
-     * @param parser the parser to apply repeatedly
-     * @param <I>    the type of the input symbols
-     * @param <A>    the type of the parsed value
-     * @return a parser that applies the given parser one or more times and collects the results
-     */
-    public static <I, A> Parser<I, FList<A>> oneOrMore(Parser<I, A> parser) {
-        return parser.then(parser.zeroOrMore()).map((a, l) -> l.push(a));
-    }
-
-    /**
      * Parses the input and optionally ensures that the entire input is consumed.
      *
-     * @param in the input to parse
+     * @param in         the input to parse
      * @param consumeAll whether to consume the entire input
      * @return the result of parsing the input
      */
@@ -155,7 +143,7 @@ public class Parser<I, A> {
     /**
      * Parses the input string and optionally ensures that the entire input is consumed.
      *
-     * @param input the input string to parse
+     * @param input      the input string to parse
      * @param consumeAll whether to consume the entire input
      * @return the result of parsing the input string
      */
@@ -172,7 +160,7 @@ public class Parser<I, A> {
      * @return the result of parsing the input
      */
     public Result<I, A> parse(Input<I> in) {
-        return this.parse(in,false);
+        return this.parse(in, false);
     }
 
     /**
@@ -184,7 +172,7 @@ public class Parser<I, A> {
     @SuppressWarnings("unchecked")
     public Result<I, A> parse(String input) {
         Input<I> in = (Input<I>) Input.of(input);
-        return this.parse(in,false);
+        return this.parse(in, false);
     }
 
     /**
@@ -204,8 +192,8 @@ public class Parser<I, A> {
      * @return the result of parsing the input
      */
     @SuppressWarnings("unchecked")
-    public Result<I, A> parseAll(String input) {;
-        return this.parse(input,true);
+    public Result<I, A> parseAll(String input) {
+        return this.parse(input, true);
     }
 
     /**
@@ -301,8 +289,8 @@ public class Parser<I, A> {
      * If all three succeed, the result of this parser is returned.
      *
      * @param bracket the bracket symbol
+     * @param <B>     a B class
      * @return a parser for expressions with enclosing bracket symbols
-     * @param <B> a B class
      */
     public <B> Parser<I, A> between(I bracket) {
         return between(bracket, bracket);
@@ -314,8 +302,8 @@ public class Parser<I, A> {
      * If all three succeed, the result of this parser is returned.
      *
      * @param bracket the bracket symbol
+     * @param <B>     a B class
      * @return a parser for expressions with enclosing bracket symbols
-     * @param <B> a B class
      */
     public <B> Parser<I, A> between(Parser<I, A> bracket) {
         return between(bracket, bracket);
@@ -503,10 +491,11 @@ public class Parser<I, A> {
     }
 
     /**
-     * <p>or.</p>
+     * Creates a parser that tries this parser first, and if it fails, tries the other parser.
+     * The result of the first successful parser is returned.
      *
-     * @param other a {@link io.github.parseworks.Parser} object
-     * @return a {@link io.github.parseworks.Parser} object
+     * @param other the other parser to try if this parser fails
+     * @return a parser that tries this parser first, and if it fails, tries the other parser
      */
     public Parser<I, A> or(Parser<I, A> other) {
         return new Parser<>(in -> {
@@ -598,7 +587,7 @@ public class Parser<I, A> {
      * @return a parser that applies this parser zero or more times alternated with the separator parser
      */
     public <SEP> Parser<I, FList<A>> separatedBy(Parser<I, SEP> sep) {
-        return this.sepBy1(sep).map(l -> l).or(pure(new FList<>()));
+        return this.separatedByOneOrMore(sep).map(l -> l).or(pure(new FList<>()));
     }
 
     /**
@@ -610,7 +599,7 @@ public class Parser<I, A> {
      * @param <SEP> the separator type
      * @return a parser that applies this parser one or more times alternated with the separator parser
      */
-    public <SEP> Parser<I, FList<A>> sepBy1(Parser<I, SEP> sep) {
+    public <SEP> Parser<I, FList<A>> separatedByOneOrMore(Parser<I, SEP> sep) {
         return this.then(sep.skipThen(this).zeroOrMore()).map(a -> l -> {
             l.add(a);
             return l;
@@ -619,9 +608,11 @@ public class Parser<I, A> {
 
 
     /**
-     * <p>optional.</p>
+     * Creates a parser that optionally applies this parser.
+     * If this parser succeeds, the result is wrapped in an {@link java.util.Optional}.
+     * If this parser fails, an empty {@link java.util.Optional} is returned.
      *
-     * @return a {@link io.github.parseworks.Parser} object
+     * @return a parser that optionally applies this parser
      */
     public Parser<I, Optional<A>> optional() {
         return this.map(Optional::of).or(pure(Optional.empty()));

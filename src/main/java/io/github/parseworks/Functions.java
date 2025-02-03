@@ -14,10 +14,10 @@ package io.github.parseworks;
  * int result = addThreeNumbers.apply(1, 2, 3); // result is 6
  * }</pre>
  *
- * @see java.util.function.Function
- * @see java.util.function.BiFunction
  * @author jason bailey
  * @version $Id: $Id
+ * @see java.util.function.Function
+ * @see java.util.function.BiFunction
  */
 public class Functions {
     /**

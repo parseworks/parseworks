@@ -6,6 +6,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static io.github.parseworks.Combinators.satisfy;
+import static io.github.parseworks.Parser.pure;
 
 /**
  * The `Text` class provides a set of parsers for common text parsing tasks,
@@ -23,22 +24,37 @@ public class Text {
             c -> c != '0' && Character.isDigit(c), "<nonZeroDigit>");
 
     /**
-     * Parses a sign character.
+     * A parser that parses a sign character.
+     * This parser will succeed if the next input symbol is a '+' or '-' character,
+     * returning `true` for '+' and `false` for '-'. If no sign character is present,
+     * it will default to `true`.
      */
     public static final Parser<Character, Boolean> sign = Combinators.oneOf(List.of(
-            chr('+').skipThen(Parser.pure(true)),
-            chr('-').skipThen(Parser.pure(false)),
-            Parser.pure(true)
+            chr('+').as(true),
+            chr('-').as(false),
+            pure(true)
     ));
 
-    private static final Parser<Character, Integer> uintrZero = chr('0').map(zs -> 0);
-    private static final Parser<Character, Long> ulngZero = chr('0').map(zs -> 0L);
+    /**
+     * A parser that parses the character '0' and returns the integer 0.
+     */
+    private static final Parser<Character, Integer> uintrZero = chr('0').as(0);
+
+    /**
+     * A parser that parses the character '0' and returns the long 0.
+     */
+    private static final Parser<Character, Long> ulngZero = chr('0').as( 0L);
 
     /**
      * Parses a single digit character.
      */
     public static Parser<Character, Character> digit = satisfy(Character::isDigit, "<number>");
 
+    /**
+     * A parser that parses a non-zero unsigned integer.
+     * This parser will succeed if the next input symbols form a non-zero unsigned integer,
+     * and will return the parsed integer value.
+     */
     private static final Parser<Character, Integer> uintrNotZero = nonZeroDigitParser(
             ds -> ds.foldLeft(0, (acc, x) -> acc * 10 + x)
     );
@@ -54,6 +70,10 @@ public class Text {
     public static final Parser<Character, Integer> intr = sign.then(uintr)
             .map((sign, i) -> sign ? i : -i);
 
+    /**
+     * A parser that parses an exponent part of a floating-point number.
+     * This parser will succeed if the next input symbol is 'e' or 'E', followed by an integer.
+     */
     private static final Parser<Character, Integer> expnt = (chr('e').or(chr('E')))
             .skipThen(intr);
 
@@ -167,15 +187,24 @@ public class Text {
      */
     public static Parser<Character, Integer> integer() {
         return Combinators.oneOf(List.of(
-                chr('+').skipThen(Parser.pure(true)),
-                chr('-').skipThen(Parser.pure(false)),
-                Parser.pure(true))
+                chr('+').skipThen(pure(true)),
+                chr('-').skipThen(pure(false)),
+                pure(true))
         ).then(number).map(s -> value -> {
             String sign = s ? "" : "-";
             return Integer.parseInt(sign + value);
         });
     }
 
+    /**
+     * A parser that parses a non-zero digit followed by zero or more digits.
+     * This parser will succeed if the next input symbols form a non-zero digit followed by zero or more digits,
+     * and will return the parsed result converted by the given converter function.
+     *
+     * @param converter the function to convert the parsed digits
+     * @param <T>       the type of the parsed value
+     * @return a parser that parses a non-zero digit followed by zero or more digits and converts the result
+     */
     private static <T> Parser<Character, T> nonZeroDigitParser(Function<FList<Integer>, T> converter) {
         return nonZeroDigit.then(digit.zeroOrMore())
                 .map(d -> ds -> ds.push(d))

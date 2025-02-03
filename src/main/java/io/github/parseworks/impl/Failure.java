@@ -45,7 +45,7 @@ public class Failure<I, A> extends Result<I, A> {
 
     /**
      * {@inheritDoc}
-     *
+     * <p>
      * Returns false as this represents a failure.
      */
     @Override
@@ -64,7 +64,7 @@ public class Failure<I, A> extends Result<I, A> {
 
     /**
      * {@inheritDoc}
-     *
+     * <p>
      * Throws a RuntimeException with the full error message.
      */
     @Override
@@ -74,7 +74,7 @@ public class Failure<I, A> extends Result<I, A> {
 
     /**
      * {@inheritDoc}
-     *
+     * <p>
      * Returns the input at the point of failure.
      */
     @Override
@@ -84,7 +84,7 @@ public class Failure<I, A> extends Result<I, A> {
 
     /**
      * {@inheritDoc}
-     *
+     * <p>
      * Casts the result to another type.
      */
     @Override
@@ -95,7 +95,7 @@ public class Failure<I, A> extends Result<I, A> {
 
     /**
      * {@inheritDoc}
-     *
+     * <p>
      * Maps the result to another type.
      */
     @Override
@@ -106,7 +106,7 @@ public class Failure<I, A> extends Result<I, A> {
 
     /**
      * {@inheritDoc}
-     *
+     * <p>
      * Returns the error message.
      */
     @Override
@@ -133,7 +133,7 @@ public class Failure<I, A> extends Result<I, A> {
 
     /**
      * {@inheritDoc}
-     *
+     * <p>
      * Returns the cause of this failure.
      */
     @Override
@@ -143,7 +143,7 @@ public class Failure<I, A> extends Result<I, A> {
 
     /**
      * {@inheritDoc}
-     *
+     * <p>
      * Handles the result by calling the appropriate consumer.
      */
     @Override

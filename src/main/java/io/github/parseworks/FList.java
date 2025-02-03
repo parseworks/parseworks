@@ -59,9 +59,9 @@ public class FList<T> extends ArrayList<T> {
     }
 
     /**
-     * <p>reverse.</p>
+     * Reverses the order of the elements in this list.
      *
-     * @return a {@link io.github.parseworks.FList} object
+     * @return a new `FList` with the elements in reverse order
      */
     public FList<T> reverse() {
         FList<T> reversed = new FList<>();
@@ -82,7 +82,7 @@ public class FList<T> extends ArrayList<T> {
 
     /**
      * {@inheritDoc}
-     *
+     * <p>
      * Returns a new `FList` that is a sublist of this list, from the specified index to the end index.
      */
     public FList<T> subList(int index, int endIndex) {
@@ -109,7 +109,7 @@ public class FList<T> extends ArrayList<T> {
 
     /**
      * {@inheritDoc}
-     *
+     * <p>
      * Returns the element at the specified position in this list.
      */
     public T get(int index) {
@@ -120,8 +120,8 @@ public class FList<T> extends ArrayList<T> {
      * Returns a new `FList` consisting of the results of applying the given function to the elements of this list.
      *
      * @param mapper the function to apply to each element
+     * @param <R>    a R class
      * @return a new `FList` with the mapped elements
-     * @param <R> a R class
      */
     public <R> FList<R> map(Function<T, R> mapper) {
         FList<R> mapped = new FList<>();
@@ -206,7 +206,7 @@ public class FList<T> extends ArrayList<T> {
      * <p>of.</p>
      *
      * @param elements a T object
-     * @param <T> a T class
+     * @param <T>      a T class
      * @return a {@link io.github.parseworks.FList} object
      */
     @SafeVarargs

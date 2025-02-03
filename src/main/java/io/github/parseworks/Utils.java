@@ -12,8 +12,8 @@ public class Utils {
      * <p>failure.</p>
      *
      * @param input a {@link io.github.parseworks.Input} object
-     * @param <I> a I class
-     * @param <A> a A class
+     * @param <I>   a I class
+     * @param <A>   a A class
      * @return a {@link io.github.parseworks.Result} object
      */
     public static <I, A> Result<I, A> failure(Input<I> input) {

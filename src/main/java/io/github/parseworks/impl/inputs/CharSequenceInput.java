@@ -55,6 +55,6 @@ public record CharSequenceInput(int position, CharSequence data) implements Inpu
      */
     @Override
     public String toString() {
-        return "ReaderInput{position=" + position + ", current=" + (char) current() + ", isEof=" + isEof() + "}";
+        return "ReaderInput{position=" + position + ", current=" + current() + ", isEof=" + isEof() + "}";
     }
 }

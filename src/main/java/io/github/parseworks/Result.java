@@ -32,30 +32,32 @@ public abstract class Result<I, A> {
 
     /**
      * Creates a failure result with the given input and error message.
+     * This method is used to indicate that the parser has failed at a specific point in the input.
      *
      * @param input   the input at which the failure occurred
-     * @param message the error message
+     * @param message the error message describing the failure
      * @param <I>     the type of the input symbols
      * @param <A>     the type of the parsed value
-     * @return a failure result
+     * @return a failure result containing the input and error message
      */
     public static <I, A> Result<I, A> failure(Input<I> input, String message) {
         return new Failure<>(input, message);
     }
 
     /**
-     * <p>failure.</p>
+     * Creates a failure result with the given input, error message, and cause.
+     * This method is used to indicate that the parser has failed at a specific point in the input,
+     * and provides additional context about the cause of the failure.
      *
-     * @param input a {@link io.github.parseworks.Input} object
-     * @param message a {@link java.lang.String} object
-     * @param cause a {@link io.github.parseworks.Result} object
-     * @param <I> a I class
-     * @param <A> a A class
-     * @return a {@link io.github.parseworks.Result} object
+     * @param input   the input at which the failure occurred
+     * @param message the error message describing the failure
+     * @param cause   the underlying cause of the failure
+     * @param <I>     the type of the input symbols
+     * @param <A>     the type of the parsed value
+     * @return a failure result containing the input, error message, and cause
      */
-    @SuppressWarnings("unchecked")
     public static <I, A> Result<I, A> failure(Input<I> input, String message, Result<I, ?> cause) {
-        return new Failure<>(input, message, (Failure<I, A>) cause);
+        return new Failure<>(input, message, cause);
     }
 
     /**
