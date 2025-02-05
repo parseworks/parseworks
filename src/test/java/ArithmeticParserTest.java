@@ -6,8 +6,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.Text.chr;
-import static io.github.parseworks.Text.dble;
+import static io.github.parseworks.Combinators.chr;
+import static io.github.parseworks.TextUtils.dble;
 
 /**
  * Unit tests for arithmetic expression parsing using the Combinators library.

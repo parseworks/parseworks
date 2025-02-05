@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import static io.github.parseworks.Parser.pure;
 import static io.github.parseworks.Utils.failure;
@@ -32,6 +33,7 @@ public class Combinators {
      * @param <I> Type of the input symbols
      * @return a {@link io.github.parseworks.Parser} object
      */
+    @SuppressWarnings("unused")
     public static <I> Parser<I, I> any(Class<I> klass) {
         return new Parser<>(input -> {
             if (input.isEof()) {
@@ -71,8 +73,8 @@ public class Combinators {
      * @param <A>    the type of the parsed value
      * @return a parser that applies the given parser one or more times and collects the results in a `FList`
      */
-    public static <I, A> Parser<I, FList<A>> oneOrMore(Parser<I, A> parser) {
-        return parser.then(parser.zeroOrMore()).map((a, l) -> l.push(a));
+    public static <I, A> Parser<I, FList<A>> many(Parser<I, A> parser) {
+        return parser.then(parser.zeroOrMany()).map((a, l) -> l.push(a));
     }
 
     /**
@@ -251,6 +253,13 @@ public class Combinators {
 
     /**
      * Satisfy combinator: parses a single item that satisfies the given predicate.
+     * <p>
+     * This parser attempts to parse a single item from the input and checks if it satisfies the provided predicate.
+     * If the input is at the end of the file (EOF), it returns a failure result with an "Unexpected end of input" message.
+     * If the item satisfies the predicate, it returns a successful result with the parsed item.
+     * If the item does not satisfy the predicate, it returns a failure result with a message indicating the expected type.
+     * <p>
+     * This method is useful for creating parsers that need to validate input items against specific conditions.
      *
      * @param predicate    the predicate that the parsed item must satisfy
      * @param expectedType the error message to use if the predicate is not satisfied
@@ -272,24 +281,50 @@ public class Combinators {
     }
 
     /**
-     * ZeroOrMore combinator: applies the parser zero or more times and collects the results in a `FList`.
+     * Parses a single character that satisfies the given predicate.
      *
-     * @param parser the parser to apply repeatedly
-     * @param <I>    the type of the input symbols
-     * @param <A>    the type of the parsed value
-     * @return a parser that applies the given parser zero or more times and collects the results in a `FList`
+     * @param predicate the predicate that the character must satisfy
+     * @return a parser that parses a single character satisfying the predicate
      */
-    public static <I, A> Parser<I, FList<A>> zeroOrMore(Parser<I, A> parser) {
-        return new Parser<>(in -> {
-            FList<A> results = new FList<>();
-            for (Input<I> currentInput = in; ; ) {
-                Result<I, A> result = parser.apply(currentInput);
-                if (!result.isSuccess() || currentInput.position() == result.next().position()) {
-                    return Result.success(currentInput, results);
-                }
-                results.add(result.getOrThrow());
-                currentInput = result.next();
-            }
-        });
+    public static Parser<Character, Character> chr(Predicate<Character> predicate) {
+        return satisfy(predicate, "<character>");
     }
+
+    /**
+     * Parses a specific character.
+     *
+     * @param c the character to parse
+     * @return a parser that parses the specified character
+     */
+    public static Parser<Character, Character> chr(char c) {
+        return chr(ch -> ch == c);
+    }
+
+    /**
+     * Parses a specific string.
+     *
+     * @param str the string to parse
+     * @return a parser that parses the specified string
+     */
+    public static Parser<Character, String> string(String str) {
+        return Combinators.sequence(str.chars()
+                        .mapToObj(c -> chr((char) c))
+                        .toList())
+                .map(chars -> chars.stream()
+                        .map(String::valueOf)
+                        .collect(Collectors.joining()));
+    }
+
+    /**
+     * Parses a single character from a set of characters.
+     *
+     * @param str the set of characters to parse
+     * @return a parser that parses a single character from the specified set
+     */
+    public static Parser<Character, Character> oneOf(String str) {
+        return satisfy(c -> str.indexOf(c) != -1, "<oneOf> " + str);
+    }
+
+
+
 }

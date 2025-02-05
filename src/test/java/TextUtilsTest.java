@@ -1,15 +1,15 @@
 import io.github.parseworks.Input;
 import io.github.parseworks.Parser;
-import io.github.parseworks.Text;
+import io.github.parseworks.TextUtils;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TextTest {
+public class TextUtilsTest {
 
     @Test
     public void testAlphaNum() {
-        Parser<Character, Character> parser = Text.alphaNum();
+        Parser<Character, Character> parser = TextUtils.alphaNum();
         assertTrue(parser.parse(Input.of("a")).isSuccess());
         assertTrue(parser.parse(Input.of("1")).isSuccess());
         assertFalse(parser.parse(Input.of("!")).isSuccess());
@@ -17,7 +17,7 @@ public class TextTest {
 
     @Test
     public void testWord() {
-        Parser<Character, String> parser = Text.word();
+        Parser<Character, String> parser = TextUtils.word();
         assertTrue(parser.parse(Input.of("hello")).isSuccess());
         assertFalse(parser.parseAll(Input.of("hello1")).isSuccess());
         assertFalse(parser.parse(Input.of("123")).isSuccess());
@@ -25,7 +25,7 @@ public class TextTest {
 
     @Test
     public void testInteger() {
-        Parser<Character, Integer> parser = Text.integer();
+        Parser<Character, Integer> parser = TextUtils.integer();
         assertEquals(123, parser.parse(Input.of("123")).getOrThrow());
         assertEquals(-123, parser.parse(Input.of("-123")).getOrThrow());
         assertEquals(123, parser.parse(Input.of("+123")).getOrThrow());

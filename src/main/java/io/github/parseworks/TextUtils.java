@@ -2,20 +2,20 @@ package io.github.parseworks;
 
 import java.util.List;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static io.github.parseworks.Combinators.chr;
 import static io.github.parseworks.Combinators.satisfy;
 import static io.github.parseworks.Parser.pure;
 
 /**
- * The `Text` class provides a set of parsers for common text parsing tasks,
+ * The `TextUtils` class provides a set of parsers for common text parsing tasks,
  * such as parsing specific characters, digits, letters, whitespace, and strings.
  *
  * @author jason bailey
  * @version $Id: $Id
  */
-public class Text {
+public class TextUtils {
 
     /**
      * A parser that succeeds if the next input symbol is a numeric digit.
@@ -92,7 +92,7 @@ public class Text {
     public static final Parser<Character, Long> lng = sign.then(ulng)
             .map((sign, i) -> sign ? i : -i);
 
-    private static final Parser<Character, Double> floating = digit.zeroOrMore()
+    private static final Parser<Character, Double> floating = digit.zeroOrMany()
             .map(ds -> ds.map(Character::getNumericValue))
             .map(l -> l.foldRight(0.0, (d, acc) -> d + acc / 10.0) / 10.0);
 
@@ -116,7 +116,7 @@ public class Text {
     /**
      * Parses a number.
      */
-    public static Parser<Character, Integer> number = digit.oneOrMore().map(chars -> Integer.parseInt(chars.stream()
+    public static Parser<Character, Integer> number = digit.many().map(chars -> Integer.parseInt(chars.stream()
             .map(String::valueOf)
             .collect(Collectors.joining())));
 
@@ -125,40 +125,7 @@ public class Text {
      */
     public static Parser<Character, Character> letter = satisfy(Character::isLetter, "<alphabet>");
 
-    /**
-     * Parses a single character that satisfies the given predicate.
-     *
-     * @param predicate the predicate that the character must satisfy
-     * @return a parser that parses a single character satisfying the predicate
-     */
-    public static Parser<Character, Character> chr(Predicate<Character> predicate) {
-        return satisfy(predicate, "<character>");
-    }
 
-    /**
-     * Parses a specific character.
-     *
-     * @param c the character to parse
-     * @return a parser that parses the specified character
-     */
-    public static Parser<Character, Character> chr(char c) {
-        return chr(ch -> ch == c);
-    }
-
-    /**
-     * Parses a specific string.
-     *
-     * @param str the string to parse
-     * @return a parser that parses the specified string
-     */
-    public static Parser<Character, String> string(String str) {
-        return Combinators.sequence(str.chars()
-                        .mapToObj(c -> chr((char) c))
-                        .toList())
-                .map(chars -> chars.stream()
-                        .map(String::valueOf)
-                        .collect(Collectors.joining()));
-    }
 
     /**
      * Parses a single alphanumeric character.
@@ -175,10 +142,11 @@ public class Text {
      * @return a parser that parses a sequence of letters
      */
     public static Parser<Character, String> word() {
-        return letter.oneOrMore().map(chars -> chars.stream()
+        return letter.many().map(chars -> chars.stream()
                 .map(String::valueOf)
                 .collect(Collectors.joining()));
     }
+
 
     /**
      * Parses an integer, including optional leading sign.
@@ -206,7 +174,7 @@ public class Text {
      * @return a parser that parses a non-zero digit followed by zero or more digits and converts the result
      */
     private static <T> Parser<Character, T> nonZeroDigitParser(Function<FList<Integer>, T> converter) {
-        return nonZeroDigit.then(digit.zeroOrMore())
+        return nonZeroDigit.then(digit.zeroOrMany())
                 .map(d -> ds -> ds.push(d))
                 .map(ds -> ds.map(Character::getNumericValue))
                 .map(converter);

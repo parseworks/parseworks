@@ -191,17 +191,26 @@ public class Parser<I, A> {
      * @param input the input to parse
      * @return the result of parsing the input
      */
-    @SuppressWarnings("unchecked")
     public Result<I, A> parseAll(String input) {
         return this.parse(input, true);
     }
 
     /**
      * Applies this parser to the given input.
-     * If the parser detects an infinite loop, it returns a failure result.
+     * <p>
+     * This method attempts to parse the provided input using the parser's `applyHandler` function.
+     * It first checks for an infinite loop by comparing the current input position with the last
+     * recorded position for this parser. If an infinite loop is detected, it returns a failure result.
+     * <p>
+     * If no infinite loop is detected, it updates the last recorded position to the current input
+     * position and applies the `applyHandler` function to the input. After parsing, it resets the
+     * last recorded position and returns the result of the parsing operation.
+     * <p>
+     * This method is typically used internally by other parsing methods to perform the actual
+     * parsing logic.
      *
      * @param in the input to parse
-     * @return the result of parsing the input
+     * @return the result of parsing the input, which can be either a success or a failure
      */
     public Result<I, A> apply(Input<I> in) {
         if (this.index == in.position()) {
@@ -287,12 +296,14 @@ public class Parser<I, A> {
      * A parser for expressions with enclosing bracket symbols.
      * Validates the open bracket, then this parser, and then the close bracket.
      * If all three succeed, the result of this parser is returned.
+     * <p>
+     * This method is useful for parsing expressions that are enclosed by the same bracket symbol,
+     * such as parentheses, brackets, or quotes.
      *
      * @param bracket the bracket symbol
-     * @param <B>     a B class
      * @return a parser for expressions with enclosing bracket symbols
      */
-    public <B> Parser<I, A> between(I bracket) {
+    public Parser<I, A> between(I bracket) {
         return between(bracket, bracket);
     }
 
@@ -313,10 +324,17 @@ public class Parser<I, A> {
      * A parser that applies this parser zero or more times until it fails,
      * and then returns a list of the results.
      * If this parser fails on the first attempt, an empty list is returned.
+     * <p>
+     * This method repeatedly applies the parser to the input until it fails.
+     * The results of each successful application are collected into a list.
+     * If the parser fails on the first attempt, an empty list is returned.
+     * <p>
+     * This method is useful for parsing sequences of elements where the number
+     * of elements is not known in advance.
      *
      * @return a parser that applies this parser repeatedly until it fails
      */
-    public Parser<I, FList<A>> zeroOrMore() {
+    public Parser<I, FList<A>> zeroOrMany() {
         return new Parser<>(in -> {
             FList<A> results = new FList<>();
             for (Input<I> currentInput = in; ; ) {
@@ -418,10 +436,10 @@ public class Parser<I, A> {
             final Parser<I, UnaryOperator<A>> plo =
                     op.then(this)
                             .map((f, y) -> x -> f.apply(x, y));
-            return this.then(plo.zeroOrMore())
+            return this.then(plo.zeroOrMany())
                     .map((a, lf) -> lf.foldLeft(a, (acc, f) -> f.apply(acc)));
         } else {
-            return this.then(op.then(this).map(Pair::new).zeroOrMore())
+            return this.then(op.then(this).map(Pair::new).zeroOrMany())
                     .map((a, pairs) -> pairs.stream().reduce(a, (acc, tuple) -> tuple.left().apply(tuple.right(), acc), (a1, a2) -> a1));
         }
     }
@@ -435,8 +453,8 @@ public class Parser<I, A> {
      * @param a  the value to return if there are no operands
      * @return a parser for operator expressions
      */
-    public Parser<I, A> zeroOrMoreChainRight(Parser<I, BinaryOperator<A>> op, A a) {
-        return this.oneOrMoreChainRight(op).or(pure(a));
+    public Parser<I, A> chainRightZeroOrMany(Parser<I, BinaryOperator<A>> op, A a) {
+        return this.chainRightMany(op).or(pure(a));
     }
 
     /**
@@ -445,7 +463,7 @@ public class Parser<I, A> {
      * @param op the parser for the binary operator
      * @return a parser that parses right-associative operator expressions
      */
-    public Parser<I, A> oneOrMoreChainRight(Parser<I, BinaryOperator<A>> op) {
+    public Parser<I, A> chainRightMany(Parser<I, BinaryOperator<A>> op) {
         return chain(op, Associativity.RIGHT);
     }
 
@@ -460,8 +478,8 @@ public class Parser<I, A> {
      * @param a  the value to return if there are no operands
      * @return a parser for operator expressions
      */
-    public Parser<I, A> zeroOrMoreChainLeft(Parser<I, BinaryOperator<A>> op, A a) {
-        return this.oneOrMoreChainLeft(op).or(pure(a));
+    public Parser<I, A> chainLeftZeroOrMany(Parser<I, BinaryOperator<A>> op, A a) {
+        return this.chainLeftMany(op).or(pure(a));
     }
 
 
@@ -474,7 +492,7 @@ public class Parser<I, A> {
      * @param op the parser for the operator
      * @return a parser for operator expressions
      */
-    public Parser<I, A> oneOrMoreChainLeft(Parser<I, BinaryOperator<A>> op) {
+    public Parser<I, A> chainLeftMany(Parser<I, BinaryOperator<A>> op) {
         return chain(op, Associativity.LEFT);
     }
 
@@ -486,8 +504,8 @@ public class Parser<I, A> {
      *
      * @return a parser that applies this parser repeatedly until it fails
      */
-    public Parser<I, FList<A>> oneOrMore() {
-        return this.then(this.zeroOrMore()).map(a -> l -> l.push(a));
+    public Parser<I, FList<A>> many() {
+        return this.then(this.zeroOrMany()).map(a -> l -> l.push(a));
     }
 
     /**
@@ -586,8 +604,8 @@ public class Parser<I, A> {
      * @param <SEP> the separator type
      * @return a parser that applies this parser zero or more times alternated with the separator parser
      */
-    public <SEP> Parser<I, FList<A>> separatedBy(Parser<I, SEP> sep) {
-        return this.separatedByOneOrMore(sep).map(l -> l).or(pure(new FList<>()));
+    public <SEP> Parser<I, FList<A>> separatedByZeroOrMany(Parser<I, SEP> sep) {
+        return this.separatedByMany(sep).map(l -> l).or(pure(new FList<>()));
     }
 
     /**
@@ -599,8 +617,8 @@ public class Parser<I, A> {
      * @param <SEP> the separator type
      * @return a parser that applies this parser one or more times alternated with the separator parser
      */
-    public <SEP> Parser<I, FList<A>> separatedByOneOrMore(Parser<I, SEP> sep) {
-        return this.then(sep.skipThen(this).zeroOrMore()).map(a -> l -> {
+    public <SEP> Parser<I, FList<A>> separatedByMany(Parser<I, SEP> sep) {
+        return this.then(sep.skipThen(this).zeroOrMany()).map(a -> l -> {
             l.add(a);
             return l;
         });

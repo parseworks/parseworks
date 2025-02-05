@@ -4,12 +4,10 @@ import io.github.parseworks.Ref;
 import org.junit.jupiter.api.Test;
 
 import java.util.function.BinaryOperator;
-import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
-import static io.github.parseworks.Combinators.oneOf;
-import static io.github.parseworks.Combinators.sequence;
-import static io.github.parseworks.Text.*;
+import static io.github.parseworks.Combinators.*;
+import static io.github.parseworks.TextUtils.*;
 
 public class ReadMeTest {
 

@@ -4,13 +4,13 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.Text.chr;
-import static io.github.parseworks.Text.digit;
+import static io.github.parseworks.Combinators.chr;
+import static io.github.parseworks.TextUtils.digit;
 
 public class CalculatorParserTest {
 
     public static Ref<Character, Integer> term = Parser.ref();
-    public static Parser<Character, Integer> expression = term.zeroOrMoreChainLeft(operator(), 0);
+    public static Parser<Character, Integer> expression = term.chainLeftZeroOrMany(operator(), 0);
     public static Parser<Character, Integer> term2 = Combinators.oneOf(List.of(
             number(),
             expression.between('(', ')')));

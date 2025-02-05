@@ -4,7 +4,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.Text.*;
+import static io.github.parseworks.Combinators.chr;
+import static io.github.parseworks.TextUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class AssociativityTest {
@@ -65,7 +66,7 @@ public class AssociativityTest {
     @Test
     public void testLeftAssociative() {
         BinaryOperator<Integer> add = Integer::sum;
-        Parser<Character, Integer> leftAssocParser = number.zeroOrMoreChainLeft(chr('+').as(add), 0);
+        Parser<Character, Integer> leftAssocParser = number.chainLeftZeroOrMany(chr('+').as(add), 0);
 
         String input = "1+2+3";
         Result<Character, Integer> result = leftAssocParser.parse(Input.of(input));
@@ -75,7 +76,7 @@ public class AssociativityTest {
     @Test
     public void testRightAssociative() {
         BinaryOperator<Integer> power = (a, b) -> (int) Math.pow(a, b);
-        var rightAssocParser = number.oneOrMoreChainRight(chr('^').as(power));
+        var rightAssocParser = number.chainRightMany(chr('^').as(power));
 
         String input = "2^3^2";
         Result<Character, Integer> result = rightAssocParser.parse(Input.of(input));

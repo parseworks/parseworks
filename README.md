@@ -146,7 +146,7 @@ Here is a sample list of the parsers available in the `Parser`, `Combinators`, a
 - **`repeatAtLeast(int target)`**: A parser that applies this parser the `target` number of times. If the parser fails before reaching the target of repetitions, the parser fails.
 - **`repeat(int min, int max)`**: A parser that applies this parser between `min` and `max` times. If the parser fails before reaching the minimum number of repetitions, the parser fails.
 - **`separatedBy(Parser<I, SEP> sep)`**: A parser that applies this parser zero or more times until it fails, alternating with calls to the separator parser. The results of this parser are collected in a list and returned by the parser.
-- **`sepBy1(Parser<I, SEP> sep)`**: A parser that applies this parser one or more times until it fails, alternating with calls to the separator parser. The results of this parser are collected in a non-empty list and returned by the parser.
+- **`separatedBy(Parser<I, SEP> sep)`**: A parser that applies this parser one or more times until it fails, alternating with calls to the separator parser. The results of this parser are collected in a non-empty list and returned by the parser.
 - **`optional()`**: Wraps the result of this parser in an `Optional`. If the parser fails, it returns an empty `Optional`.
 
 ### `Combinators` Class Parsers
