@@ -50,8 +50,6 @@ Add the following dependency to your Maven `pom.xml`:
 <!--- To be determined -->
 ```
 
----
-
 # Parser Combinators
 <img src="./resources/hatter.png" alt="An image of the mad hatter lamenting his lack of using parse works" title="If only I wasn't a fictional character!" width="300"  align="right" >
 
@@ -112,9 +110,9 @@ Input<Character> rdrInput = Input.of(new CharArrayReader(charData));
 
 ```java
 Result<Character, String> result = expr.parse(Input.of("ABCD"));
-result.handle(
-        success -> System.out.println(success.getOrThrow()),
-        failure -> System.out.println("Error: " + failure.getFullErrorMessage())
+var x = result.handle(
+        Success::getOrThrow,
+        failure -> "Error: " + failure.getFullErrorMessage()
 );
 ```
 
@@ -194,14 +192,14 @@ An error can be caught and handled by the handle method, which takes a function 
 
 ```java
 sum.parse(Input.of("1+z")).handle(
-    success -> System.out.println("Success: no way!"),
-    failure -> "Error: " + failure.message
+    success -> {
+        System.out.println("Success: no way!");
+    },
+    failure -> {
+         System.out.println("Error: " + failure.getFullErrorMessage());
+    }
 );
-
 ```
-
-
-
 
 ### Arithmetic Expressions
 

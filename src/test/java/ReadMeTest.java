@@ -31,12 +31,13 @@ public class ReadMeTest {
         Input<Character> rdrInput = Input.of(new CharArrayReader(charData));
 
         Result<Character, String> result = expr.parse(Input.of("ABCD"));
-
         // Handle success or failure
-        result.handle(
-                success -> System.out.println(success.getOrThrow()),
-                failure -> System.out.println("Error: " + failure.getFullErrorMessage())
+        var x = result.handle(
+                Success::getOrThrow,
+                failure -> "Error: " + failure.getFullErrorMessage()
         );
+
+        System.out.println(x); // ABCD
         // This is a test class for the README.md file.
         // It is used to validate the code snippets in the README.md file.
         Parser<Character, Integer> sum =
@@ -52,9 +53,14 @@ public class ReadMeTest {
         }
 
         sum.parse(Input.of("1+z")).handle(
-                success -> System.out.println("Success: no way!"),
-                failure -> System.out.println("Error: " + failure.getError())
+                success -> {
+                    System.out.println("Success: no way!");
+                },
+                failure -> {
+                    System.out.println("Error: " + failure.getFullErrorMessage());
+                }
         );
+        // Error: Failure at position 2, saw 'z', expected <number>
     }
 
     @Test

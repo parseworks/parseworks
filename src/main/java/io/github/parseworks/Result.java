@@ -4,9 +4,10 @@ import io.github.parseworks.impl.Failure;
 import io.github.parseworks.impl.Success;
 
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
- * The `Result` class represents the outcome of applying a parser to an input.
+ * The `Result` interface represents the outcome of applying a parser to an input.
  * It can either be a success, containing the parsed value and the remaining input,
  * or a failure, containing an error message and the input at which the failure occurred.
  *
@@ -15,7 +16,7 @@ import java.util.function.Consumer;
  * @author jason bailey
  * @version $Id: $Id
  */
-public abstract class Result<I, A> {
+public interface Result<I, A> {
 
     /**
      * Creates a successful result with the given value and remaining input.
@@ -26,7 +27,7 @@ public abstract class Result<I, A> {
      * @param <A>   the type of the parsed value
      * @return a successful result
      */
-    public static <I, A> Result<I, A> success(Input<I> next, A value) {
+    static <I, A> Result<I, A> success(Input<I> next, A value) {
         return new Success<>(value, next);
     }
 
@@ -40,7 +41,7 @@ public abstract class Result<I, A> {
      * @param <A>     the type of the parsed value
      * @return a failure result containing the input and error message
      */
-    public static <I, A> Result<I, A> failure(Input<I> input, String message) {
+    static <I, A> Result<I, A> failure(Input<I> input, String message) {
         return new Failure<>(input, message);
     }
 
@@ -56,7 +57,7 @@ public abstract class Result<I, A> {
      * @param <A>     the type of the parsed value
      * @return a failure result containing the input, error message, and cause
      */
-    public static <I, A> Result<I, A> failure(Input<I> input, String message, Result<I, ?> cause) {
+    static <I, A> Result<I, A> failure(Input<I> input, String message, Result<I, ?> cause) {
         return new Failure<>(input, message, cause);
     }
 
@@ -69,7 +70,7 @@ public abstract class Result<I, A> {
      * @param <A>     the type of the parsed value
      * @return a failure result
      */
-    public static <I, A> Result<I, A> failureEof(Input<I> input, String expectedType) {
+    static <I, A> Result<I, A> failureEof(Input<I> input, String expectedType) {
         String message = "Failure at position %s, saw <eof>, expected %s".formatted(input.position(), expectedType);
         return new Failure<>(input, message);
     }
@@ -79,14 +80,14 @@ public abstract class Result<I, A> {
      *
      * @return true if this result is a success
      */
-    public abstract boolean isSuccess();
+    boolean isSuccess();
 
     /**
      * Returns true if this result is an error.
      *
      * @return true if this result is an error
      */
-    public abstract boolean isError();
+     boolean isError();
 
     /**
      * Returns the parsed value if this result is a success.
@@ -95,14 +96,14 @@ public abstract class Result<I, A> {
      * @return the parsed value
      * @throws java.lang.RuntimeException if this result is a failure
      */
-    public abstract A getOrThrow();
+     A getOrThrow();
 
     /**
      * Returns the remaining input after parsing.
      *
      * @return the remaining input
      */
-    public abstract Input<I> next();
+     Input<I> next();
 
     /**
      * Casts this result to a result of a different type.
@@ -110,7 +111,7 @@ public abstract class Result<I, A> {
      * @param <B> the new type of the parsed value
      * @return this result cast to the new type
      */
-    public abstract <B> Result<I, B> cast();
+     <B> Result<I, B> cast();
 
     /**
      * Maps the parsed value to a new value using the given function.
@@ -119,28 +120,37 @@ public abstract class Result<I, A> {
      * @param <B>    the new type of the parsed value
      * @return a new result with the mapped value
      */
-    public abstract <B> Result<I, B> map(java.util.function.Function<A, B> mapper);
+     <B> Result<I, B> map(java.util.function.Function<A, B> mapper);
 
     /**
      * Returns the error message if this result is a failure.
      *
      * @return the error message, or an empty string if this result is a success
      */
-    public abstract String getError();
+     String getError();
 
     /**
      * Returns the full error message if this result is a failure.
      *
      * @return the full error message, or an empty string if this result is a success
      */
-    public abstract String getFullErrorMessage();
+     String getFullErrorMessage();
 
     /**
      * Returns the input at which the failure occurred.
      *
      * @return a {@link io.github.parseworks.Result} object
      */
-    public abstract Result<?, ?> cause();
+     Result<?, ?> cause();
+
+    /**
+     * Apply one of two functions to this value.
+     * @param success   the function to be applied to a successful value
+     * @param failure   the function to be applied to a failure value
+     * @param <B>       the function return type
+     * @return          the result of applying either function
+     */
+    <B> B handle(Function<Success<I, A>, B> success, Function<Failure<I, A>, B> failure);
 
     /**
      * Handles the result by calling the appropriate consumer.
@@ -148,5 +158,6 @@ public abstract class Result<I, A> {
      * @param success the consumer to call if this result is a success
      * @param failure the consumer to call if this result is a failure
      */
-    public abstract void handle(Consumer<Success<I, A>> success, Consumer<Failure<I, A>> failure);
+     void handle(Consumer<Success<I, A>> success, Consumer<Failure<I, A>> failure);
+
 }

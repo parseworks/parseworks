@@ -4,6 +4,7 @@ import io.github.parseworks.Input;
 import io.github.parseworks.Result;
 
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * <p>Success class.</p>
@@ -11,7 +12,7 @@ import java.util.function.Consumer;
  * @author jason bailey
  * @version $Id: $Id
  */
-public class Success<I, A> extends Result<I, A> {
+public class Success<I, A> implements Result<I, A> {
     private final A value;
     private final Input<I> next;
 
@@ -99,9 +100,11 @@ public class Success<I, A> extends Result<I, A> {
         return null;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
+    public <B> B handle(Function<Success<I, A>, B> success, Function<Failure<I, A>, B> failure) {
+        return success.apply(this);
+    }
+
     @Override
     public void handle(Consumer<Success<I, A>> success, Consumer<Failure<I, A>> failure) {
         success.accept(this);

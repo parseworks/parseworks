@@ -6,6 +6,7 @@ import io.github.parseworks.Result;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Represents a failure result in a parser combinator.
@@ -15,7 +16,7 @@ import java.util.function.Consumer;
  * @author jason bailey
  * @version $Id: $Id
  */
-public class Failure<I, A> extends Result<I, A> {
+public class Failure<I, A> implements Result<I, A> {
     private final Input<I> input;
     private final String message;
     private final Result<?, ?> cause;
@@ -141,11 +142,11 @@ public class Failure<I, A> extends Result<I, A> {
         return cause;
     }
 
-    /**
-     * {@inheritDoc}
-     * <p>
-     * Handles the result by calling the appropriate consumer.
-     */
+    @Override
+    public <B> B handle(Function<Success<I, A>, B> success, Function<Failure<I, A>, B> failure) {
+        return failure.apply(this);
+    }
+
     @Override
     public void handle(Consumer<Success<I, A>> success, Consumer<Failure<I, A>> failure) {
         failure.accept(this);
