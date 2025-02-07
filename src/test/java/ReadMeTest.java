@@ -1,8 +1,11 @@
 import io.github.parseworks.Input;
 import io.github.parseworks.Parser;
 import io.github.parseworks.Ref;
+import io.github.parseworks.Result;
+import io.github.parseworks.impl.Success;
 import org.junit.jupiter.api.Test;
 
+import java.io.CharArrayReader;
 import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
 
@@ -13,13 +16,34 @@ public class ReadMeTest {
 
     @Test
     public void summ() {
+        Ref<Character, String> expr = Parser.ref();
+        Parser<Character, String> temp = chr('X').or(
+                chr('a')).then(expr).then(chr('b')).map(a -> e -> b -> a + e + b);
+
+        expr.set(temp);
+        char[] charData = { 'A', 'B', 'C', 'D' };
+
+        // Construct Input from a char array
+        Input<Character> chrArrInput = Input.of(charData);
+        // Construct Input from a String
+        Input<Character> strInput = Input.of("ABCD");
+        // Construct Input from a Reader
+        Input<Character> rdrInput = Input.of(new CharArrayReader(charData));
+
+        Result<Character, String> result = expr.parse(Input.of("ABCD"));
+
+        // Handle success or failure
+        result.handle(
+                success -> System.out.println(success.getOrThrow()),
+                failure -> System.out.println("Error: " + failure.getFullErrorMessage())
+        );
         // This is a test class for the README.md file.
         // It is used to validate the code snippets in the README.md file.
         Parser<Character, Integer> sum =
                 number.thenSkip(chr('+')).then(number).map(Integer::sum);
 
-        int result = sum.parse(Input.of("1+2")).getOrThrow();
-        System.out.println(result); // 3
+        int sumResult = sum.parse(Input.of("1+2")).getOrThrow();
+        System.out.println(sumResult); // 3
 
         try {
             sum.parse(Input.of("1+z")).getOrThrow();

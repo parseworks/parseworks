@@ -122,7 +122,7 @@ public class Parser<I, A> {
      * @return a parser that always fails
      */
     public static <I, A> Parser<I, A> fail() {
-        return new Parser<>(in -> Result.failure(in, "Parser failed"));
+        return new Parser<>(in -> Result.failure(in, "predefined failure"));
     }
 
     /**
@@ -313,10 +313,9 @@ public class Parser<I, A> {
      * If all three succeed, the result of this parser is returned.
      *
      * @param bracket the bracket symbol
-     * @param <B>     a B class
      * @return a parser for expressions with enclosing bracket symbols
      */
-    public <B> Parser<I, A> between(Parser<I, A> bracket) {
+    public Parser<I, A> between(Parser<I, A> bracket) {
         return between(bracket, bracket);
     }
 
@@ -574,7 +573,7 @@ public class Parser<I, A> {
                     if (count >= min) {
                         return Result.success(currentInput, accumulator);
                     } else {
-                        return Result.failureEof(currentInput, "Unexpected end of input");
+                        return Result.failureEof(currentInput, min +" repetitions");
                     }
                 }
                 Result<I, A> result = this.apply(currentInput);

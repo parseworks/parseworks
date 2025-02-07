@@ -66,6 +66,24 @@ Traditionally, parsers are implemented using tools like Yacc/Bison or ANTLR, whi
 
 ## Types
 
+### `Parser` Type
+
+`Parser<I, A>` defines the core interface for parsers. Use the `Parser.parse` method to apply a parser to an `Input`, returning a `Result`.
+
+#### Recursive Parsers with `Parser.Ref`
+
+Recursive grammars require special handling. Use `Parser.Ref` to create uninitialized parser references:
+
+```java
+Ref<Character, String> expr = Parser.ref();
+Parser<Character, String> temp = chr('X')
+        .or(chr('a'))
+        .then(expr).then(chr('b')).map(a -> e -> b -> a + e + b);
+
+expr.set(temp);
+```
+
+
 ### `Input` Type
 
 `Input<I>` represents a position in a stream of tokens. Typically, the token type `I` is a character (`Chr`).
@@ -77,10 +95,8 @@ char[] charData = { 'A', 'B', 'C', 'D' };
 
 // Construct Input from a char array
 Input<Character> chrArrInput = Input.of(charData);
-
 // Construct Input from a String
 Input<Character> strInput = Input.of("ABCD");
-
 // Construct Input from a Reader
 Input<Character> rdrInput = Input.of(new CharArrayReader(charData));
 ```
@@ -95,29 +111,11 @@ Input<Character> rdrInput = Input.of(new CharArrayReader(charData));
 #### Example
 
 ```java
-Result<Character, String> result = parser.parse(Input.of("ABCD"));
-
-// Handle success or failure
-String output = result.handle(
-    success -> success.value,
-    failure -> "Error: " + failure.message
+Result<Character, String> result = expr.parse(Input.of("ABCD"));
+result.handle(
+        success -> System.out.println(success.getOrThrow()),
+        failure -> System.out.println("Error: " + failure.getFullErrorMessage())
 );
-```
-
-### `Parser` Type
-
-`Parser<I, A>` defines the core interface for parsers. Use the `Parser.parse` method to apply a parser to an `Input`, returning a `Result`.
-
-#### Recursive Parsers with `Parser.Ref`
-
-Recursive grammars require special handling. Use `Parser.Ref` to create uninitialized parser references:
-
-```java
-Ref<Character, String> expr = Parser.ref();
-Ref<Character, String> temp = chr('x').or(
-        chr('a').and(expr).and(chr('b')).map(a -> e -> b -> a + e + b)
-);
-expr.set(temp);
 ```
 
 ## Existing Parsers
@@ -130,38 +128,29 @@ Here is a sample list of the parsers available in the `Parser`, `Combinators`, a
 - **`skipThen(Parser<I, B> pb)`**: Chains this parser with another parser, applying them in sequence. The result of the first parser is ignored, and the result of the second parser is returned.
 - **`between(I open, I close)`**: A parser for expressions with enclosing symbols. Validates the open symbol, then this parser, and then the close symbol. If all three succeed, the result of this parser is returned.
 - **`fail()`**: Creates a parser that always fails with a generic error message.
-- **`oneOrMore(Parser<I, A> parser)`**: Applies the parser one or more times and collects the results.
-- **`zeroOrMore()`**: Applies this parser zero or more times until it fails, and then returns a list of the results. If this parser fails on the first attempt, an empty list is returned.
+- **`many(Parser<I, A> parser)`**: Applies the parser one or more times and collects the results.
+- **`zeroOrMany()`**: Applies this parser zero or more times until it fails, and then returns a list of the results. If this parser fails on the first attempt, an empty list is returned.
 - **`then(Parser<I, B> next)`**: Chains this parser with another parser, applying them in sequence. The result of the first parser is passed to the second parser.
 - **`trim()`**: Trims leading and trailing whitespace from the input, before and after applying this parser.
 - **`map(Function<A, R> func)`**: Transforms the result of this parser using the given function.
 - **`as(R value)`**: Transforms the result of this parser to a constant value.
 - **`not(Parser<I, A> parser)`**: Wraps the 'this' parser to only call it if the provided parser returns a fail.
 - **`chain(Parser<I, BinaryOperator<A>> op, Associativity associativity)`**: Chains this parser with an operator parser, applying them in sequence based on the specified associativity. The result of the first parser is combined with the results of subsequent parsers using the operator.
-- **`zeroOrMoreChainRight(Parser<I, BinaryOperator<A>> op, A a)`**: A parser for an operand, followed by zero or more operands that are separated by operators. The operators are right-associative.
-- **`oneOrMoreChainRight(Parser<I, BinaryOperator<A>> op)`**: Parse right-associative operator expressions.
-- **`zeroOrMoreChainLeft(Parser<I, BinaryOperator<A>> op, A a)`**: A parser for an operand, followed by zero or more operands that are separated by operators. The operators are left-associative.
-- **`oneOrMoreChainRight(Parser<I, BinaryOperator<A>> op)`**: A parser for an operand, followed by one or more operands that are separated by operators. The operators are left-associative.
+- **`chainRightZeroOrMany(Parser<I, BinaryOperator<A>> op, A a)`**: A parser for an operand, followed by zero or more operands that are separated by operators. The operators are right-associative.
+- **`chainRightMany(Parser<I, BinaryOperator<A>> op)`**: Parse right-associative operator expressions.
+- **`chainLeftZeroOrMany(Parser<I, BinaryOperator<A>> op, A a)`**: A parser for an operand, followed by zero or more operands that are separated by operators. The operators are left-associative.
+- **`chainLeftMany(Parser<I, BinaryOperator<A>> op)`**: A parser for an operand, followed by one or more operands that are separated by operators. The operators are left-associative.
 - **`repeat(int target)`**: A parser that applies this parser the `target` number of times. If the parser fails before reaching the target of repetitions, the parser fails.
 - **`repeatAtLeast(int target)`**: A parser that applies this parser the `target` number of times. If the parser fails before reaching the target of repetitions, the parser fails.
 - **`repeat(int min, int max)`**: A parser that applies this parser between `min` and `max` times. If the parser fails before reaching the minimum number of repetitions, the parser fails.
-- **`separatedBy(Parser<I, SEP> sep)`**: A parser that applies this parser zero or more times until it fails, alternating with calls to the separator parser. The results of this parser are collected in a list and returned by the parser.
-- **`separatedBy(Parser<I, SEP> sep)`**: A parser that applies this parser one or more times until it fails, alternating with calls to the separator parser. The results of this parser are collected in a non-empty list and returned by the parser.
+- **`separatedByZeroOrMany(Parser<I, SEP> sep)`**: A parser that applies this parser zero or more times until it fails, alternating with calls to the separator parser. The results of this parser are collected in a list and returned by the parser.
+- **`separatedByMany(Parser<I, SEP> sep)`**: A parser that applies this parser one or more times until it fails, alternating with calls to the separator parser. The results of this parser are collected in a non-empty list and returned by the parser.
 - **`optional()`**: Wraps the result of this parser in an `Optional`. If the parser fails, it returns an empty `Optional`.
 
 ### `Combinators` Class Parsers
-- **`then(Parser<I, A> p1, Parser<I, B> p2)`**: Sequentially applies two parsers.
 - **`oneOf(Parser<I, T>... parsers)`**: Tries multiple parsers in sequence until one succeeds.
-- **`not(Parser<I, T> parser)`**: Matches when the given parser fails.
-- **`optional(Parser<I, T> parser)`**: Makes a parser optional.
-- **`many(Parser<I, T> parser)`**: Matches zero or more repetitions of the parser.
-- **`sepBy(Parser<I, T> parser, Parser<I, ?> separator)`**: Matches a parser separated by a specific pattern.
-- **`zeroOrMore(Parser<I, A> parser)`**: Applies the given parser zero or more times and collects the results.
 - **`satisfy(Predicate<I> predicate, Function<I, String> errorMessage)`**: Parses a single item that satisfies the given predicate.
 - **`satisfy(Predicate<I> predicate, String expectedType)`**: Parses a single item that satisfies the given predicate.
-- **`oneOrMore(Parser<I, A> parser)`**: Applies the parser one or more times and collects the results.
-- **`optional(Parser<I, A> parser)`**: Tries to apply the parser and returns an `Optional` result.
-- **`thenSkip(Parser<I, A> left, Parser<I, B> right)`**: Applies two parsers in sequence and returns the result of the left parser, skipping the right.
 
 ### `Text` Class Parsers
 - **`digit()`**: Matches a single numeric character.

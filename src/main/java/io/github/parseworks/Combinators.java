@@ -5,7 +5,6 @@ import io.github.parseworks.impl.parser.NoCheckParser;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -63,31 +62,6 @@ public class Combinators {
         });
     }
 
-    /**
-     * Applies the parser one or more times and collects the results in a `FList`.
-     * This parser will succeed if the given parser succeeds at least once, and will return a non-empty list of the results.
-     * If the parser fails on the first attempt, the parser fails.
-     *
-     * @param parser the parser to apply repeatedly
-     * @param <I>    the type of the input symbols
-     * @param <A>    the type of the parsed value
-     * @return a parser that applies the given parser one or more times and collects the results in a `FList`
-     */
-    public static <I, A> Parser<I, FList<A>> many(Parser<I, A> parser) {
-        return parser.then(parser.zeroOrMany()).map((a, l) -> l.push(a));
-    }
-
-    /**
-     * Optional combinator: tries to apply the parser and returns an `Optional` result.
-     *
-     * @param parser the parser to apply optionally
-     * @param <I>    the type of the input symbols
-     * @param <A>    the type of the parsed value
-     * @return a parser that tries to apply the given parser and returns an `Optional` result
-     */
-    public static <I, A> Parser<I, Optional<A>> optional(Parser<I, A> parser) {
-        return parser.map(Optional::of).or(pure(Optional.empty()));
-    }
 
     /**
      * Choice combinator: tries each parser in the list until one succeeds.
@@ -231,28 +205,6 @@ public class Combinators {
 
     /**
      * Satisfy combinator: parses a single item that satisfies the given predicate.
-     *
-     * @param predicate    the predicate that the parsed item must satisfy
-     * @param errorMessage the error message to use if the predicate is not satisfied
-     * @param <I>          the type of the input symbols
-     * @return a parser that parses a single item that satisfies the given predicate
-     */
-    public static <I> Parser<I, I> satisfy(Predicate<I> predicate, Function<I, String> errorMessage) {
-        return new NoCheckParser<>(in -> {
-            if (in.isEof()) {
-                return Result.failureEof(in, "Unexpected end of input");
-            }
-            I item = in.current();
-            if (predicate.test(item)) {
-                return Result.success(in.next(), item);
-            } else {
-                return Result.failure(in, errorMessage.apply(item));
-            }
-        });
-    }
-
-    /**
-     * Satisfy combinator: parses a single item that satisfies the given predicate.
      * <p>
      * This parser attempts to parse a single item from the input and checks if it satisfies the provided predicate.
      * If the input is at the end of the file (EOF), it returns a failure result with an "Unexpected end of input" message.
@@ -269,7 +221,7 @@ public class Combinators {
     public static <I> Parser<I, I> satisfy(Predicate<I> predicate, String expectedType) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.failureEof(in, "Unexpected end of input. expected type " + expectedType);
+                return Result.failureEof(in, expectedType);
             }
             I item = in.current();
             if (predicate.test(item)) {

@@ -64,12 +64,13 @@ public abstract class Result<I, A> {
      * Creates a failure result due to an unexpected end of input.
      *
      * @param input   the input at which the failure occurred
-     * @param message the error message
+     * @param expectedType the error message
      * @param <I>     the type of the input symbols
      * @param <A>     the type of the parsed value
      * @return a failure result
      */
-    public static <I, A> Result<I, A> failureEof(Input<I> input, String message) {
+    public static <I, A> Result<I, A> failureEof(Input<I> input, String expectedType) {
+        String message = "Failure at position %s, saw <eof>, expected %s".formatted(input.position(), expectedType);
         return new Failure<>(input, message);
     }
 
