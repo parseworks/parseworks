@@ -49,6 +49,17 @@ public record CharSequenceInput(int position, CharSequence data) implements Inpu
     }
 
     /**
+     * Returns a new {@code CharSequenceInput} instance representing the position offset by the given value.
+     *
+     * @param offset the offset to add to the current position
+     * @return a new {@code CharSequenceInput} with the position incremented by the given offset
+     */
+    @Override
+    public Input<Character> skip(int offset) {
+        return new CharSequenceInput(position + offset, data);
+    }
+
+    /**
      * Returns a string representation of the {@code CharSequenceInput}.
      *
      * @return a string representation of the {@code CharSequenceInput}

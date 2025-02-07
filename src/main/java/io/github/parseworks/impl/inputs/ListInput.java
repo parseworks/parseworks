@@ -51,6 +51,11 @@ public record ListInput<I>(int position, List<I> data) implements Input<I> {
         return new ListInput<>(position + 1, data);
     }
 
+    @Override
+    public Input<I> skip(int offset) {
+        return new ListInput<>(position + offset, data);
+    }
+
     /**
      * Returns a string representation of the {@code ListInput}.
      *

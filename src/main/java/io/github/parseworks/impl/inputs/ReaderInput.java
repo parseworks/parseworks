@@ -68,6 +68,27 @@ public record ReaderInput(Reader reader, int position, int chr, boolean isEof) i
         return new ReaderInput(reader, position + 1, nextChar, nextChar == -1);
     }
 
+    @Override
+    public Input<Character> skip(int offset) {
+        if (offset < 0) {
+            throw new IllegalArgumentException("Offset must be non-negative");
+        }
+        if (offset == 0) {
+            return this;
+        }
+        if (isEof) {
+            throw new IllegalStateException("End of input");
+        }
+        int nextChar = chr;
+        for (int i = 0; i < offset; i++) {
+            nextChar = readChar(reader);
+            if (nextChar == -1) {
+                return new ReaderInput(reader, position + i, nextChar, true);
+            }
+        }
+        return new ReaderInput(reader, position + offset, nextChar, false);
+    }
+
     /**
      * Returns a string representation of the {@code ReaderInput}.
      *

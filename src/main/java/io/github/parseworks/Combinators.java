@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static io.github.parseworks.Parser.pure;
@@ -275,6 +277,36 @@ public class Combinators {
      */
     public static Parser<Character, Character> oneOf(String str) {
         return satisfy(c -> str.indexOf(c) != -1, "<oneOf> " + str);
+    }
+
+    /**
+     * Creates a parser that matches the input against the given regular expression.
+     * The parser attempts to match the input from the beginning using the provided regex pattern.
+     * If the match is successful, the parser returns the matched string.
+     * If the match fails, the parser returns a failure result with an appropriate error message.
+     * <p>
+     * This method is useful for parsing input that needs to conform to a specific pattern,
+     * such as numbers, identifiers, or other structured text.
+     *
+     * @param regex the regular expression pattern to match against the input
+     * @return a parser that matches the input against the given regular expression
+     */
+    public static Parser<Character,String> regex(String regex) {
+        Pattern pattern = Pattern.compile(regex.charAt(0) == '^' ? regex : "^" + regex);
+        return new Parser<>(in -> {
+            var input = in;
+            StringBuilder result = new StringBuilder();
+            while (!input.isEof()) {
+                result.append(input.current());
+                input = input.next();
+            }
+            var string =  result.toString();
+            Matcher matcher = pattern.matcher(string);
+            if (matcher.find()) {
+                return Result.success(in.skip(matcher.end()), matcher.group());
+            }
+            return Result.failure(in, "Regex match failed for pattern: " + regex);
+        });
     }
 
 

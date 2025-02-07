@@ -49,6 +49,18 @@ public record CharArrayInput(int position, char[] data) implements Input<Charact
     }
 
     /**
+     * Returns a new {@code CharArrayInput} instance representing the position offset by the given value.
+     *
+     * @param offset the offset to add to the current position
+     * @return a new {@code CharArrayInput} with the position incremented by the given offset
+     */
+    @Override
+    public Input<Character> skip(int offset) {
+        return new CharArrayInput(position + offset,data);
+    }
+
+
+    /**
      * Returns a string representation of the {@code CharArrayInput}.
      *
      * @return a string representation of the {@code CharArrayInput}

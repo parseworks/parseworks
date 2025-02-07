@@ -4,8 +4,7 @@ import io.github.parseworks.Parser;
 import io.github.parseworks.Result;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class CombinatorsTest {
 
@@ -25,7 +24,7 @@ public class CombinatorsTest {
 
         Result<Character, Character> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertTrue(result.getOrThrow() == 'a');
+        assertEquals('a', (char) result.getOrThrow());
     }
 
     @Test
@@ -34,6 +33,26 @@ public class CombinatorsTest {
         final Parser<Character, Character> parser = Combinators.any(Character.class);
 
         Result<Character, Character> result = parser.parse(input);
+        assertFalse(result.isSuccess());
+    }
+
+
+    @Test
+    public void regexParserSucceedsOnMatchingInput() {
+        final Input<Character> input = Input.of("123abc");
+        final Parser<Character, String> parser = Combinators.regex("\\d+");
+
+        Result<Character, String> result = parser.parse(input);
+        assertTrue(result.isSuccess());
+        assertEquals("123", result.getOrThrow());
+    }
+
+    @Test
+    public void regexParserFailsOnNonMatchingInput() {
+        final Input<Character> input = Input.of("abc123");
+        final Parser<Character, String> parser = Combinators.regex("\\d+");
+
+        Result<Character, String> result = parser.parse(input);
         assertFalse(result.isSuccess());
     }
 }
