@@ -51,8 +51,6 @@ Add the following dependency to your Maven `pom.xml`:
 ```
 
 # Parser Combinators
-<img src="./resources/hatter.png" alt="An image of the mad hatter lamenting his lack of using parse works" title="If only I wasn't a fictional character!" width="300"  align="right" >
-
 ## Overview
 Traditionally, parsers are implemented using tools like Yacc/Bison or ANTLR, which rely on external grammar definitions and code generation. Parser combinators offer an alternative approach by allowing grammar rules to be directly expressed in the host programming language, combining the flexibility of recursive descent parsing with better abstraction and composability.
 
@@ -63,6 +61,7 @@ Traditionally, parsers are implemented using tools like Yacc/Bison or ANTLR, whi
 - **Reusable Building Blocks**: Combinators allow constructing complex parsers from simple ones.
 
 ## Types
+<img src="./resources/hatter.png" alt="An image of the mad hatter lamenting his lack of using parse works" title="If only I wasn't a fictional character!" width="300"  align="right" >
 
 ### `Parser` Type
 
