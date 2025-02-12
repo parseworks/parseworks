@@ -26,9 +26,9 @@ public class TextUtilsTest {
     @Test
     public void testInteger() {
         Parser<Character, Integer> parser = TextUtils.integer();
-        assertEquals(123, parser.parse(Input.of("123")).getOrThrow());
-        assertEquals(-123, parser.parse(Input.of("-123")).getOrThrow());
-        assertEquals(123, parser.parse(Input.of("+123")).getOrThrow());
+        assertEquals(123, parser.parse(Input.of("123")).get());
+        assertEquals(-123, parser.parse(Input.of("-123")).get());
+        assertEquals(123, parser.parse(Input.of("+123")).get());
         assertFalse(parser.parse(Input.of("abc")).isSuccess());
     }
 }

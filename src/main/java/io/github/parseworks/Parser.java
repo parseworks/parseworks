@@ -64,7 +64,7 @@ public class Parser<I, A> {
             if (functionResult.isError()) {
                 return functionResult.cast();
             }
-            Function<A, B> func = functionResult.getOrThrow();
+            Function<A, B> func = functionResult.get();
             Input<I> in2 = functionResult.next();
             Result<I, A> valueResult = valueParser.apply(in2);
             if (valueResult.isError()) {
@@ -275,7 +275,7 @@ public class Parser<I, A> {
             if (nextInput.isEof() || !nextInput.current().equals(close)) {
                 return Result.failure(nextInput, "Expected close value: " + close);
             }
-            return Result.success(nextInput.next(), thisResult.getOrThrow());
+            return Result.success(nextInput.next(), thisResult.get());
         });
     }
 
@@ -341,7 +341,7 @@ public class Parser<I, A> {
                 if (!result.isSuccess() || currentInput.position() == result.next().position()) {
                     return Result.success(currentInput, results);
                 }
-                results.add(result.getOrThrow());
+                results.add(result.get());
                 currentInput = result.next();
             }
         });
@@ -371,7 +371,7 @@ public class Parser<I, A> {
             Result<I, A> result = this.apply(trimmedInput);
             if (result.isSuccess()) {
                 trimmedInput = skipWhitespace(result.next());
-                return Result.success(trimmedInput, result.getOrThrow());
+                return Result.success(trimmedInput, result.get());
             }
             return result;
         });
@@ -578,7 +578,7 @@ public class Parser<I, A> {
                 }
                 Result<I, A> result = this.apply(currentInput);
                 if (result.isSuccess()) {
-                    accumulator.add(result.getOrThrow());
+                    accumulator.add(result.get());
                     currentInput = result.next();
                     count++;
                 } else {

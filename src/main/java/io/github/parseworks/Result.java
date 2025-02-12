@@ -3,6 +3,7 @@ package io.github.parseworks;
 import io.github.parseworks.impl.Failure;
 import io.github.parseworks.impl.Success;
 
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -96,7 +97,7 @@ public interface Result<I, A> {
      * @return the parsed value
      * @throws java.lang.RuntimeException if this result is a failure
      */
-     A getOrThrow();
+     A get();
 
     /**
      * Returns the remaining input after parsing.
@@ -127,14 +128,14 @@ public interface Result<I, A> {
      *
      * @return the error message, or an empty string if this result is a success
      */
-     String getError();
+     String error();
 
     /**
      * Returns the full error message if this result is a failure.
      *
      * @return the full error message, or an empty string if this result is a success
      */
-     String getFullErrorMessage();
+     String fullErrorMessage();
 
     /**
      * Returns the input at which the failure occurred.
@@ -144,6 +145,26 @@ public interface Result<I, A> {
      Result<?, ?> cause();
 
     /**
+     * Returns an Optional containing the parsed value if this result is a success.
+     * If this result is a failure, returns an empty Optional.
+     *
+     * @return an Optional containing the parsed value, or an empty Optional if this result is a failure
+     */
+    default Optional<A> toOptional() {
+        return isSuccess() ? Optional.of(get()) : Optional.empty();
+    }
+
+    /**
+     * Returns an Optional containing the error message if this result is a failure.
+     * If this result is a success, returns an empty Optional.
+     *
+     * @return an Optional containing the error message, or an empty Optional if this result is a success
+     */
+    default Optional<String> errorOptional() {
+        return isError() ? Optional.of(error()) : Optional.empty();
+    }
+
+    /**
      * Apply one of two functions to this value.
      * @param success   the function to be applied to a successful value
      * @param failure   the function to be applied to a failure value
@@ -151,13 +172,4 @@ public interface Result<I, A> {
      * @return          the result of applying either function
      */
     <B> B handle(Function<Success<I, A>, B> success, Function<Failure<I, A>, B> failure);
-
-    /**
-     * Handles the result by calling the appropriate consumer.
-     *
-     * @param success the consumer to call if this result is a success
-     * @param failure the consumer to call if this result is a failure
-     */
-     void handle(Consumer<Success<I, A>> success, Consumer<Failure<I, A>> failure);
-
 }

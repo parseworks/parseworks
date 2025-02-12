@@ -16,7 +16,7 @@ public class ParserTest {
         Input<Character> input = Input.of("");
         Result<Character, String> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals("test", result.getOrThrow());
+        assertEquals("test", result.get());
     }
 
     @Test
@@ -30,7 +30,7 @@ public class ParserTest {
         Input<Character> input = Input.of("abc123");
         Result<Character, List<Character>> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals(6, result.getOrThrow().size());
+        assertEquals(6, result.get().size());
     }
 
     @Test
@@ -41,7 +41,7 @@ public class ParserTest {
         Input<Character> input = Input.of("1+2+3");
         Result<Character, Integer> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals(6, result.getOrThrow());
+        assertEquals(6, result.get());
     }
 
 
@@ -59,7 +59,7 @@ public class ParserTest {
         Input<Character> input = Input.of("(" + test + ")");
         Result<Character, String> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals(test, result.getOrThrow());
+        assertEquals(test, result.get());
     }
 
     @Test
@@ -68,7 +68,7 @@ public class ParserTest {
         Input<Character> input = Input.of("5");
         Result<Character, Character> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals('5', result.getOrThrow());
+        assertEquals('5', result.get());
     }
 
     @Test
@@ -77,7 +77,7 @@ public class ParserTest {
         Input<Character> input = Input.of("12345");
         Result<Character, Integer> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals(12345, result.getOrThrow());
+        assertEquals(12345, result.get());
     }
 
     @Test
@@ -94,7 +94,7 @@ public class ParserTest {
         Input<Character> input = Input.of("b");
         Result<Character, Character> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals('b', result.getOrThrow());
+        assertEquals('b', result.get());
     }
 
     @Test
@@ -105,7 +105,7 @@ public class ParserTest {
         Input<Character> input = Input.of("1+2+3");
         Result<Character, Integer> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals(6, result.getOrThrow());
+        assertEquals(6, result.get());
     }
 
     @Test
@@ -116,7 +116,7 @@ public class ParserTest {
         Input<Character> input = Input.of("1-2-3");
         Result<Character, Integer> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals(-4, result.getOrThrow());
+        assertEquals(-4, result.get());
     }
 
     @Test
@@ -127,7 +127,7 @@ public class ParserTest {
         Input<Character> input = Input.of("1-2-3");
         Result<Character, Integer> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals(2, result.getOrThrow());
+        assertEquals(2, result.get());
     }
 
     @Test
@@ -138,7 +138,7 @@ public class ParserTest {
         Input<Character> input = Input.of("1-2-3");
         Result<Character, Integer> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals(2, result.getOrThrow());
+        assertEquals(2, result.get());
     }
 
     @Test
@@ -147,7 +147,7 @@ public class ParserTest {
         Input<Character> input = Input.of("a,b,c");
         Result<Character, FList<Character>> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals(3, result.getOrThrow().size());
+        assertEquals(3, result.get().size());
     }
 
     @Test
@@ -156,8 +156,8 @@ public class ParserTest {
         Input<Character> input = Input.of("a");
         Result<Character, Optional<Character>> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertTrue(result.getOrThrow().isPresent());
-        assertEquals('a', result.getOrThrow().get());
+        assertTrue(result.get().isPresent());
+        assertEquals('a', result.get().get());
     }
 
     @Test
@@ -176,7 +176,7 @@ public class ParserTest {
         Input<Character> input = Input.of("[" + test + "]");
         Result<Character, String> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals(test, result.getOrThrow());
+        assertEquals(test, result.get());
     }
 
     @Test
@@ -185,7 +185,7 @@ public class ParserTest {
         Input<Character> input = Input.of("aaa");
         Result<Character, FList<Character>> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals(3, result.getOrThrow().size());
+        assertEquals(3, result.get().size());
     }
 
     @Test
@@ -194,7 +194,7 @@ public class ParserTest {
         Input<Character> input = Input.of("aaa");
         Result<Character, FList<Character>> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals(3, result.getOrThrow().size());
+        assertEquals(3, result.get().size());
     }
 
     @Test
@@ -203,7 +203,7 @@ public class ParserTest {
         Input<Character> input = Input.of("aaa");
         Result<Character, FList<Character>> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals(3, result.getOrThrow().size());
+        assertEquals(3, result.get().size());
     }
 
 

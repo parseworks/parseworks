@@ -47,7 +47,7 @@ public class Success<I, A> implements Result<I, A> {
      * {@inheritDoc}
      */
     @Override
-    public A getOrThrow() {
+    public A get() {
         return value;
     }
 
@@ -80,7 +80,7 @@ public class Success<I, A> implements Result<I, A> {
      * {@inheritDoc}
      */
     @Override
-    public String getError() {
+    public String error() {
         return "No error";
     }
 
@@ -88,7 +88,7 @@ public class Success<I, A> implements Result<I, A> {
      * {@inheritDoc}
      */
     @Override
-    public String getFullErrorMessage() {
+    public String fullErrorMessage() {
         return "";
     }
 
@@ -105,8 +105,4 @@ public class Success<I, A> implements Result<I, A> {
         return success.apply(this);
     }
 
-    @Override
-    public void handle(Consumer<Success<I, A>> success, Consumer<Failure<I, A>> failure) {
-        success.accept(this);
-    }
 }

@@ -24,7 +24,7 @@ public class CombinatorsTest {
 
         Result<Character, Character> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals('a', (char) result.getOrThrow());
+        assertEquals('a', (char) result.get());
     }
 
     @Test
@@ -44,7 +44,7 @@ public class CombinatorsTest {
 
         Result<Character, String> result = parser.parse(input);
         assertTrue(result.isSuccess());
-        assertEquals("123", result.getOrThrow());
+        assertEquals("123", result.get());
     }
 
     @Test

@@ -4,13 +4,11 @@ import io.github.parseworks.impl.parser.NoCheckParser;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static io.github.parseworks.Parser.pure;
 import static io.github.parseworks.Utils.failure;
 
 /**
@@ -171,7 +169,7 @@ public class Combinators {
                 if (!result.isSuccess()) {
                     return failure(currentInput);
                 }
-                results.add(result.getOrThrow());
+                results.add(result.get());
                 currentInput = result.next();
             }
             return Result.success(currentInput, results);
@@ -251,7 +249,7 @@ public class Combinators {
      * @return a parser that parses the specified character
      */
     public static Parser<Character, Character> chr(char c) {
-        return chr(ch -> ch == c);
+        return satisfy(ch -> ch == c,"'"+ c +"'");
     }
 
     /**

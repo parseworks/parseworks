@@ -20,7 +20,7 @@ public class AssociativityTest {
 
 
         var result = addition.parse(Input.of("2+3"));
-        System.out.println(result.getOrThrow());
+        System.out.println(result.get());
 
     }
 
@@ -39,9 +39,9 @@ public class AssociativityTest {
         )));
 
         var result = expression.parse(Input.of("2*3+4"));
-        assertEquals(10.0, result.getOrThrow());
+        assertEquals(10.0, result.get());
         result = expression.parse(Input.of("2+3*4"));
-        assertEquals(14.0, result.getOrThrow());
+        assertEquals(14.0, result.get());
     }
 
     @Test
@@ -58,9 +58,9 @@ public class AssociativityTest {
         )));
 
         var result = expression.parse(Input.of("2*3+4"));
-        assertEquals(10.0, result.getOrThrow());
+        assertEquals(10.0, result.get());
         result = expression.parse(Input.of("2+3*4"));
-        assertEquals(14.0, result.getOrThrow());
+        assertEquals(14.0, result.get());
     }
 
     @Test
@@ -70,7 +70,7 @@ public class AssociativityTest {
 
         String input = "1+2+3";
         Result<Character, Integer> result = leftAssocParser.parse(Input.of(input));
-        assertEquals(6, result.getOrThrow());
+        assertEquals(6, result.get());
     }
 
     @Test
@@ -80,7 +80,7 @@ public class AssociativityTest {
 
         String input = "2^3^2";
         Result<Character, Integer> result = rightAssocParser.parse(Input.of(input));
-        assertEquals(512, result.getOrThrow());
+        assertEquals(512, result.get());
     }
 
 }

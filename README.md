@@ -1,7 +1,7 @@
 # Introduction
 <img src="./resources/parseWorks.png" alt="a nifty looking parse works logo" title="UwU It's a logo!" width="300" align="right">
 
-**parseWorks** is a Java parser combinator framework for constructing [LL(*) parsers](http://en.wikipedia.org/wiki/LL_parser). This library draws inspiration from Jon Hanson's [ParsecJ](https://github.com/jon-hanson/parsecj) and [FuncJ](https://github.com/typemeta/funcj) libraries.
+**parseWorks** is a Java parser combinator framework for constructing [LLR(*) parsers](http://en.wikipedia.org/wiki/LL_parser). This library draws inspiration from Jon Hanson's [ParsecJ](https://github.com/jon-hanson/parsecj) and [FuncJ](https://github.com/typemeta/funcj) libraries.
 
 ### Key Features
 
@@ -11,7 +11,6 @@
 - **Lightweight**: Zero dependencies, except for JUnit in tests.
 - **Left-Recursion Failsafe**: Prevents common pitfalls.
 - **Looping Empty Input Detection**: Detects infinite loops on empty inputs.
-- **Readable Syntax**: Provides user-friendly method names and error messages.
 
 ---
 
@@ -109,9 +108,9 @@ Input<Character> rdrInput = Input.of(new CharArrayReader(charData));
 
 ```java
 Result<Character, String> result = expr.parse(Input.of("ABCD"));
-var x = result.handle(
-        Success::getOrThrow,
-        failure -> "Error: " + failure.getFullErrorMessage()
+var response = result.handle(
+        Success::get,
+        failure -> "Error: " + failure.fullErrorMessage()
 );
 ```
 
@@ -174,30 +173,25 @@ sum ::= integer '+' integer
 Parser<Character, Integer> sum = 
         number.thenSkip(chr('+')).then(number).map(Integer::sum);
 
-int result = sum.parse(Input.of("1+2")).getOrThrow();
+int result = sum.parse(Input.of("1+2")).get();
 assert result == 3;
 ```
 
 #### Error Handling
 
+An error can be caught and handled by the errorOptional method, which returns an `Optional` containing the error message.
 ```java
-try {
-    sum.parse(Input.of("1+z")).getOrThrow();
-} catch (Exception e) {
-    System.out.println(e.getMessage()); // Failure at position 2, saw 'z', expected <number>
-}
+sum.parse(Input.of("1+z")).errorOptional().ifPresent(System.out::println);
 ```
 An error can be caught and handled by the handle method, which takes a function for botha success and failure.
 
 ```java
-sum.parse(Input.of("1+z")).handle(
-    success -> {
-        System.out.println("Success: no way!");
-    },
-    failure -> {
-         System.out.println("Error: " + failure.getFullErrorMessage());
-    }
+var response2 = sum.parse(Input.of("1+z")).handle(
+    success -> "Success: no way!",
+    failure -> "Error: " + failure.fullErrorMessage()
 );
+System.out.println(response2);
+// Error: Failure at position 2, saw 'z', expected <number>
 ```
 
 ### Arithmetic Expressions

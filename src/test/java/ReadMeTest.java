@@ -32,34 +32,27 @@ public class ReadMeTest {
 
         Result<Character, String> result = expr.parse(Input.of("ABCD"));
         // Handle success or failure
-        var x = result.handle(
-                Success::getOrThrow,
-                failure -> "Error: " + failure.getFullErrorMessage()
+        var response = result.handle(
+                Success::get,
+                failure -> "Error: " + failure.fullErrorMessage()
         );
 
-        System.out.println(x); // ABCD
+        System.out.println(response);
         // This is a test class for the README.md file.
         // It is used to validate the code snippets in the README.md file.
         Parser<Character, Integer> sum =
                 number.thenSkip(chr('+')).then(number).map(Integer::sum);
 
-        int sumResult = sum.parse(Input.of("1+2")).getOrThrow();
+        int sumResult = sum.parse(Input.of("1+2")).get();
         System.out.println(sumResult); // 3
 
-        try {
-            sum.parse(Input.of("1+z")).getOrThrow();
-        } catch (Exception e) {
-            System.out.println(e.getMessage()); // Failure at position 2, saw 'z', expected <number>
-        }
+        sum.parse(Input.of("1+z")).errorOptional().ifPresent(System.out::println);
 
-        sum.parse(Input.of("1+z")).handle(
-                success -> {
-                    System.out.println("Success: no way!");
-                },
-                failure -> {
-                    System.out.println("Error: " + failure.getFullErrorMessage());
-                }
+        var response2 = sum.parse(Input.of("1+z")).handle(
+                success -> "Success: no way!",
+                failure -> "Error: " + failure.fullErrorMessage()
         );
+        System.out.println(response2);
         // Error: Failure at position 2, saw 'z', expected <number>
     }
 
@@ -92,7 +85,7 @@ public class ReadMeTest {
 
         expr.set(oneOf(var, num, binExpr));
         /// comment line
-        UnaryOperator<Integer> eval = expr.parse(Input.of("(x*((x/2)+x))")).getOrThrow();
+        UnaryOperator<Integer> eval = expr.parse(Input.of("(x*((x/2)+x))")).get();
         int result = eval.apply(4);
         assert result == 24;
 

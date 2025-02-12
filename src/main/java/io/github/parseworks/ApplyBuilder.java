@@ -72,7 +72,7 @@ public class ApplyBuilder<I, A, B> {
             if (rb.isError()) {
                 return rb.cast();
             }
-            return Result.success(rb.next(), f.apply(ra.getOrThrow(), rb.getOrThrow()));
+            return Result.success(rb.next(), f.apply(ra.get(), rb.get()));
         });
     }
 

@@ -69,8 +69,8 @@ public class Failure<I, A> implements Result<I, A> {
      * Throws a RuntimeException with the full error message.
      */
     @Override
-    public A getOrThrow() {
-        throw new RuntimeException(getFullErrorMessage());
+    public A get() {
+        throw new RuntimeException(fullErrorMessage());
     }
 
     /**
@@ -111,7 +111,7 @@ public class Failure<I, A> implements Result<I, A> {
      * Returns the error message.
      */
     @Override
-    public String getError() {
+    public String error() {
         return message == null ? "No error message" : message;
     }
 
@@ -120,12 +120,12 @@ public class Failure<I, A> implements Result<I, A> {
      *
      * @return the full error message
      */
-    public String getFullErrorMessage() {
+    public String fullErrorMessage() {
         List<String> messages = new ArrayList<>();
         Result<?, ?> current = this;
         while (current != null) {
-            if (current.getError() != null) {
-                messages.add(current.getError());
+            if (current.error() != null) {
+                messages.add(current.error());
             }
             current = current.cause();
         }
@@ -145,10 +145,5 @@ public class Failure<I, A> implements Result<I, A> {
     @Override
     public <B> B handle(Function<Success<I, A>, B> success, Function<Failure<I, A>, B> failure) {
         return failure.apply(this);
-    }
-
-    @Override
-    public void handle(Consumer<Success<I, A>> success, Consumer<Failure<I, A>> failure) {
-        failure.accept(this);
     }
 }

@@ -52,7 +52,7 @@ public class ArithmeticParserTest {
     public void mathTest() {
         term.set(term2);
         String input = "3 + 5 * (2 * -8)";
-        double result = expression.parse(Input.of(input)).getOrThrow();
+        double result = expression.parse(Input.of(input)).get();
         System.out.println("Result: " + result);
     }
 }

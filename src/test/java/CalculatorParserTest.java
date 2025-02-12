@@ -34,9 +34,9 @@ public class CalculatorParserTest {
         Input<Character> input = Input.of("3+(2*4)-5");
         Result<Character, Integer> result = expression.parse(input);
         if (result.isSuccess()) {
-            System.out.println("Result: " + result.getOrThrow());
+            System.out.println("Result: " + result.get());
         } else {
-            System.out.println("Parsing failed: " + result.getError());
+            System.out.println("Parsing failed: " + result.error());
         }
     }
 
