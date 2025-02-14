@@ -25,7 +25,7 @@
 
     <scm>
         <connection>scm:git:git://github.com/parseworks/parseworks.git</connection>
-        <developerConnection>scm:git:ssh://github.com:parseworks/parseworks.git</developerConnection>
+        <developerConnection>scm:git:ssh://github:parseworks/parseworks.git</developerConnection>
         <url>https://github.com/parseworks/parseworks/tree/main</url>
     </scm>
 
