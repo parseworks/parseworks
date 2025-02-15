@@ -25,7 +25,7 @@
 
     <scm>
         <connection>scm:git:git://github.com/parseworks/parseworks.git</connection>
-        <developerConnection>scm:git:ssh://github.com:parseworks/parseworks.git</developerConnection>
+        <developerConnection>scm:git:ssh://github:parseworks/parseworks.git</developerConnection>
         <url>https://github.com/parseworks/parseworks/tree/main</url>
     </scm>
 
@@ -60,13 +60,16 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>3.1.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
                 <version>${maven-gpg-plugin.version}</version>
                 <configuration>
                     <executable>gpg</executable>
                     <gpgArguments>
-                        <arg>--pinentry-mode</arg>
-                        <arg>loopback</arg>
                     </gpgArguments>
                 </configuration>
                 <executions>
