@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://www.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://www.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.parseworks</groupId>
     <artifactId>parseworks</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 
     <name>${project.groupId}:${project.artifactId}</name>
     <description>
@@ -27,7 +25,8 @@
         <connection>scm:git:git://github.com/parseworks/parseworks.git</connection>
         <developerConnection>scm:git:origin</developerConnection>
         <url>https://github.com/parseworks/parseworks/tree/main</url>
-    </scm>
+      <tag>parseworks-0.1.0</tag>
+  </scm>
 
     <licenses>
         <license>
