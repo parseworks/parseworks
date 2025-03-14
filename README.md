@@ -46,7 +46,11 @@ parseWorks requires **Java 17** or higher.
 Add the following dependency to your Maven `pom.xml`:
 
 ```xml
-<!--- To be determined -->
+<dependency>
+   <groupId>io.github.parseworks</groupId>
+   <artifactId>parseworks</artifactId>
+   <version>0.1.0</version>
+</dependency>
 ```
 
 # Parser Combinators
