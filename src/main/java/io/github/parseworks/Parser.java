@@ -288,7 +288,7 @@ public class Parser<I, A> {
      * @param close the close symbol
      * @return a parser for expressions with enclosing symbols
      */
-    public Parser<I, A> between(Parser<I, A> open, Parser<I, A> close) {
+    public <B, C> Parser<I, A> between(Parser<I, B> open, Parser<I, C> close) {
         return open.skipThen(this).thenSkip(close);
     }
 
@@ -315,7 +315,7 @@ public class Parser<I, A> {
      * @param bracket the bracket symbol
      * @return a parser for expressions with enclosing bracket symbols
      */
-    public Parser<I, A> between(Parser<I, A> bracket) {
+    public <B> Parser<I, A> between(Parser<I, B> bracket) {
         return between(bracket, bracket);
     }
 
@@ -618,7 +618,7 @@ public class Parser<I, A> {
      */
     public <SEP> Parser<I, FList<A>> separatedByMany(Parser<I, SEP> sep) {
         return this.then(sep.skipThen(this).zeroOrMany()).map(a -> l -> {
-            l.add(a);
+            l.push(a);
             return l;
         });
     }
