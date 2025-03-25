@@ -1,7 +1,6 @@
 import io.github.parseworks.Combinators;
 import io.github.parseworks.Input;
 import io.github.parseworks.Parser;
-import io.github.parseworks.Ref;
 import org.junit.jupiter.api.Test;
 
 import java.util.function.BinaryOperator;
@@ -17,7 +16,7 @@ public class ArithmeticParserTest {
     /**
      * A reference to a parser for terms in arithmetic expressions.
      */
-    public static Ref<Character, Double> term = Parser.ref();
+    public static Parser<Character, Double> term = Parser.ref();
 
     /**
      * A parser for arithmetic expressions, supporting addition and subtraction.

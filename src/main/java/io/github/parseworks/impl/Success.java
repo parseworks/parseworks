@@ -101,7 +101,7 @@ public class Success<I, A> implements Result<I, A> {
     }
 
     @Override
-    public <B> B handle(Function<Success<I, A>, B> success, Function<Failure<I, A>, B> failure) {
+    public <B> B handle(Function<Result<I, A>, B> success, Function<Result<I, A>, B> failure) {
         return success.apply(this);
     }
 

@@ -1,6 +1,5 @@
 import io.github.parseworks.Input;
 import io.github.parseworks.Parser;
-import io.github.parseworks.Ref;
 import io.github.parseworks.Result;
 import io.github.parseworks.impl.Success;
 import org.junit.jupiter.api.Test;
@@ -16,7 +15,7 @@ public class ReadMeTest {
 
     @Test
     public void summ() {
-        Ref<Character, String> expr = Parser.ref();
+        Parser<Character, String> expr = Parser.ref();
         Parser<Character, String> temp = chr('X').or(
                 chr('a')).then(expr).then(chr('b')).map(a -> e -> b -> a + e + b);
 
@@ -33,7 +32,7 @@ public class ReadMeTest {
         Result<Character, String> result = expr.parse(Input.of("ABCD"));
         // Handle success or failure
         var response = result.handle(
-                Success::get,
+                Result::get,
                 failure -> "Error: " + failure.fullErrorMessage()
         );
 
@@ -66,7 +65,7 @@ public class ReadMeTest {
             abstract BinaryOperator<Integer> op();
         }
 
-        Ref<Character, UnaryOperator<Integer>> expr = Parser.ref();
+        Parser<Character, UnaryOperator<Integer>> expr = Parser.ref();
 
         Parser<Character, UnaryOperator<Integer>> var = chr('x').map(x -> v -> v);
         Parser<Character, UnaryOperator<Integer>> num = intr.map(i -> v -> i);

@@ -18,15 +18,30 @@ public class Parser<I, A> {
     protected Function<Input<I>, Result<I, A>> applyHandler;
     int index = -1;
 
+    private static final String INFINITE_LOOP_ERROR = "Infinite loop detected";
+
+    private Function<Input<I>, Result<I, A>> defaultApplyHandler;
+
     /**
-     * <p>Constructor for Parser.</p>
+     * Private constructor to create a parser reference that can be initialized later.
      */
-    public Parser() {
-        this.applyHandler = in -> Result.failure(in, "Parser not initialized");
+    private Parser() {
+        this.applyHandler = defaultApplyHandler = in -> { throw new IllegalStateException("Parser not initialized"); };
     }
 
     /**
-     * <p>Constructor for Parser.</p>
+     * Creates a reference to a parser that can be initialized later.
+     *
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     * @return a new parser reference
+     */
+    public static <I,A> Parser<I,A> ref() {
+        return new Parser<>();
+    }
+
+    /**
+     * Constructor for the Parser class.
      *
      * @param applyHandler a {@link java.util.function.Function} object
      */
@@ -38,14 +53,33 @@ public class Parser<I, A> {
     }
 
     /**
-     * Creates a new reference to a parser.
+     * Sets the applyHandler to the provided parser's applyHandler, for an uninitialized parser.
      *
-     * @param <I> the type of the input symbols
-     * @param <A> the type of the parsed value
-     * @return a new reference to a parser
+     * @param parser the parser to set
      */
-    public static <I, A> Ref<I, A> ref() {
-        return new Ref<>();
+    public void set(Parser<I, A> parser) {
+        if (parser == null) {
+            throw new IllegalArgumentException("parser cannot be null");
+        }
+        if (this.applyHandler != defaultApplyHandler) {
+            throw new IllegalStateException("Parser already has an applyHandler");
+        }
+        this.applyHandler = parser.applyHandler;
+    }
+
+    /**
+     * Sets the applyHandler to the provided function, for an uninitialized parser.
+     *
+     * @param applyHandler the function to set as the applyHandler
+     */
+    public void set(Function<Input<I>, Result<I, A>> applyHandler){
+        if (applyHandler == null) {
+            throw new IllegalArgumentException("applyHandler cannot be null");
+        }
+        if (this.applyHandler != defaultApplyHandler) {
+            throw new IllegalStateException("Parser already has an applyHandler");
+        }
+        this.applyHandler = applyHandler;
     }
 
     /**
@@ -214,7 +248,7 @@ public class Parser<I, A> {
      */
     public Result<I, A> apply(Input<I> in) {
         if (this.index == in.position()) {
-            return Result.failure(in, "Infinite loop detected");
+            return Result.failure(in, INFINITE_LOOP_ERROR);
         }
         this.index = in.position();
         Result<I, A> result = applyHandler.apply(in);
@@ -622,7 +656,6 @@ public class Parser<I, A> {
             return l;
         });
     }
-
 
     /**
      * Creates a parser that optionally applies this parser.

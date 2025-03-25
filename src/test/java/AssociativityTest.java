@@ -27,8 +27,8 @@ public class AssociativityTest {
 
     @Test
     public void testAssociativity() {
-        Ref<Character, Double> expression = Parser.ref();
-        Ref<Character, Double> term = Parser.ref();
+        Parser<Character, Double> expression = Parser.ref();
+        Parser<Character, Double> term = Parser.ref();
 
         Parser<Character, Double> addition = term.then(chr('+')).then(expression).map((left, op, right) -> Double.sum(left, right));
         Parser<Character, Double> multiplication = dble.then(chr('*')).then(term).map((left, op, right) -> left * right);
@@ -46,8 +46,8 @@ public class AssociativityTest {
 
     @Test
     public void associativity2() {
-        Ref<Character, Double> expression = Parser.ref();
-        Ref<Character, Double> term = Parser.ref();
+        Parser<Character, Double> expression = Parser.ref();
+        Parser<Character, Double> term = Parser.ref();
 
         Parser<Character, Double> addition = term.then(chr('+')).then(expression).map((left, op, right) -> Double.sum(left, right));
         Parser<Character, Double> multiplication = dble.then(chr('*')).then(term).map((left, op, right) -> left * right);

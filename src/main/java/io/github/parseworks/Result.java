@@ -171,5 +171,5 @@ public interface Result<I, A> {
      * @param <B>       the function return type
      * @return          the result of applying either function
      */
-    <B> B handle(Function<Success<I, A>, B> success, Function<Failure<I, A>, B> failure);
+    <B> B handle(Function<Result<I, A>, B> success, Function<Result<I, A>, B> failure);
 }

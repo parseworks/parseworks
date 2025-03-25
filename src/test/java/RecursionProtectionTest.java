@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 public class RecursionProtectionTest {
 
-    public static Ref<Character, Integer> term = Parser.ref();
+    public static Parser<Character, Integer> term = Parser.ref();
     public static Parser<Character, Integer> expression = term.chainLeftMany(operator());
     public static Parser<Character, Integer> term2 = Combinators.oneOf(List.of(
             term,

@@ -9,7 +9,7 @@ import static io.github.parseworks.TextUtils.digit;
 
 public class CalculatorParserTest {
 
-    public static Ref<Character, Integer> term = Parser.ref();
+    public static Parser<Character, Integer> term = Parser.ref();
     public static Parser<Character, Integer> expression = term.chainLeftZeroOrMany(operator(), 0);
     public static Parser<Character, Integer> term2 = Combinators.oneOf(List.of(
             number(),
