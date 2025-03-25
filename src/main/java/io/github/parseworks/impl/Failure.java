@@ -18,31 +18,25 @@ import java.util.function.Function;
  */
 public class Failure<I, A> implements Result<I, A> {
     private final Input<I> input;
-    private final String message;
     private final Result<?, ?> cause;
+    private final String foundElement;
+    private final String expectedPattern;
+    private final int errorPosition;
 
-    /**
-     * Constructs a new Failure with the specified input and message.
-     *
-     * @param input   the input at the point of failure
-     * @param message the error message
-     */
-    public Failure(Input<I> input, String message) {
-        this(input, message, null);
-    }
 
-    /**
-     * Constructs a new Failure with the specified input, message, and cause.
-     *
-     * @param input   the input at the point of failure
-     * @param message the error message
-     * @param cause   the previous Failure that caused this failure
-     */
-    public Failure(Input<I> input, String message, Result<?, ?> cause) {
+    public Failure(Input<I> input, String expectedPattern, String foundElement,Result<?, ?> cause) {
         this.input = input;
-        this.message = message;
+        this.errorPosition = input.position();
+        this.expectedPattern = expectedPattern;
+        this.foundElement = foundElement;
         this.cause = cause;
     }
+
+
+    public Failure(Input<I> input, String expectedPattern, String foundElement) {
+        this(input, expectedPattern, foundElement, null);
+    }
+
 
     /**
      * {@inheritDoc}
@@ -112,7 +106,7 @@ public class Failure<I, A> implements Result<I, A> {
      */
     @Override
     public String error() {
-        return message == null ? "No error message" : message;
+        return formatErrorMessage();
     }
 
     /**
@@ -130,6 +124,26 @@ public class Failure<I, A> implements Result<I, A> {
             current = current.cause();
         }
         return String.join(" -> ", messages);
+    }
+
+    /**
+     * Returns a formatted error message with position information.
+     *
+     * @return the formatted error message
+     */
+    public String formatErrorMessage() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Parse error at position ").append(errorPosition);
+
+        if (expectedPattern != null) {
+            sb.append(", Expected: ").append(expectedPattern);
+        }
+
+        if (foundElement != null) {
+            sb.append("\nFound: ").append(foundElement);
+        }
+
+        return sb.toString();
     }
 
     /**

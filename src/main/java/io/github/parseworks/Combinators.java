@@ -9,8 +9,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static io.github.parseworks.Utils.failure;
-
 /**
  * The `Combinators` class provides a set of combinator functions for creating complex parsers
  * by combining simpler ones. These combinators include choice, sequence, many, and satisfy.
@@ -36,7 +34,7 @@ public class Combinators {
     public static <I> Parser<I, I> any(Class<I> klass) {
         return new Parser<>(input -> {
             if (input.isEof()) {
-                return Result.failure(input, "Unexpected end of input");
+                return Result.failure(input, "object of "+klass.getName() ,"eof");
             } else {
                 return Result.success(input.next(), input.current());
             }
@@ -57,7 +55,7 @@ public class Combinators {
             if (input.isEof()) {
                 return Result.success(input, null);
             } else {
-                return Result.failure(input, "Expected end of file");
+                return Result.failure(input, "eof", String.valueOf(input.current()));
             }
         });
     }
@@ -72,8 +70,18 @@ public class Combinators {
      * @return a parser that tries each parser in the list until one succeeds
      */
     public static <I, A> Parser<I, A> oneOf(List<Parser<I, A>> parsers) {
-        return new Parser<>(in ->
-                parsers.stream().map(p -> p.apply(in)).filter(Result::isSuccess).findFirst().orElseGet(() -> failure(in))
+        return new Parser<>(in -> {
+                    if (in.isEof()) {
+                        return Result.failureEof(in, "one of");
+                    }
+                    for (Parser<I,A> parser : parsers) {
+                        Result<I, A> result = parser.apply(in);
+                        if (result.isSuccess()) {
+                            return result;
+                        }
+                    }
+                    return Result.failure(in, "one of", String.valueOf(in.current()));
+                }
         );
     }
 
@@ -167,7 +175,7 @@ public class Combinators {
             for (Parser<I, A> parser : parsers) {
                 Result<I, A> result = parser.apply(currentInput);
                 if (!result.isSuccess()) {
-                    return failure(currentInput);
+                    return result.cast();
                 }
                 results.add(result.get());
                 currentInput = result.next();
@@ -221,13 +229,13 @@ public class Combinators {
     public static <I> Parser<I, I> satisfy(Predicate<I> predicate, String expectedType) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.failureEof(in, expectedType);
+                return Result.failure(in, expectedType, "eof");
             }
             I item = in.current();
             if (predicate.test(item)) {
                 return Result.success(in.next(), item);
             } else {
-                return Result.failure(in, "Failure at position %s, saw '%s', expected %s".formatted(in.position(), String.valueOf(in.current()), expectedType));
+                return Result.failure(in, expectedType, String.valueOf(in.current()));
             }
         });
     }
@@ -303,7 +311,7 @@ public class Combinators {
             if (matcher.find()) {
                 return Result.success(in.skip(matcher.end()), matcher.group());
             }
-            return Result.failure(in, "Regex match failed for pattern: " + regex);
+            return Result.failure(in, regex, string.substring(0, Math.min(10, string.length())));
         });
     }
 

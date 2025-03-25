@@ -106,7 +106,7 @@ public class ParserTest {
 
         // Verify the result
         assertTrue(result.isError());
-        assertEquals("Failure at position 0, saw <eof>, expected <number>", result.fullErrorMessage());
+        assertEquals("Parse error at position 0, Expected: <number>, Found: eof", result.fullErrorMessage());
     }
 
     @Test

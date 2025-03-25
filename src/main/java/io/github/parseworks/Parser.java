@@ -156,7 +156,7 @@ public class Parser<I, A> {
      * @return a parser that always fails
      */
     public static <I, A> Parser<I, A> fail() {
-        return new Parser<>(in -> Result.failure(in, "predefined failure"));
+        return new Parser<>(in -> Result.failure(in, "predefined failure", "success"));
     }
 
     /**
@@ -169,7 +169,7 @@ public class Parser<I, A> {
     public Result<I, A> parse(Input<I> in, boolean consumeAll) {
         Result<I, A> result = this.apply(in);
         if (consumeAll && result.isSuccess()) {
-            result = result.next().isEof() ? result : Result.failure(result.next(), "Expected end of input");
+            result = result.next().isEof() ? result : Result.failure(result.next(), "eof", result.get().toString());
         }
         return result;
     }
@@ -248,7 +248,7 @@ public class Parser<I, A> {
      */
     public Result<I, A> apply(Input<I> in) {
         if (this.index == in.position()) {
-            return Result.failure(in, INFINITE_LOOP_ERROR);
+            return Result.failure(in, null, INFINITE_LOOP_ERROR);
         }
         this.index = in.position();
         Result<I, A> result = applyHandler.apply(in);
@@ -298,7 +298,7 @@ public class Parser<I, A> {
     public Parser<I, A> between(I open, I close) {
         return new Parser<>(in -> {
             if (in.isEof() || !in.current().equals(open)) {
-                return Result.failure(in, "Expected open value: " + open);
+                return Result.failure(in, String.valueOf(open), String.valueOf(in.current()));
             }
             Input<I> nextInput = in.next();
             Result<I, A> thisResult = this.apply(nextInput);
@@ -307,7 +307,7 @@ public class Parser<I, A> {
             }
             nextInput = thisResult.next();
             if (nextInput.isEof() || !nextInput.current().equals(close)) {
-                return Result.failure(nextInput, "Expected close value: " + close);
+                return Result.failure(nextInput, String.valueOf(close), String.valueOf(nextInput.current()));
             }
             return Result.success(nextInput.next(), thisResult.get());
         });
@@ -450,7 +450,7 @@ public class Parser<I, A> {
         return new Parser<>(in -> {
             Result<I, A> result = parser.apply(in);
             if (result.isSuccess()) {
-                return Result.failure(in, "Parse was successful for what we didn't want");
+                return Result.failure(in, "Parser to fail", String.valueOf(result.get()));
             }
             return this.apply(in);
         });
@@ -619,7 +619,7 @@ public class Parser<I, A> {
                     if (count >= min) {
                         return Result.success(currentInput, accumulator);
                     } else {
-                        return Result.failure(currentInput, "Parsing failed before reaching the required number of repetitions");
+                        return Result.failure(currentInput, null,"Parsing failed before reaching the required number of repetitions");
                     }
                 }
             }

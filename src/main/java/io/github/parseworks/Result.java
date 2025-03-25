@@ -37,31 +37,14 @@ public interface Result<I, A> {
      * This method is used to indicate that the parser has failed at a specific point in the input.
      *
      * @param input   the input at which the failure occurred
-     * @param message the error message describing the failure
      * @param <I>     the type of the input symbols
      * @param <A>     the type of the parsed value
      * @return a failure result containing the input and error message
      */
-    static <I, A> Result<I, A> failure(Input<I> input, String message) {
-        return new Failure<>(input, message);
+    static <I, A> Result<I, A> failure(Input<I> input, String expected, String found) {
+        return new Failure<>(input, expected, found);
     }
-
-    /**
-     * Creates a failure result with the given input, error message, and cause.
-     * This method is used to indicate that the parser has failed at a specific point in the input,
-     * and provides additional context about the cause of the failure.
-     *
-     * @param input   the input at which the failure occurred
-     * @param message the error message describing the failure
-     * @param cause   the underlying cause of the failure
-     * @param <I>     the type of the input symbols
-     * @param <A>     the type of the parsed value
-     * @return a failure result containing the input, error message, and cause
-     */
-    static <I, A> Result<I, A> failure(Input<I> input, String message, Result<I, ?> cause) {
-        return new Failure<>(input, message, cause);
-    }
-
+    
     /**
      * Creates a failure result due to an unexpected end of input.
      *
@@ -72,8 +55,7 @@ public interface Result<I, A> {
      * @return a failure result
      */
     static <I, A> Result<I, A> failureEof(Input<I> input, String expectedType) {
-        String message = "Failure at position %s, saw <eof>, expected %s".formatted(input.position(), expectedType);
-        return new Failure<>(input, message);
+        return new Failure<>(input, expectedType, "eof");
     }
 
     /**

@@ -81,5 +81,9 @@ public interface Input<I> {
      * @return
      */
     Input<I> skip(int offset);
+
+    default boolean hasMore(){
+        return !isEof();
+    }
 }
 
