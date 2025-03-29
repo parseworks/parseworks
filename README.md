@@ -70,19 +70,18 @@ Traditionally, parsers are implemented using tools like Yacc/Bison or ANTLR, whi
 
 `Parser<I, A>` defines the core interface for parsers. Use the `Parser.parse` method to apply a parser to an `Input`, returning a `Result`.
 
-#### Recursive Parsers with `Parser.Ref`
+#### Recursive Parsers with `Parser.ref()`
 
-Recursive grammars require special handling. Use `Parser.Ref` to create uninitialized parser references:
+Recursive grammars require special handling. Use `Parser.ref()` to create uninitialized parser references, which can be set later to a parser that references itself.
 
 ```java
-Ref<Character, String> expr = Parser.ref();
+Parser<Character, String> expr = Parser.ref();
 Parser<Character, String> temp = chr('X')
         .or(chr('a'))
         .then(expr).then(chr('b')).map(a -> e -> b -> a + e + b);
 
 expr.set(temp);
 ```
-
 
 ### `Input` Type
 
