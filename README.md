@@ -5,7 +5,7 @@
 
 ### Key Features
 
-- **Composable Parser Combinators**: Offers a DSL for constructing parsers from grammars.
+- **Composable Parser Combinators**: Offers a DSL for constructing parsers.
 - **Informative Error Messages**: Pinpoints parse failures effectively.
 - **Thread-Safe**: Uses immutable parsers and inputs.
 - **Lightweight**: Zero dependencies, except for JUnit in tests.
@@ -113,7 +113,7 @@ Input<Character> rdrInput = Input.of(new CharArrayReader(charData));
 ```java
 Result<Character, String> result = expr.parse(Input.of("ABCD"));
 var response = result.handle(
-        Success::get,
+        Result::get,
         failure -> "Error: " + failure.fullErrorMessage()
 );
 ```
