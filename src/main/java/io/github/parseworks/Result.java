@@ -31,32 +31,51 @@ public interface Result<I, A> {
     static <I, A> Result<I, A> success(Input<I> next, A value) {
         return new Success<>(value, next);
     }
-
-    /**
-     * Creates a failure result with the given input and error message.
-     * This method is used to indicate that the parser has failed at a specific point in the input.
-     *
-     * @param input   the input at which the failure occurred
-     * @param <I>     the type of the input symbols
-     * @param <A>     the type of the parsed value
-     * @return a failure result containing the input and error message
-     */
-    static <I, A> Result<I, A> failure(Input<I> input, String expected, String found) {
-        return new Failure<>(input, expected, found);
-    }
     
     /**
      * Creates a failure result due to an unexpected end of input.
      *
      * @param input   the input at which the failure occurred
-     * @param expectedType the error message
+     * @param expected the error message
      * @param <I>     the type of the input symbols
      * @param <A>     the type of the parsed value
      * @return a failure result
      */
-    static <I, A> Result<I, A> failureEof(Input<I> input, String expectedType) {
-        return new Failure<>(input, expectedType, "eof");
+    static <I, A> Result<I, A> failure(Input<I> input, String expected) {
+        String message = "Expected " + expected;
+        if (input.hasMore()) {
+            message += " but found " + input.current();
+        } else {
+            message += " but reached end of input";
+        }
+        return new Failure<>(input, message);
     }
+
+    /**
+     * Creates a failure result due to an unexpected end of input.
+     *
+     * @param input   the input at which the failure occurred
+     * @param expected type of the expected input
+     * @param found    the actual input
+     * @param <I>     the type of the input symbols
+     * @param <A>     the type of the parsed value
+     * @return a failure result
+     */
+    static <I, A> Result<I, A> failure(Input<I> input, String expected, String found) {
+        String message = "Position " + input.position() + ": Expected ";
+        if (expected == null){
+            message += "correct input";
+        } else {
+            message += expected;
+        }
+        if (input.hasMore()) {
+            message += " but found " + found;
+        } else {
+            message += " but reached end of input";
+        }
+        return new Failure<>(input, message);
+    }
+
 
     /**
      * Returns true if this result is a success.

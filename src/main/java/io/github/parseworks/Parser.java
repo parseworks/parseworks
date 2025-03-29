@@ -156,7 +156,7 @@ public class Parser<I, A> {
      * @return a parser that always fails
      */
     public static <I, A> Parser<I, A> fail() {
-        return new Parser<>(in -> Result.failure(in, "predefined failure", "success"));
+        return new Parser<>(in -> Result.failure(in, "to fail"));
     }
 
     /**
@@ -169,7 +169,7 @@ public class Parser<I, A> {
     public Result<I, A> parse(Input<I> in, boolean consumeAll) {
         Result<I, A> result = this.apply(in);
         if (consumeAll && result.isSuccess()) {
-            result = result.next().isEof() ? result : Result.failure(result.next(), "eof", result.get().toString());
+            result = result.next().isEof() ? result : Result.failure(result.next(), "eof");
         }
         return result;
     }
@@ -607,7 +607,7 @@ public class Parser<I, A> {
                     if (count >= min) {
                         return Result.success(currentInput, accumulator);
                     } else {
-                        return Result.failureEof(currentInput, min +" repetitions");
+                        return Result.failure(currentInput, min +" repetitions");
                     }
                 }
                 Result<I, A> result = this.apply(currentInput);

@@ -20,8 +20,7 @@ public class TextUtils {
     /**
      * A parser that succeeds if the next input symbol is a numeric digit.
      */
-    public static final Parser<Character, Character> nonZeroDigit = satisfy(
-            c -> c != '0' && Character.isDigit(c), "<nonZeroDigit>");
+    public static final Parser<Character, Character> nonZeroDigit = satisfy( "<nonZeroDigit>", c -> c != '0' && Character.isDigit(c));
 
     /**
      * A parser that parses a sign character.
@@ -48,7 +47,7 @@ public class TextUtils {
     /**
      * Parses a single digit character.
      */
-    public static Parser<Character, Character> digit = satisfy(Character::isDigit, "<number>");
+    public static Parser<Character, Character> digit = satisfy("<number>", Character::isDigit);
 
     /**
      * A parser that parses a non-zero unsigned integer.
@@ -123,7 +122,7 @@ public class TextUtils {
     /**
      * Parses a single letter character.
      */
-    public static Parser<Character, Character> letter = satisfy(Character::isLetter, "<alphabet>");
+    public static Parser<Character, Character> letter = satisfy("<alphabet>", Character::isLetter);
 
 
 
@@ -133,7 +132,7 @@ public class TextUtils {
      * @return a parser that parses a single alphanumeric character
      */
     public static Parser<Character, Character> alphaNum() {
-        return satisfy(Character::isLetterOrDigit, "<alphanumeric>");
+        return satisfy( "<alphanumeric>", Character::isLetterOrDigit);
     }
 
     /**

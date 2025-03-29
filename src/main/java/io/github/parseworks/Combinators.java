@@ -72,7 +72,7 @@ public class Combinators {
     public static <I, A> Parser<I, A> oneOf(List<Parser<I, A>> parsers) {
         return new Parser<>(in -> {
                     if (in.isEof()) {
-                        return Result.failureEof(in, "one of");
+                        return Result.failure(in, "one of");
                     }
                     for (Parser<I,A> parser : parsers) {
                         Result<I, A> result = parser.apply(in);
@@ -80,7 +80,7 @@ public class Combinators {
                             return result;
                         }
                     }
-                    return Result.failure(in, "one of", String.valueOf(in.current()));
+                    return Result.failure(in, "one of");
                 }
         );
     }
@@ -221,12 +221,12 @@ public class Combinators {
      * <p>
      * This method is useful for creating parsers that need to validate input items against specific conditions.
      *
-     * @param predicate    the predicate that the parsed item must satisfy
      * @param expectedType the error message to use if the predicate is not satisfied
+     * @param predicate    the predicate that the parsed item must satisfy
      * @param <I>          the type of the input symbols
      * @return a parser that parses a single item that satisfies the given predicate
      */
-    public static <I> Parser<I, I> satisfy(Predicate<I> predicate, String expectedType) {
+    public static <I> Parser<I, I> satisfy(String expectedType, Predicate<I> predicate) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
                 return Result.failure(in, expectedType, "eof");
@@ -247,7 +247,7 @@ public class Combinators {
      * @return a parser that parses a single character satisfying the predicate
      */
     public static Parser<Character, Character> chr(Predicate<Character> predicate) {
-        return satisfy(predicate, "<character>");
+        return satisfy("<character>", predicate);
     }
 
     /**
@@ -257,7 +257,7 @@ public class Combinators {
      * @return a parser that parses the specified character
      */
     public static Parser<Character, Character> chr(char c) {
-        return satisfy(ch -> ch == c,"'"+ c +"'");
+        return satisfy("'"+ c +"'", ch -> ch == c);
     }
 
     /**
@@ -282,7 +282,7 @@ public class Combinators {
      * @return a parser that parses a single character from the specified set
      */
     public static Parser<Character, Character> oneOf(String str) {
-        return satisfy(c -> str.indexOf(c) != -1, "<oneOf> " + str);
+        return satisfy("<oneOf> " + str, c -> str.indexOf(c) != -1);
     }
 
     /**
@@ -314,7 +314,5 @@ public class Combinators {
             return Result.failure(in, regex, string.substring(0, Math.min(10, string.length())));
         });
     }
-
-
 
 }

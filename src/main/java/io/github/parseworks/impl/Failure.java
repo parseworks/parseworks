@@ -5,7 +5,6 @@ import io.github.parseworks.Result;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -19,22 +18,33 @@ import java.util.function.Function;
 public class Failure<I, A> implements Result<I, A> {
     private final Input<I> input;
     private final Result<?, ?> cause;
-    private final String foundElement;
+    private final String found;
     private final String expectedPattern;
     private final int errorPosition;
+    private final String message;
 
-
-    public Failure(Input<I> input, String expectedPattern, String foundElement,Result<?, ?> cause) {
+    /**
+     * Creates a new failure result with the given input and error message.
+     *
+     * @param input   the input at which the failure occurred
+     * @param message the error message
+     */
+    public Failure(Input<I> input, String message) {
         this.input = input;
         this.errorPosition = input.position();
-        this.expectedPattern = expectedPattern;
-        this.foundElement = foundElement;
-        this.cause = cause;
+        this.message = message;
+        this.expectedPattern = null;
+        this.found = null;
+        this.cause = null;
     }
 
-
-    public Failure(Input<I> input, String expectedPattern, String foundElement) {
-        this(input, expectedPattern, foundElement, null);
+    public Failure(Input<I> input, String message, String found, String expected, Result<?, ?> cause) {
+        this.input = input;
+        this.message = message;
+        this.found = found;
+        this.expectedPattern = expected;
+        this.cause = cause;
+        this.errorPosition = input.position();
     }
 
 
@@ -106,7 +116,7 @@ public class Failure<I, A> implements Result<I, A> {
      */
     @Override
     public String error() {
-        return formatErrorMessage();
+        return message;
     }
 
     /**
@@ -127,29 +137,9 @@ public class Failure<I, A> implements Result<I, A> {
     }
 
     /**
-     * Returns a formatted error message with position information.
+     * Returns the position in the input where the error occurred.
      *
-     * @return the formatted error message
-     */
-    public String formatErrorMessage() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Parse error at position ").append(errorPosition);
-
-        if (expectedPattern != null) {
-            sb.append(", Expected: ").append(expectedPattern);
-        }
-
-        if (foundElement != null) {
-            sb.append("\nFound: ").append(foundElement);
-        }
-
-        return sb.toString();
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * Returns the cause of this failure.
+     * @return the position in the input where the error occurred
      */
     @Override
     public Result<?, ?> cause() {
