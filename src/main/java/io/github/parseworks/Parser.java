@@ -3,6 +3,7 @@ package io.github.parseworks;
 import java.util.Optional;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 /**
@@ -539,6 +540,47 @@ public class Parser<I, A> {
      */
     public Parser<I, FList<A>> many() {
         return this.then(this.zeroOrMany()).map(a -> l -> l.push(a));
+    }
+
+    /**
+     * A parser that applies this parser one or more times until the until parser succeeds,
+     * and then returns a non-empty list of the results.
+     * The terminator is consumed when found.
+     * If this parser fails before any items are collected, the parser fails.
+     *
+     * @param until the parser that signals when to stop collecting
+     * @return a parser that applies this parser repeatedly until the until parser succeeds
+     */
+    public <B> Parser<I, FList<A>> manyUntil(Parser<I, ?> until) {
+        return new Parser<>(in -> {
+            FList<A> results = new FList<>();
+            Input<I> currentInput = in;
+
+            while (true) {
+                // Try to match the terminator first
+                Result<I, ?> untilResult = until.apply(currentInput);
+                if (untilResult.isSuccess()) {
+                    // We found the terminator
+                    if (results.isEmpty()) {
+                        return Result.failure(currentInput, "Expected at least one item before terminator");
+                    }
+                    // Consume the terminator and return the results
+                    return Result.success(untilResult.next(), results);
+
+                }
+
+                // Try to match the item parser
+                Result<I, A> result = this.apply(currentInput);
+                if (!result.isSuccess()) {
+                    // Cannot parse more items and didn't find terminator
+                    return Result.failure(currentInput, "Expected more items or terminator");
+                }
+
+                // Add the parsed item to our results
+                results.add(result.get());
+                currentInput = result.next();
+            }
+        });
     }
 
     /**

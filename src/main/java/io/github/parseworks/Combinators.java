@@ -5,6 +5,7 @@ import io.github.parseworks.impl.parser.NoCheckParser;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -39,6 +40,27 @@ public class Combinators {
                 return Result.success(input.next(), input.current());
             }
         });
+    }
+
+    /**
+     * Creates a parser that throws the exception produced by the given supplier.
+     * This method uses a sneaky throw mechanism to bypass checked exception requirements.
+     *
+     * @param supplier the supplier that produces the exception to throw
+     * @return a parser that throws an exception
+     */
+    public static <I,A> Parser<I, A> error(Supplier<? extends Exception> supplier) {
+        return new Parser<>(in -> {
+            throw sneakyThrow(supplier.get());
+        });
+    }
+
+    /**
+     * Utility method to bypass checked exception requirements.
+     */
+    @SuppressWarnings("unchecked")
+    private static <E extends Throwable> E sneakyThrow(Throwable e) throws E {
+        throw (E) e;
     }
 
 
