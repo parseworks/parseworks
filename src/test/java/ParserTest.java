@@ -64,7 +64,7 @@ public class ParserTest {
 
     @Test
     public void testDigit() {
-        Parser<Character, Character> parser = TextUtils.digit;
+        Parser<Character, Character> parser = TextUtils.numeric;
         Input<Character> input = Input.of("5");
         Result<Character, Character> result = parser.parse(input);
         assertTrue(result.isSuccess());

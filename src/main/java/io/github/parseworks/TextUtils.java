@@ -47,7 +47,7 @@ public class TextUtils {
     /**
      * Parses a single digit character.
      */
-    public static Parser<Character, Character> digit = satisfy("<number>", Character::isDigit);
+    public static Parser<Character, Character> numeric = satisfy("<number>", Character::isDigit);
 
     /**
      * A parser that parses a non-zero unsigned integer.
@@ -91,7 +91,7 @@ public class TextUtils {
     public static final Parser<Character, Long> lng = sign.then(ulng)
             .map((sign, i) -> sign ? i : -i);
 
-    private static final Parser<Character, Double> floating = digit.zeroOrMany()
+    private static final Parser<Character, Double> floating = numeric.zeroOrMany()
             .map(ds -> ds.map(Character::getNumericValue))
             .map(l -> l.foldRight(0.0, (d, acc) -> d + acc / 10.0) / 10.0);
 
@@ -115,14 +115,14 @@ public class TextUtils {
     /**
      * Parses a number.
      */
-    public static Parser<Character, Integer> number = digit.many().map(chars -> Integer.parseInt(chars.stream()
+    public static Parser<Character, Integer> number = numeric.many().map(chars -> Integer.parseInt(chars.stream()
             .map(String::valueOf)
             .collect(Collectors.joining())));
 
     /**
      * Parses a single letter character.
      */
-    public static Parser<Character, Character> letter = satisfy("<alphabet>", Character::isLetter);
+    public static Parser<Character, Character> alpha = satisfy("<alphabet>", Character::isLetter);
 
 
 
@@ -131,37 +131,31 @@ public class TextUtils {
      *
      * @return a parser that parses a single alphanumeric character
      */
-    public static Parser<Character, Character> alphaNum() {
-        return satisfy( "<alphanumeric>", Character::isLetterOrDigit);
-    }
+    public static Parser<Character, Character> alphaNum = satisfy( "<alphanumeric>", Character::isLetterOrDigit);
+
+
 
     /**
      * Parses a sequence of letters.
      *
      * @return a parser that parses a sequence of letters
      */
-    public static Parser<Character, String> word() {
-        return letter.many().map(chars -> chars.stream()
+    public static Parser<Character, String>  word = alpha.many().map(chars -> chars.stream()
                 .map(String::valueOf)
                 .collect(Collectors.joining()));
-    }
 
+
+    public static Parser<Character,Character> whitespace = satisfy("<whitespace>", Character::isWhitespace);
 
     /**
      * Parses an integer, including optional leading sign.
      *
      * @return a parser that parses an integer
      */
-    public static Parser<Character, Integer> integer() {
-        return Combinators.oneOf(List.of(
-                chr('+').skipThen(pure(true)),
-                chr('-').skipThen(pure(false)),
-                pure(true))
-        ).then(number).map(s -> value -> {
+    public static Parser<Character, Integer> integer = sign.then(number).map(s -> value -> {
             String sign = s ? "" : "-";
             return Integer.parseInt(sign + value);
         });
-    }
 
     /**
      * A parser that parses a non-zero digit followed by zero or more digits.
@@ -173,7 +167,7 @@ public class TextUtils {
      * @return a parser that parses a non-zero digit followed by zero or more digits and converts the result
      */
     private static <T> Parser<Character, T> nonZeroDigitParser(Function<FList<Integer>, T> converter) {
-        return nonZeroDigit.then(digit.zeroOrMany())
+        return nonZeroDigit.then(numeric.zeroOrMany())
                 .map(d -> ds -> ds.push(d))
                 .map(ds -> ds.map(Character::getNumericValue))
                 .map(converter);

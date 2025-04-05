@@ -1,5 +1,6 @@
 package io.github.parseworks;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
@@ -442,18 +443,34 @@ public class Parser<I, A> {
     }
 
     /**
-     * Wraps the 'this' parser to only call it if the provided parser returns a fail
+     * Negates the result of the given parser.
      *
      * @param parser the parser to negate
      * @return a parser that succeeds if the given parser fails, and fails if the given parser succeeds
      */
-    public Parser<I, A> not(Parser<I, A> parser) {
+    public <B> Parser<I, A> not(Parser<I, B> parser) {
         return new Parser<>(in -> {
-            Result<I, A> result = parser.apply(in);
+            Result<I,B> result = parser.apply(in);
             if (result.isSuccess()) {
                 return Result.failure(in, "Parser to fail", String.valueOf(result.get()));
             }
             return this.apply(in);
+        });
+    }
+
+    /**
+     * Checks if the result of this parser is not equal to the given value.
+     *
+     * @param value the value to check against
+     * @return a parser that succeeds if the result of the parser is not equal to the given value
+     */
+    public Parser<I, A> isNot( A value) {
+        return new Parser<>(in -> {
+            Result<I, A> result = this.apply(in);
+            if (result.isSuccess() && Objects.equals(result.get(),value)) {
+                return Result.failure(in, "Parser to fail", String.valueOf(result.get()));
+            }
+            return result;
         });
     }
 

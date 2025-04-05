@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.function.BinaryOperator;
 
 import static io.github.parseworks.Combinators.chr;
-import static io.github.parseworks.TextUtils.digit;
+import static io.github.parseworks.TextUtils.numeric;
 
 public class CalculatorParserTest {
 
@@ -16,7 +16,7 @@ public class CalculatorParserTest {
             expression.between('(', ')')));
 
     public static Parser<Character, Integer> number() {
-        return digit.map(Character::getNumericValue);
+        return numeric.map(Character::getNumericValue);
     }
 
     public static Parser<Character, BinaryOperator<Integer>> operator() {

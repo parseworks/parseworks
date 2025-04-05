@@ -82,7 +82,24 @@ public class Combinators {
         });
     }
 
-
+    /**
+     *  Creates a parser that succeeds if the provided parser fails.
+     *
+     * @param parser the parser to negate
+     * @return a parser that succeeds if the provided parser fails
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     */
+    public static <I,A> Parser<I, A> not( Parser<I, A> parser) {
+        return new Parser<>(in -> {
+            Result<I, A> result = parser.apply(in);
+            if (result.isSuccess()) {
+                return Result.failure(in, "not", String.valueOf(result.get()));
+            } else {
+                return Result.success(in, null);
+            }
+        });
+    }
     /**
      * Choice combinator: tries each parser in the list until one succeeds.
      *

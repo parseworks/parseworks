@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static io.github.parseworks.Combinators.chr;
-import static io.github.parseworks.TextUtils.digit;
+import static io.github.parseworks.TextUtils.numeric;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -16,7 +16,7 @@ public class ParserTest {
     @Test
     public void testBetweenParsers() {
         // Define a parser for the bracketed content (digits)
-        Parser<Character, Integer> contentParser = digit.map(Character::getNumericValue);
+        Parser<Character, Integer> contentParser = numeric.map(Character::getNumericValue);
 
         // Define parsers for the opening and closing brackets
         Parser<Character, Character> openBracketParser = chr('[');
@@ -36,7 +36,7 @@ public class ParserTest {
     @Test
     public void testBetweenParsersEmptyContent() {
         // Define a parser for the bracketed content (digits)
-        Parser<Character, Integer> contentParser = digit.map(Character::getNumericValue);
+        Parser<Character, Integer> contentParser = numeric.map(Character::getNumericValue);
 
         // Define parsers for the opening and closing brackets
         Parser<Character, Character> openBracketParser = chr('[');
@@ -56,7 +56,7 @@ public class ParserTest {
     @Test
     public void testBetweenParsersNonNumericContent() {
         // Define a parser for the bracketed content (digits)
-        Parser<Character, Integer> contentParser = digit.map(Character::getNumericValue);
+        Parser<Character, Integer> contentParser = numeric.map(Character::getNumericValue);
 
         // Create a parser that parses content between brackets
         Parser<Character, Integer> betweenParser = contentParser.between('[', ']');
@@ -77,7 +77,7 @@ public class ParserTest {
     @Test
     public void testSeparatedByMany() {
         // Define a parser for comma-separated integers
-        Parser<Character, Integer> integerParser = digit.map(Character::getNumericValue);
+        Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
         Parser<Character, FList<Integer>> separatedByManyParser = integerParser.separatedByMany(chr(','));
 
         // Test input
@@ -92,7 +92,7 @@ public class ParserTest {
     @Test
     public void testSeparatedByManyEmptyInput() {
         // Define a parser for comma-separated integers
-        Parser<Character, Integer> integerParser = digit.map(Character::getNumericValue);
+        Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
         Parser<Character, FList<Integer>> separatedByManyParser = integerParser.separatedByMany(chr(','));
 
         // Test input
@@ -108,7 +108,7 @@ public class ParserTest {
     @Test
     public void testSeparatedByManySingleElement() {
         // Define a parser for comma-separated integers
-        Parser<Character, Integer> integerParser = digit.map(Character::getNumericValue);
+        Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
         Parser<Character, FList<Integer>> separatedByManyParser = integerParser.separatedByMany(chr(','));
 
         // Test input
@@ -122,7 +122,7 @@ public class ParserTest {
     @Test
     public void testSeparatedByManyTrailingSeparator() {
         // Define a parser for comma-separated integers
-        Parser<Character, Integer> integerParser = digit.map(Character::getNumericValue);
+        Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
         Parser<Character, FList<Integer>> separatedByManyParser = integerParser.separatedByMany(chr(','));
 
         // Test input
@@ -136,7 +136,7 @@ public class ParserTest {
     @Test
     public void testSeparatedByManyMultipleSeparators() {
         // Define a parser for comma-separated integers
-        Parser<Character, Integer> integerParser = digit.map(Character::getNumericValue);
+        Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
         Parser<Character, FList<Integer>> separatedByManyParser = integerParser.separatedByMany(chr(','));
 
         // Test input
@@ -150,7 +150,7 @@ public class ParserTest {
     @Test
     public void testSeparatedByManyNonNumericInput() {
         // Define a parser for comma-separated integers
-        Parser<Character, Integer> integerParser = digit.map(Character::getNumericValue);
+        Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
         Parser<Character, FList<Integer>> separatedByManyParser = integerParser.separatedByMany(chr(','));
 
         // Test input

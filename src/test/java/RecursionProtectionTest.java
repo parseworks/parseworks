@@ -23,7 +23,7 @@ public class RecursionProtectionTest {
     ));
 
     public static Parser<Character, Integer> number() {
-        return TextUtils.digit.map(Character::getNumericValue);
+        return TextUtils.numeric.map(Character::getNumericValue);
     }
 
     public static Parser<Character, BinaryOperator<Integer>> operator() {
