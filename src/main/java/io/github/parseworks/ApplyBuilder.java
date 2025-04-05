@@ -12,7 +12,7 @@ import java.util.function.Function;
  * Each successive parser is incorporated by passing it to a call to {@code then} or {@code thenSkip}.
  * The chain of calls is concluded by calling {@code map} with a handler for the parse results.
  * <p>
- * {@code ApplyBuilder} is a more readable way of using {@link io.github.parseworks.Parser#ap Parser.ap}.
+ * {@code ApplyBuilder} is a more readable way of using {@link io.github.parseworks.Parser#apply Parser.ap}.
  * For example, {@code pa.then(pb).then(pc).map(f)} is equivalent to {@code ap(ap(pa.map(f), pb), pc)}.
  *
  * @param <I> the type of the input to the parsers
@@ -52,7 +52,7 @@ public class ApplyBuilder<I, A, B> {
      * @return a new parser with the mapped result
      */
     public <R> Parser<I, R> map(Function<A, Function<B, R>> f) {
-        return Parser.ap(pa.map(f), pb);
+        return Parser.apply(pa.map(f), pb);
     }
 
     /**
@@ -133,7 +133,7 @@ public class ApplyBuilder<I, A, B> {
          * @return a new parser with the mapped result
          */
         public <R> Parser<I, R> map(Function<A, Function<B, Function<C, R>>> f) {
-            return Parser.ap(ApplyBuilder.this.map(f), pc);
+            return Parser.apply(ApplyBuilder.this.map(f), pc);
         }
 
         /**
@@ -204,7 +204,7 @@ public class ApplyBuilder<I, A, B> {
              * @return a new parser with the mapped result
              */
             public <R> Parser<I, R> map(Function<A, Function<B, Function<C, Function<D, R>>>> f) {
-                return Parser.ap(ApplyBuilder3.this.map(f), pd);
+                return Parser.apply(ApplyBuilder3.this.map(f), pd);
             }
 
             /**
@@ -275,7 +275,7 @@ public class ApplyBuilder<I, A, B> {
                  * @return a new parser with the mapped result
                  */
                 public <R> Parser<I, R> map(Function<A, Function<B, Function<C, Function<D, Function<E, R>>>>> f) {
-                    return Parser.ap(ApplyBuilder4.this.map(f), pe);
+                    return Parser.apply(ApplyBuilder4.this.map(f), pe);
                 }
 
                 /**
@@ -346,7 +346,7 @@ public class ApplyBuilder<I, A, B> {
                      * @return a new parser with the mapped result
                      */
                     public <R> Parser<I, R> map(Function<A, Function<B, Function<C, Function<D, Function<E, Function<G, R>>>>>> f) {
-                        return Parser.ap(ApplyBuilder5.this.map(f), pg);
+                        return Parser.apply(ApplyBuilder5.this.map(f), pg);
                     }
 
                     /**
@@ -417,7 +417,7 @@ public class ApplyBuilder<I, A, B> {
                          * @return a new parser with the mapped result
                          */
                         public <R> Parser<I, R> map(Function<A, Function<B, Function<C, Function<D, Function<E, Function<G, Function<H, R>>>>>>> f) {
-                            return Parser.ap(ApplyBuilder6.this.map(f), ph);
+                            return Parser.apply(ApplyBuilder6.this.map(f), ph);
                         }
 
                         /**
@@ -488,7 +488,7 @@ public class ApplyBuilder<I, A, B> {
                              * @return a new parser with the mapped result
                              */
                             public <R> Parser<I, R> map(Function<A, Function<B, Function<C, Function<D, Function<E, Function<G, Function<H, Function<J, R>>>>>>>> f) {
-                                return Parser.ap(ApplyBuilder7.this.map(f), pj);
+                                return Parser.apply(ApplyBuilder7.this.map(f), pj);
                             }
 
                             /**

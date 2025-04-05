@@ -93,7 +93,7 @@ public class Parser<I, A> {
      * @param <B>              the type of the result of the function
      * @return a parser that applies the function to the value
      */
-    public static <I, A, B> Parser<I, B> ap(Parser<I, Function<A, B>> functionProvider, Parser<I, A> valueParser) {
+    public static <I, A, B> Parser<I, B> apply(Parser<I, Function<A, B>> functionProvider, Parser<I, A> valueParser) {
         return new Parser<>(in -> {
             Result<I, Function<A, B>> functionResult = functionProvider.apply(in);
             if (functionResult.isError()) {
@@ -119,8 +119,8 @@ public class Parser<I, A> {
      * @param <B> the type of the result of the function
      * @return a parser that applies the function to the value
      */
-    public static <I, A, B> Parser<I, B> ap(Function<A, B> f, Parser<I, A> pa) {
-        return ap(pure(f), pa);
+    public static <I, A, B> Parser<I, B> apply(Function<A, B> f, Parser<I, A> pa) {
+        return apply(pure(f), pa);
     }
 
     /**
@@ -133,8 +133,8 @@ public class Parser<I, A> {
      * @param <B> the type of the result of the function
      * @return a parser that applies the function to the value
      */
-    public static <I, A, B> Parser<I, B> ap(Parser<I, Function<A, B>> pf, A a) {
-        return ap(pf, pure(a));
+    public static <I, A, B> Parser<I, B> apply(Parser<I, Function<A, B>> pf, A a) {
+        return apply(pf, pure(a));
     }
 
     /**
