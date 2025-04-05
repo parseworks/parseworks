@@ -216,6 +216,21 @@ public class FList<T> extends ArrayList<T> {
         return list;
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public String toString() {
+        if (isEmpty()) {
+            return "[]";
+        }
+        if (size() == 1) {
+            return "[" + head() + "]";
+        }
+        if (head() instanceof Character ) {
+            return FList.toString((FList<Character>) this);
+        }
+        return foldLeft(new StringBuilder(), (sb, t) -> sb.append(t).append(", ")).toString();
+    }
+
     /**
      * Converts a list of characters to a string.
      *
