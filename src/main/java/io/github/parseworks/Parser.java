@@ -4,7 +4,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 /**
@@ -568,7 +567,7 @@ public class Parser<I, A> {
      * @param until the parser that signals when to stop collecting
      * @return a parser that applies this parser repeatedly until the until parser succeeds
      */
-    public <B> Parser<I, FList<A>> manyUntil(Parser<I, ?> until) {
+    public Parser<I, FList<A>> manyUntil(Parser<I, ?> until) {
         return new Parser<>(in -> {
             FList<A> results = new FList<>();
             Input<I> currentInput = in;

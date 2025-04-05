@@ -1,6 +1,5 @@
-import io.github.parseworks.Input;
-import io.github.parseworks.Parser;
-import io.github.parseworks.TextUtils;
+package io.github.parseworks;
+
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

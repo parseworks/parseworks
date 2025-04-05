@@ -7,6 +7,7 @@ import java.util.function.BinaryOperator;
 
 import static io.github.parseworks.Combinators.chr;
 import static io.github.parseworks.TextUtils.dble;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Unit tests for arithmetic expression parsing using the Combinators library.
@@ -35,23 +36,21 @@ public class ArithmeticParserTest {
             expression.between('(', ')')
     ).trim();
 
-    /**
-     * A parser for terms in arithmetic expressions, supporting multiplication and division.
-     */
-    public static Parser<Character, Double> term2 = factor
-            .then(Combinators.oneOf(
-                    chr('*').as((left, right) -> left * right),
-                    chr('/').as((BinaryOperator<Double>) (left, right) -> left / right)
-            )).then(factor).map(left -> op -> right -> op.apply(left, right)).or(factor).trim();
+    static {
+        term.set(factor
+                .then(Combinators.oneOf(
+                        chr('*').as((left, right) -> left * right),
+                        chr('/').as((BinaryOperator<Double>) (left, right) -> left / right)
+                )).then(factor).map(left -> op -> right -> op.apply(left, right)).or(factor).trim());
+    }
 
     /**
      * Tests the parsing of a complex arithmetic expression.
      */
     @Test
     public void mathTest() {
-        term.set(term2);
         String input = "3 + 5 * (2 * -8)";
         double result = expression.parse(Input.of(input)).get();
-        System.out.println("Result: " + result);
+        assertEquals(-77, result, "Parsing failed for expression: " + input);
     }
 }
