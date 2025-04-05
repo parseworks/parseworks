@@ -58,12 +58,8 @@ public class ParserTest {
         // Define a parser for the bracketed content (digits)
         Parser<Character, Integer> contentParser = digit.map(Character::getNumericValue);
 
-        // Define parsers for the opening and closing brackets
-        Parser<Character, Character> openBracketParser = chr('[');
-        Parser<Character, Character> closeBracketParser = chr(']');
-
         // Create a parser that parses content between brackets
-        Parser<Character, Integer> betweenParser = contentParser.between(openBracketParser, closeBracketParser);
+        Parser<Character, Integer> betweenParser = contentParser.between('[', ']');
 
         // Test input with non-numeric content
         String input = "[a]";

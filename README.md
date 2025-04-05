@@ -49,7 +49,7 @@ Add the following dependency to your Maven `pom.xml`:
 <dependency>
    <groupId>io.github.parseworks</groupId>
    <artifactId>parseworks</artifactId>
-   <version>0.1.1</version>
+   <version>2.0.0</version>
 </dependency>
 ```
 
@@ -104,8 +104,8 @@ Input<Character> rdrInput = Input.of(new CharArrayReader(charData));
 
 `Result<I, A>` encapsulates the outcome of parsing:
 
-- **`Success`**: Contains the parsed value and the next `Input` position.
-- **`Failure`**: Contains an error message and the failure position.
+- **`success`**: Contains the parsed value and the next `Input` position.
+- **`failure`**: Contains an error message and the failure position.
 
 #### Example
 
@@ -117,46 +117,129 @@ var response = result.handle(
 );
 ```
 
-## Existing Parsers
+## Combinators
 
-Here is a sample list of the parsers available in the `Parser`, `Combinators`, and `Text` classes:
+Parsers are constructed using combinators, which are methods that take one or more parsers as input and return a new parser as output.
 
-### `Parser` Class Parsers
-- **`pure(A value)`**: Creates a parser that always succeeds with the given value.
-- **`thenSkip(Parser<I, B> pb)`**: Chains this parser with another parser, applying them in sequence. The result of the first parser is returned, and the result of the second parser is ignored.
-- **`skipThen(Parser<I, B> pb)`**: Chains this parser with another parser, applying them in sequence. The result of the first parser is ignored, and the result of the second parser is returned.
-- **`between(I open, I close)`**: A parser for expressions with enclosing symbols. Validates the open symbol, then this parser, and then the close symbol. If all three succeed, the result of this parser is returned.
-- **`fail()`**: Creates a parser that always fails with a generic error message.
-- **`many(Parser<I, A> parser)`**: Applies the parser one or more times and collects the results.
-- **`zeroOrMany()`**: Applies this parser zero or more times until it fails, and then returns a list of the results. If this parser fails on the first attempt, an empty list is returned.
-- **`then(Parser<I, B> next)`**: Chains this parser with another parser, applying them in sequence. The result of the first parser is passed to the second parser.
-- **`trim()`**: Trims leading and trailing whitespace from the input, before and after applying this parser.
-- **`map(Function<A, R> func)`**: Transforms the result of this parser using the given function.
-- **`as(R value)`**: Transforms the result of this parser to a constant value.
-- **`not(Parser<I, A> parser)`**: Wraps the 'this' parser to only call it if the provided parser returns a fail.
-- **`chain(Parser<I, BinaryOperator<A>> op, Associativity associativity)`**: Chains this parser with an operator parser, applying them in sequence based on the specified associativity. The result of the first parser is combined with the results of subsequent parsers using the operator.
-- **`chainRightZeroOrMany(Parser<I, BinaryOperator<A>> op, A a)`**: A parser for an operand, followed by zero or more operands that are separated by operators. The operators are right-associative.
-- **`chainRightMany(Parser<I, BinaryOperator<A>> op)`**: Parse right-associative operator expressions.
-- **`chainLeftZeroOrMany(Parser<I, BinaryOperator<A>> op, A a)`**: A parser for an operand, followed by zero or more operands that are separated by operators. The operators are left-associative.
-- **`chainLeftMany(Parser<I, BinaryOperator<A>> op)`**: A parser for an operand, followed by one or more operands that are separated by operators. The operators are left-associative.
-- **`repeat(int target)`**: A parser that applies this parser the `target` number of times. If the parser fails before reaching the target of repetitions, the parser fails.
-- **`repeatAtLeast(int target)`**: A parser that applies this parser the `target` number of times. If the parser fails before reaching the target of repetitions, the parser fails.
-- **`repeat(int min, int max)`**: A parser that applies this parser between `min` and `max` times. If the parser fails before reaching the minimum number of repetitions, the parser fails.
-- **`separatedByZeroOrMany(Parser<I, SEP> sep)`**: A parser that applies this parser zero or more times until it fails, alternating with calls to the separator parser. The results of this parser are collected in a list and returned by the parser.
-- **`separatedByMany(Parser<I, SEP> sep)`**: A parser that applies this parser one or more times until it fails, alternating with calls to the separator parser. The results of this parser are collected in a non-empty list and returned by the parser.
-- **`optional()`**: Wraps the result of this parser in an `Optional`. If the parser fails, it returns an empty `Optional`.
+### The `pure` Combinator
 
-### `Combinators` Class Parsers
-- **`oneOf(Parser<I, T>... parsers)`**: Tries multiple parsers in sequence until one succeeds.
-- **`satisfy(Predicate<I> predicate, Function<I, String> errorMessage)`**: Parses a single item that satisfies the given predicate.
-- **`satisfy(Predicate<I> predicate, String expectedType)`**: Parses a single item that satisfies the given predicate.
+The `pure` combinator creates a parser that always succeeds and return the provided value.
 
-### `Text` Class Parsers
-- **`digit()`**: Matches a single numeric character.
-- **`letter()`**: Matches a single alphabetic character.
-- **`whitespace()`**: Matches a single whitespace character.
-- **`word()`**: Matches a sequence of alphabetic characters.
-- **`integer()`**: Matches an integer.
+### The `then` Combinator
+
+The `then` combinator chains two or more parsers together, applying them in sequence. The parsers are combined into a parser that applies the parsers in order. If the parsers succeed, the result is handled by a map method to return a result.
+
+Additionally, the `thenSkip` and `skipThen` combinators are available to chain parsers while ignoring one of the results
+The `skipThen` combinator is useful when you want to chain parsers but ignore the result of the first parser. While the `thenSkip` combinator is useful when you want to ignore the result of the second parser.
+
+### The `between` Combinator
+
+The `between` combinator is used to parse expressions with enclosing symbols. It validates the open symbol, the appended parser, and finally the close symbol. If all three succeed, the result of the parser is returned.
+
+### The `fail` Combinator
+
+The `fail` combinator creates a parser that always fails with a generic error message.
+
+### The `many` Combinator
+
+The `many` combinator expects the parser to be applied one or more times and collects the results into a List.
+
+### The `zeroOrMany` Combinator
+
+The `zeroOrMany` combinator applies the parser zero or more times until it fails, and then returns a list of the results. If this parser fails on the first attempt, an empty list is returned.
+
+### The `trim` Combinator
+
+The `trim` combinator trims leading and trailing whitespace from the input before and after applying the parser.
+
+### The `map` Combinator
+
+The `map` combinator transforms the result of a parser using a function. When this is the result of a series of then combinators, the map function appears as a series of nested lambdas.
+
+### The `as` Combinator
+
+The `as` combinator is a compliment to the `map` method, defining a constant value to be returned.
+
+### The `not` Combinator
+
+The `not` combinator wraps the parser to only call it if the provided parser returns a fail. This is useful for implementing negation in parsers.
+
+### The `chain` Combinator
+
+The `chain` combinator is used to parse expressions with binary operators. It takes a parser for the operator and an associativity parameter (left or right) to determine how to combine the results of the parsers.
+
+### The `chainRightZeroOrMany` Combinator
+
+The `chainRightZeroOrMany` combinator is a parser for an operand, followed by zero or more operands that are separated by operators. The operators are right-associative.
+
+### The `chainRightMany` Combinator
+
+The `chainRightMany` combinator is a parser for an operand, followed by one or more operands that are separated by operators. The operators are right-associative.
+
+### The `chainLeftZeroOrMany` Combinator
+
+The `chainLeftZeroOrMany` combinator is a parser for an operand, followed by zero or more operands that are separated by operators. The operators are left-associative.
+
+### The `chainLeftMany` Combinator
+
+The `chainLeftMany` combinator is a parser for an operand, followed by one or more operands that are separated by operators. The operators are left-associative.
+
+### The `repeat` Combinator
+
+The `repeat` combinator applies the parser the specified number of times. If the parser fails before reaching the target number of repetitions, the parser fails.
+
+### The `repeatAtLeast` Combinator
+
+The `repeatAtLeast` combinator applies the parser the specified number of times. If the parser fails before reaching the target number of repetitions, the parser fails.
+
+### The `repeat` Combinator with Min and Max
+
+The `repeat` combinator with min and max applies the parser between the specified minimum and maximum number of times. If the parser fails before reaching the minimum number of repetitions, the parser fails.
+
+### The `separatedByZeroOrMany` Combinator
+
+The `separatedByZeroOrMany` combinator applies the parser zero or more times, separated by a separator parser. The results are collected in a list and returned.
+
+### The `separatedByMany` Combinator
+
+The `separatedByMany` combinator applies the parser one or more times, separated by a separator parser. The results are collected in a non-empty list and returned.
+
+### The `optional` Combinator
+
+The `optional` combinator wraps the result of the parser in an `Optional`. If the parser fails, it returns an empty `Optional`.
+
+### The `oneOf` Combinator
+
+The `oneOf` combinator tries multiple parsers in sequence until one succeeds. It returns the result of the first successful parser.
+
+### The `satisfy` Combinator
+
+The `satisfy` combinator parses a single item that satisfies the given predicate. It can also take an error message for better error reporting.
+
+
+## Utility Combinators
+
+### The `digit` Combinator
+
+The `digit` combinator matches a single numeric character.
+
+### The `letter` Combinator
+
+The `letter` combinator matches a single alphabetic character.
+
+### The `whitespace` Combinator
+
+The `whitespace` combinator matches a single whitespace character.
+
+### The `word` Combinator
+
+The `word` combinator matches a sequence of alphabetic characters.
+
+### The `integer` Combinator
+
+The `integer` combinator matches an integer. It can be used to parse both positive and negative integers.
+
+
 
 ---
 
