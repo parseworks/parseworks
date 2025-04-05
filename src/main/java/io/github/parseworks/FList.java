@@ -216,4 +216,14 @@ public class FList<T> extends ArrayList<T> {
         return list;
     }
 
+    /**
+     * Converts a list of characters to a string.
+     *
+     * @param list the list of characters
+     * @return the string representation of the list
+     */
+    public static String toString(FList<Character> list) {
+        return list.foldLeft(new StringBuilder(), StringBuilder::append).toString();
+    }
+
 }
