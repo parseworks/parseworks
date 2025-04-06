@@ -72,7 +72,7 @@ Traditionally, parsers are implemented using tools like Yacc/Bison or ANTLR, whi
 
 #### Recursive Parsers with `Parser.ref()`
 
-Recursive grammars require special handling. Use `Parser.ref()` to create uninitialized parser references, which can be set later to a parser that references itself.
+Handling recursive grammar definitions presents a challenge in Java since you cannot reference variables that haven't been initialized yet. This creates a circular dependency problem when defining parsers that refer to themselves. ParseWorks solves this issue with the `Parser.ref()` method, which creates a reference to a parser before its actual implementation exists. You can use this reference in your parser compositions, and then later assign the complete implementation to it using the `set()` method.
 
 ```java
 Parser<Character, String> expr = Parser.ref();

@@ -225,9 +225,6 @@ public class FList<T> extends ArrayList<T> {
         if (size() == 1) {
             return "[" + head() + "]";
         }
-        if (head() instanceof Character ) {
-            return FList.toString((FList<Character>) this);
-        }
         return foldLeft(new StringBuilder(), (sb, t) -> sb.append(t).append(", ")).toString();
     }
 
