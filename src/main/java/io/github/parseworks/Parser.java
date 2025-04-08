@@ -614,6 +614,23 @@ public class Parser<I, A> {
     }
 
     /**
+     * Creates a parser that tries `this` parser first, and if it fails, compares the equality of the current input vs
+     * the `other` value.
+     *
+     * @param other the other parser to try if this parser fails
+     * @return a parser that tries this parser first, and if it fails, tries the other parser
+     */
+    public Parser<I, A> or(A other) {
+        return new Parser<>(in -> {
+            Result<I, A> result = this.apply(in);
+            if (result.isSuccess()) {
+                return result;
+            }
+            return Objects.equals(in.current(),other) ? Result.success(in.next(), other) : Result.failure(in, null, "Expected " + other);
+        });
+    }
+
+    /**
      * A parser that applies this parser the `target` number of times
      * If the parser fails before reaching the target of repetitions, the parser fails.
      * If the parser succeeds at least `target` times, the results are collected in a list and returned by the parser.

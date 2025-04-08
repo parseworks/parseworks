@@ -1,4 +1,5 @@
-import io.github.parseworks.FList;
+package io.github.parseworks;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;

@@ -1,7 +1,5 @@
-import io.github.parseworks.Input;
-import io.github.parseworks.Parser;
-import io.github.parseworks.Result;
-import io.github.parseworks.impl.Success;
+package io.github.parseworks;
+
 import org.junit.jupiter.api.Test;
 
 import java.io.CharArrayReader;

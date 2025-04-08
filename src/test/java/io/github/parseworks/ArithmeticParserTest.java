@@ -1,6 +1,5 @@
-import io.github.parseworks.Combinators;
-import io.github.parseworks.Input;
-import io.github.parseworks.Parser;
+package io.github.parseworks;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.function.BinaryOperator;
