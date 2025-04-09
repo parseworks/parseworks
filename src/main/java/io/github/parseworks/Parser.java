@@ -626,7 +626,7 @@ public class Parser<I, A> {
             if (result.isSuccess()) {
                 return result;
             }
-            return Objects.equals(in.current(),other) ? Result.success(in.next(), other) : Result.failure(in, null, "Expected " + other);
+            return Objects.equals(in.current(),other) ? Result.success(in.next(), other) : Result.failure(in,"Expected " + other, String.valueOf(in.current()));
         });
     }
 
@@ -701,7 +701,6 @@ public class Parser<I, A> {
             return Result.success(currentInput, accumulator);
         });
     }
-
 
     /**
      * A parser that applies this parser zero or more times until it fails,

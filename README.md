@@ -49,7 +49,7 @@ Add the following dependency to your Maven `pom.xml`:
 <dependency>
    <groupId>io.github.parseworks</groupId>
    <artifactId>parseworks</artifactId>
-   <version>2.0.0</version>
+   <version>2.2.0</version>
 </dependency>
 ```
 
