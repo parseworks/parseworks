@@ -4,6 +4,7 @@ import io.github.parseworks.impl.parser.NoCheckParser;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -280,6 +281,35 @@ public class Combinators {
     }
 
     /**
+     * Creates a parser that succeeds if the current input item equals the provided value.
+     * <p>
+     * This parser attempts to match the current input item against the specified equivalence value using
+     * {@link Objects#equals(Object, Object)}. If the input is at the end of the file (EOF), it returns a
+     * failure result with an "equivalence" expected type and "eof" as the found value. If the current item
+     * equals the equivalence value, it returns a successful result with the matched item. Otherwise, it
+     * returns a failure result indicating what was found instead.
+     * <p>
+     * This method is useful for creating parsers that match specific input values.
+     *
+     * @param equivalence the value to match against the current input item
+     * @param <I>         the type of the input symbols
+     * @return a parser that succeeds if the current input item equals the provided value
+     */
+    public static <I> Parser<I, I> is(I equivalence) {
+        return new NoCheckParser<>(in -> {
+            if (in.isEof()) {
+                return Result.failure(in, "equivalence", "eof");
+            }
+            I item = in.current();
+            if (Objects.equals(item, equivalence)) {
+                return Result.success(in.next(), item);
+            } else {
+                return Result.failure(in, "equivalence", String.valueOf(item));
+            }
+        });
+    }
+
+    /**
      * Parses a single character that satisfies the given predicate.
      *
      * @param predicate the predicate that the character must satisfy
@@ -296,7 +326,7 @@ public class Combinators {
      * @return a parser that parses the specified character
      */
     public static Parser<Character, Character> chr(char c) {
-        return satisfy("'"+ c +"'", ch -> ch == c);
+        return is(c);
     }
 
     /**

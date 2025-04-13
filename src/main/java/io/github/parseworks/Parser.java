@@ -1,10 +1,14 @@
 package io.github.parseworks;
 
+import io.github.parseworks.impl.parser.NoCheckParser;
+
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
+
+import static io.github.parseworks.Combinators.is;
 
 /**
  * The `Parser` class represents a parser that can parse input of type `I` and produce a result of type `A`.
@@ -146,7 +150,7 @@ public class Parser<I, A> {
      * @return a parser that always succeeds with the given value
      */
     public static <I, A> Parser<I, A> pure(A value) {
-        return new Parser<>(in -> Result.success(in, value));
+        return new NoCheckParser<>(in -> Result.success(in, value));
     }
 
     /**
@@ -297,21 +301,7 @@ public class Parser<I, A> {
      * @return a parser for expressions with enclosing symbols
      */
     public Parser<I, A> between(I open, I close) {
-        return new Parser<>(in -> {
-            if (in.isEof() || !in.current().equals(open)) {
-                return Result.failure(in, String.valueOf(open), String.valueOf(in.current()));
-            }
-            Input<I> nextInput = in.next();
-            Result<I, A> thisResult = this.apply(nextInput);
-            if (!thisResult.isSuccess()) {
-                return thisResult;
-            }
-            nextInput = thisResult.next();
-            if (nextInput.isEof() || !nextInput.current().equals(close)) {
-                return Result.failure(nextInput, String.valueOf(close), String.valueOf(nextInput.current()));
-            }
-            return Result.success(nextInput.next(), thisResult.get());
-        });
+        return is(open).skipThen(this).thenSkip(is(close));
     }
 
     /**
@@ -385,7 +375,6 @@ public class Parser<I, A> {
 
     /**
      * Chains this parser with another parser, applying them in sequence.
-     * The result of the first parser is passed to the second parser.
      *
      * @param next the next parser to apply in sequence
      * @param <B>  the type of the result of the next parser
@@ -463,14 +452,8 @@ public class Parser<I, A> {
      * @param value the value to check against
      * @return a parser that succeeds if the result of the parser is not equal to the given value
      */
-    public Parser<I, A> isNot( A value) {
-        return new Parser<>(in -> {
-            Result<I, A> result = this.apply(in);
-            if (result.isSuccess() && Objects.equals(result.get(),value)) {
-                return Result.failure(in, "Parser to fail", String.valueOf(result.get()));
-            }
-            return result;
-        });
+    public Parser<I, A> isNot(I value) {
+        return this.not(is(value));
     }
 
     /**
