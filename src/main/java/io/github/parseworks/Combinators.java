@@ -101,6 +101,36 @@ public class Combinators {
             }
         });
     }
+
+    /**
+     * Creates a parser that succeeds if the current input item is not equal to the provided value.
+     * <p>
+     * This parser attempts to match the current input item against the specified value using
+     * {@link Objects#equals(Object, Object)}. If the input is at the end of the file (EOF), it returns a
+     * failure result with an "inequality" expected type and "eof" as the found value. If the current item
+     * equals the provided value, it returns a failure result indicating what was found instead.
+     * <p>
+     * This method is useful for creating parsers that match specific input values.
+     *
+     * @param value the value to compare against
+     * @param <I>   the type of the input symbols
+     * @return a parser that succeeds if the current input item is not equal to the provided value
+     */
+    public static <I> Parser<I, I> isNot(I value) {
+        return new NoCheckParser<>(in -> {
+            if (in.isEof()) {
+                return Result.failure(in, "inequality", "eof");
+            }
+            I item = in.current();
+            if (Objects.equals(item, value)) {
+                return Result.failure(in, "inequality", String.valueOf(item));
+            } else {
+                return Result.success(in.next(), item);
+            }
+        });
+    }
+
+
     /**
      * Choice combinator: tries each parser in the list until one succeeds.
      *
