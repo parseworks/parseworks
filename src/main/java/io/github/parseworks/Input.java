@@ -5,6 +5,7 @@ import io.github.parseworks.impl.inputs.CharSequenceInput;
 import io.github.parseworks.impl.inputs.ReaderInput;
 
 import java.io.Reader;
+import java.util.Map;
 
 /**
  * {@code Input} represents a position in a stream of input symbols,
@@ -81,6 +82,8 @@ public interface Input<I> {
      * @return
      */
     Input<I> skip(int offset);
+
+    Map<Object,Object> context();
 
     default boolean hasMore(){
         return !isEof();

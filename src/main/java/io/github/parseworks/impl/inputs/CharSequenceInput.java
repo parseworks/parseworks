@@ -1,12 +1,15 @@
 package io.github.parseworks.impl.inputs;
 
+import io.github.parseworks.ContextMap;
 import io.github.parseworks.Input;
+
+import java.util.Map;
 
 /**
  * An implementation of the {@link Input} interface that uses a {@link CharSequence} as the input source.
  * This class is immutable and provides methods to navigate through the characters of the input.
  */
-public record CharSequenceInput(int position, CharSequence data) implements Input<Character> {
+public record CharSequenceInput(int position, CharSequence data, Map<Object,Object> context) implements Input<Character> {
 
     /**
      * Constructs a new {@code CharSequenceInput} starting at the beginning of the given {@code CharSequence}.
@@ -14,7 +17,7 @@ public record CharSequenceInput(int position, CharSequence data) implements Inpu
      * @param data the {@code CharSequence} to be used as the input source
      */
     public CharSequenceInput(CharSequence data) {
-        this(0, data);
+        this(0, data, new ContextMap<>());
     }
 
     /**
@@ -45,7 +48,7 @@ public record CharSequenceInput(int position, CharSequence data) implements Inpu
      */
     @Override
     public Input<Character> next() {
-        return new CharSequenceInput(position + 1, data);
+        return new CharSequenceInput(position + 1, data, new ContextMap<>(context));
     }
 
     /**
@@ -56,7 +59,7 @@ public record CharSequenceInput(int position, CharSequence data) implements Inpu
      */
     @Override
     public Input<Character> skip(int offset) {
-        return new CharSequenceInput(position + offset, data);
+        return new CharSequenceInput(position + offset, data, new ContextMap<>(context));
     }
 
     /**

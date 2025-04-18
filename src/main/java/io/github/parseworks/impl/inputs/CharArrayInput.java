@@ -1,20 +1,23 @@
 package io.github.parseworks.impl.inputs;
 
 
+import io.github.parseworks.ContextMap;
 import io.github.parseworks.Input;
+
+import java.util.Map;
 
 /**
  * An implementation of the {@link Input} interface that uses a {@code char} array as the input source.
  * This class is immutable and provides methods to navigate through the characters of the input.
  */
-public record CharArrayInput(int position, char[] data) implements Input<Character> {
+public record CharArrayInput(int position, char[] data, Map<Object,Object> context) implements Input<Character> {
 
     /**
      * An implementation of the {@link Input} interface that uses a {@code char} array as the input source.
      * This class is immutable and provides methods to navigate through the characters of the input.
      */
     public CharArrayInput(char[] data) {
-        this(0, data);
+        this(0, data, new ContextMap<>());
     }
 
     /**
@@ -45,7 +48,7 @@ public record CharArrayInput(int position, char[] data) implements Input<Charact
      */
     @Override
     public Input<Character> next() {
-        return new CharArrayInput(position + 1, data);
+        return new CharArrayInput(position + 1, data, new ContextMap<>(context));
     }
 
     /**
@@ -56,7 +59,7 @@ public record CharArrayInput(int position, char[] data) implements Input<Charact
      */
     @Override
     public Input<Character> skip(int offset) {
-        return new CharArrayInput(position + offset,data);
+        return new CharArrayInput(position + offset,data, new ContextMap<>(context));
     }
 
 

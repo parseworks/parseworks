@@ -1,15 +1,17 @@
 package io.github.parseworks.impl.inputs;
 
+import io.github.parseworks.ContextMap;
 import io.github.parseworks.Input;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.util.Map;
 
 /**
  * An implementation of the {@link Input} interface that uses a {@link Reader} as the input source.
  * This class provides methods to navigate through the characters of the input.
  */
-public record ReaderInput(Reader reader, int position, int chr, boolean isEof) implements Input<Character> {
+public record ReaderInput(Reader reader, int position, int chr, boolean isEof, Map<Object,Object> context) implements Input<Character> {
 
     /**
      * Constructs a new {@code ReaderInput} starting at the beginning of the given {@code Reader}.
@@ -17,7 +19,7 @@ public record ReaderInput(Reader reader, int position, int chr, boolean isEof) i
      * @param reader the {@code Reader} to be used as the input source
      */
     public ReaderInput(Reader reader) {
-        this(reader, 0, readChar(reader), false);
+        this(reader, 0, readChar(reader), false, new ContextMap<>());
     }
 
 
@@ -65,7 +67,7 @@ public record ReaderInput(Reader reader, int position, int chr, boolean isEof) i
             throw new IllegalStateException("End of input");
         }
         int nextChar = readChar(reader);
-        return new ReaderInput(reader, position + 1, nextChar, nextChar == -1);
+        return new ReaderInput(reader, position + 1, nextChar, nextChar == -1,new ContextMap<>(context));
     }
 
     @Override
@@ -83,10 +85,10 @@ public record ReaderInput(Reader reader, int position, int chr, boolean isEof) i
         for (int i = 0; i < offset; i++) {
             nextChar = readChar(reader);
             if (nextChar == -1) {
-                return new ReaderInput(reader, position + i, nextChar, true);
+                return new ReaderInput(reader, position + i, nextChar, true, new ContextMap<>(context));
             }
         }
-        return new ReaderInput(reader, position + offset, nextChar, false);
+        return new ReaderInput(reader, position + offset, nextChar, false, new ContextMap<>(context));
     }
 
     /**
