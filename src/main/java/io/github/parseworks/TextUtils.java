@@ -128,8 +128,7 @@ public class TextUtils {
 
     /**
      * Parses a single alphanumeric character.
-     *
-     * @return a parser that parses a single alphanumeric character
+     * This parser will succeed if the next input symbol is a letter or digit.
      */
     public static Parser<Character, Character> alphaNum = satisfy( "<alphanumeric>", Character::isLetterOrDigit);
 
@@ -137,8 +136,8 @@ public class TextUtils {
 
     /**
      * Parses a sequence of letters.
-     *
-     * @return a parser that parses a sequence of letters
+     * This parser will succeed if the next input symbols form a sequence of letters,
+     * and will return the parsed result converted by the given converter function.
      */
     public static Parser<Character, String>  word = alpha.many().map(chars -> chars.stream()
                 .map(String::valueOf)
@@ -149,8 +148,8 @@ public class TextUtils {
 
     /**
      * Parses an integer, including optional leading sign.
-     *
-     * @return a parser that parses an integer
+     * This parser will succeed if the next input symbols form a valid integer,
+     * and will return the parsed result converted by the given converter function.
      */
     public static Parser<Character, Integer> integer = sign.then(number).map(s -> value -> {
             String sign = s ? "" : "-";

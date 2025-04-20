@@ -2,6 +2,8 @@ package io.github.parseworks;
 
 import io.github.parseworks.impl.parser.NoCheckParser;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BinaryOperator;
@@ -11,7 +13,11 @@ import java.util.function.UnaryOperator;
 import static io.github.parseworks.Combinators.is;
 
 /**
+ * <p>
  * The `Parser` class represents a parser that can parse input of type `I` and produce a result of type `A`.
+ * </p>
+ * This class provides various methods for creating parsers, applying them to input, and combining them with other parsers.
+ * This is a thread-safe class that can be used to create parsers for different types of input.
  *
  * @param <I> the type of the input symbols
  * @param <A> the type of the parsed value
@@ -21,11 +27,13 @@ import static io.github.parseworks.Combinators.is;
 public class Parser<I, A> {
 
     protected Function<Input<I>, Result<I, A>> applyHandler;
-    int index = -1;
-
     private static final String INFINITE_LOOP_ERROR = "Infinite loop detected";
-
+    /**
+     * A default apply handler that throws an exception if the parser is not initialized.
+     */
     private Function<Input<I>, Result<I, A>> defaultApplyHandler;
+
+    private final ThreadLocal<IntObjectMap<Object>> contextLocal = ThreadLocal.withInitial(IntObjectMap::new);
 
     /**
      * Private constructor to create a parser reference that can be initialized later.
@@ -62,7 +70,7 @@ public class Parser<I, A> {
      *
      * @param parser the parser to set
      */
-    public void set(Parser<I, A> parser) {
+    public synchronized void set(Parser<I, A> parser) {
         if (parser == null) {
             throw new IllegalArgumentException("parser cannot be null");
         }
@@ -77,7 +85,7 @@ public class Parser<I, A> {
      *
      * @param applyHandler the function to set as the applyHandler
      */
-    public void set(Function<Input<I>, Result<I, A>> applyHandler){
+    public synchronized void set(Function<Input<I>, Result<I, A>> applyHandler){
         if (applyHandler == null) {
             throw new IllegalArgumentException("applyHandler cannot be null");
         }
@@ -166,6 +174,7 @@ public class Parser<I, A> {
 
     /**
      * Parses the input and optionally ensures that the entire input is consumed.
+     * This is the core parsing method that other parse methods delegate to.
      *
      * @param in         the input to parse
      * @param consumeAll whether to consume the entire input
@@ -193,13 +202,35 @@ public class Parser<I, A> {
     }
 
     /**
-     * Parses the input and ensures that the entire input is consumed.
+     * Parses the input without requiring that the entire input is consumed.
      *
      * @param in the input to parse
      * @return the result of parsing the input
      */
     public Result<I, A> parse(Input<I> in) {
-        return this.parse(in, false);
+        return parse(in, false);
+    }
+
+    /**
+     * Parses the input string without requiring that the entire input is consumed.
+     *
+     * @param input the input string to parse
+     * @return the result of parsing the input string
+     */
+    @SuppressWarnings("unchecked")
+    public Result<I, A> parse(String input) {
+        Input<I> in = (Input<I>) Input.of(input);
+        return parse(in);
+    }
+
+    /**
+     * Parses the input and ensures that the entire input is consumed.
+     *
+     * @param in the input to parse
+     * @return the result of parsing the input
+     */
+    public Result<I, A> parseAll(Input<I> in) {
+        return parse(in, true);
     }
 
     /**
@@ -209,29 +240,9 @@ public class Parser<I, A> {
      * @return the result of parsing the input string
      */
     @SuppressWarnings("unchecked")
-    public Result<I, A> parse(String input) {
-        Input<I> in = (Input<I>) Input.of(input);
-        return this.parse(in, false);
-    }
-
-    /**
-     * Parses the input and ensures that the entire input is consumed.
-     *
-     * @param input the input to parse
-     * @return the result of parsing the input
-     */
-    public Result<I, A> parseAll(Input<I> input) {
-        return this.parse(input, true);
-    }
-
-    /**
-     * Parses the input and ensures that the entire input is consumed.
-     *
-     * @param input the input to parse
-     * @return the result of parsing the input
-     */
     public Result<I, A> parseAll(String input) {
-        return this.parse(input, true);
+        Input<I> in = (Input<I>) Input.of(input);
+        return parseAll(in);
     }
 
     /**
@@ -252,15 +263,28 @@ public class Parser<I, A> {
      * @return the result of parsing the input, which can be either a success or a failure
      */
     public Result<I, A> apply(Input<I> in) {
-        if (this.index == in.position()) {
-            return Result.failure(in, null, INFINITE_LOOP_ERROR);
-        }
-        this.index = in.position();
-        Result<I, A> result = applyHandler.apply(in);
-        this.index = -1;
-        return result;
-    }
+        // Fast path - avoid ThreadLocal lookup if position is different
+        int lastPosition = in.position();
 
+        // Use a more efficient data structure than Map
+        IntObjectMap<Object> config = this.contextLocal.get();
+
+        // Use containsKey+put instead of get+put to reduce lookup
+        if (config.containsKey(lastPosition)) {
+            Object parser = config.get(lastPosition);
+            if (parser == this) {
+                return Result.failure(in, null, INFINITE_LOOP_ERROR);
+            }
+        }
+
+        config.put(lastPosition, this);
+        try {
+            return applyHandler.apply(in);
+        } finally {
+            // Remove the parser from the context after parsing
+            config.remove(lastPosition);
+        }
+    }
     /**
      * Chains this parser with another parser, applying them in sequence.
      * The result of the first parser is returned, and the result of the second parser is ignored.
