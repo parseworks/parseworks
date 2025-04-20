@@ -2,7 +2,6 @@ package io.github.parseworks;
 
 import io.github.parseworks.impl.parser.NoCheckParser;
 
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BinaryOperator;
@@ -22,6 +21,7 @@ import static io.github.parseworks.Combinators.is;
 public class Parser<I, A> {
 
     protected Function<Input<I>, Result<I, A>> applyHandler;
+    int index = -1;
 
     private static final String INFINITE_LOOP_ERROR = "Infinite loop detected";
 
@@ -62,11 +62,14 @@ public class Parser<I, A> {
      *
      * @param parser the parser to set
      */
-    public synchronized void set(Parser<I, A> parser) {
+    public void set(Parser<I, A> parser) {
         if (parser == null) {
             throw new IllegalArgumentException("parser cannot be null");
         }
-        set(parser.applyHandler);
+        if (this.applyHandler != defaultApplyHandler) {
+            throw new IllegalStateException("Parser already has an applyHandler");
+        }
+        this.applyHandler = parser.applyHandler;
     }
 
     /**
@@ -74,7 +77,7 @@ public class Parser<I, A> {
      *
      * @param applyHandler the function to set as the applyHandler
      */
-    public synchronized void set(Function<Input<I>, Result<I, A>> applyHandler){
+    public void set(Function<Input<I>, Result<I, A>> applyHandler){
         if (applyHandler == null) {
             throw new IllegalArgumentException("applyHandler cannot be null");
         }
@@ -249,13 +252,12 @@ public class Parser<I, A> {
      * @return the result of parsing the input, which can be either a success or a failure
      */
     public Result<I, A> apply(Input<I> in) {
-        Map<Object, Object> context = in.context();
-        if (context.containsKey(in.position()) && context.get(in.position()) == this) {
+        if (this.index == in.position()) {
             return Result.failure(in, null, INFINITE_LOOP_ERROR);
         }
-        context.put(in.position(), this);
+        this.index = in.position();
         Result<I, A> result = applyHandler.apply(in);
-        context.remove(in.position());
+        this.index = -1;
         return result;
     }
 

@@ -1,9 +1,7 @@
 package io.github.parseworks.impl.inputs;
 
-import io.github.parseworks.ContextMap;
 import io.github.parseworks.Input;
 import java.util.List;
-import java.util.Map;
 
 /**
  * An implementation of the {@link Input} interface that uses a {@link List} as the input source.
@@ -11,7 +9,7 @@ import java.util.Map;
  *
  * @param <I> the type of the input elements
  */
-public record ListInput<I>(int position, List<I> data, Map<Object,Object> context) implements Input<I> {
+public record ListInput<I>(int position, List<I> data) implements Input<I> {
 
     /**
      * Constructs a new {@code ListInput} starting at the beginning of the given {@code List}.
@@ -19,7 +17,7 @@ public record ListInput<I>(int position, List<I> data, Map<Object,Object> contex
      * @param data the {@code List} to be used as the input source
      */
     public ListInput(List<I> data) {
-        this(0, data,new ContextMap<>());
+        this(0, data);
     }
 
     /**
@@ -50,12 +48,12 @@ public record ListInput<I>(int position, List<I> data, Map<Object,Object> contex
      */
     @Override
     public Input<I> next() {
-        return new ListInput<>(position + 1, data, new ContextMap<>(context));
+        return new ListInput<>(position + 1, data);
     }
 
     @Override
     public Input<I> skip(int offset) {
-        return new ListInput<>(position + offset, data, new ContextMap<>(context));
+        return new ListInput<>(position + offset, data);
     }
 
     /**
