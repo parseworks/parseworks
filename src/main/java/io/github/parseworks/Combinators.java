@@ -74,13 +74,24 @@ public class Combinators {
      * @return a parser that succeeds if the input is at EOF
      */
     public static <I> Parser<I, Void> eof() {
-        return new Parser<>(input -> {
+        return new NoCheckParser<>(input -> {
             if (input.isEof()) {
                 return Result.success(input, null);
             } else {
                 return Result.failure(input, "eof", String.valueOf(input.current()));
             }
         });
+    }
+
+    /**
+     * Creates a parser that always fails with a generic error message.
+     *
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     * @return a parser that always fails
+     */
+    public static <I, A> Parser<I, A> fail() {
+        return new NoCheckParser<>(in -> Result.failure(in, "to fail"));
     }
 
     /**

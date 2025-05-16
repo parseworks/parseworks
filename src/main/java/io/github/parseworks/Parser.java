@@ -1,9 +1,8 @@
 package io.github.parseworks;
 
+import io.github.parseworks.impl.IntObjectMap;
 import io.github.parseworks.impl.parser.NoCheckParser;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BinaryOperator;
@@ -106,7 +105,7 @@ public class Parser<I, A> {
      * @return a parser that applies the function to the value
      */
     public static <I, A, B> Parser<I, B> apply(Parser<I, Function<A, B>> functionProvider, Parser<I, A> valueParser) {
-        return new Parser<>(in -> {
+        return new NoCheckParser<>(in -> {
             Result<I, Function<A, B>> functionResult = functionProvider.apply(in);
             if (functionResult.isError()) {
                 return functionResult.cast();
@@ -169,7 +168,7 @@ public class Parser<I, A> {
      * @return a parser that always fails
      */
     public static <I, A> Parser<I, A> fail() {
-        return new Parser<>(in -> Result.failure(in, "to fail"));
+        return new NoCheckParser<>(in -> Result.failure(in, "to fail"));
     }
 
     /**
@@ -270,11 +269,8 @@ public class Parser<I, A> {
         IntObjectMap<Object> config = this.contextLocal.get();
 
         // Use containsKey+put instead of get+put to reduce lookup
-        if (config.containsKey(lastPosition)) {
-            Object parser = config.get(lastPosition);
-            if (parser == this) {
-                return Result.failure(in, null, INFINITE_LOOP_ERROR);
-            }
+        if (config.get(lastPosition) == this) {
+            return Result.failure(in, null, INFINITE_LOOP_ERROR);
         }
 
         config.put(lastPosition, this);
@@ -583,13 +579,11 @@ public class Parser<I, A> {
                 // Try to match the terminator first
                 Result<I, ?> untilResult = until.apply(currentInput);
                 if (untilResult.isSuccess()) {
-                    // We found the terminator
                     if (results.isEmpty()) {
                         return Result.failure(currentInput, "Expected at least one item before terminator");
                     }
                     // Consume the terminator and return the results
                     return Result.success(untilResult.next(), results);
-
                 }
 
                 // Try to match the item parser
@@ -597,6 +591,11 @@ public class Parser<I, A> {
                 if (!result.isSuccess()) {
                     // Cannot parse more items and didn't find terminator
                     return Result.failure(currentInput, "Expected more items or terminator");
+                }
+
+                // Check for empty consumption to prevent infinite loops
+                if (currentInput.position() == result.next().position()) {
+                    return Result.failure(currentInput, "Parser didn't consume any input, preventing infinite loop");
                 }
 
                 // Add the parsed item to our results

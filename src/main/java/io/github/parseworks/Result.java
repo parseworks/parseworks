@@ -3,8 +3,8 @@ package io.github.parseworks;
 import io.github.parseworks.impl.Failure;
 import io.github.parseworks.impl.Success;
 
+import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -63,11 +63,7 @@ public interface Result<I, A> {
      */
     static <I, A> Result<I, A> failure(Input<I> input, String expected, String found) {
         String message = "Position " + input.position() + ": Expected ";
-        if (expected == null){
-            message += "correct input";
-        } else {
-            message += expected;
-        }
+        message += Objects.requireNonNullElse(expected, "correct input");
         if (input.hasMore()) {
             message += " but found " + found;
         } else {

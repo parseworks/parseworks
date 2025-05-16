@@ -131,7 +131,7 @@
                         <additionalKOption>-Xdoclint:-html</additionalKOption>
                     </additionalJOptions>
                     <linksource>true</linksource>
-                    <source>${java.version}</source>
+                    <release>17</release>
                 </configuration>
                 <executions>
                     <execution>

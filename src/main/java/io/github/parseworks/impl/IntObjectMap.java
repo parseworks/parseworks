@@ -1,4 +1,4 @@
-package io.github.parseworks;
+package io.github.parseworks.impl;
 
 import java.util.Arrays;
 

@@ -3,7 +3,6 @@ package io.github.parseworks.impl;
 import io.github.parseworks.Input;
 import io.github.parseworks.Result;
 
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
