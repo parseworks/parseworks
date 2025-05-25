@@ -151,7 +151,7 @@ public class Combinators {
      * @return a parser that tries each parser in the list until one succeeds
      */
     public static <I, A> Parser<I, A> oneOf(List<Parser<I, A>> parsers) {
-        return new Parser<>(in -> {
+        return new NoCheckParser<>(in -> {
                     if (in.isEof()) {
                         return Result.failure(in, "one of");
                     }

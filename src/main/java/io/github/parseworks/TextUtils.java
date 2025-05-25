@@ -167,7 +167,7 @@ public class TextUtils {
      */
     private static <T> Parser<Character, T> nonZeroDigitParser(Function<FList<Integer>, T> converter) {
         return nonZeroDigit.then(numeric.zeroOrMany())
-                .map(d -> ds -> ds.push(d))
+                .map(d -> ds -> ds.prepend(d))
                 .map(ds -> ds.map(Character::getNumericValue))
                 .map(converter);
     }

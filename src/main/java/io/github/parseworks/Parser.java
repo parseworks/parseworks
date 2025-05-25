@@ -3,8 +3,7 @@ package io.github.parseworks;
 import io.github.parseworks.impl.IntObjectMap;
 import io.github.parseworks.impl.parser.NoCheckParser;
 
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -26,13 +25,16 @@ import static io.github.parseworks.Combinators.is;
 public class Parser<I, A> {
 
     protected Function<Input<I>, Result<I, A>> applyHandler;
-    private static final String INFINITE_LOOP_ERROR = "Infinite loop detected";
+    protected static final String INFINITE_LOOP_ERROR = "Infinite loop detected";
     /**
      * A default apply handler that throws an exception if the parser is not initialized.
      */
     private Function<Input<I>, Result<I, A>> defaultApplyHandler;
 
-    private final ThreadLocal<IntObjectMap<Object>> contextLocal = ThreadLocal.withInitial(IntObjectMap::new);
+    protected final ThreadLocal<IntObjectMap<Object>> contextLocal = ThreadLocal.withInitial(IntObjectMap::new);
+    private static final ThreadLocal<int[]> POSITIONS = ThreadLocal.withInitial(() -> new int[64]);
+    private static final ThreadLocal<Object[]> PARSERS = ThreadLocal.withInitial(() -> new Object[64]);
+    private static final ThreadLocal<Integer> SIZE = ThreadLocal.withInitial(() -> 0);
 
     /**
      * Private constructor to create a parser reference that can be initialized later.
@@ -160,16 +162,6 @@ public class Parser<I, A> {
         return new NoCheckParser<>(in -> Result.success(in, value));
     }
 
-    /**
-     * Creates a parser that always fails with a generic error message.
-     *
-     * @param <I> the type of the input symbols
-     * @param <A> the type of the parsed value
-     * @return a parser that always fails
-     */
-    public static <I, A> Parser<I, A> fail() {
-        return new NoCheckParser<>(in -> Result.failure(in, "to fail"));
-    }
 
     /**
      * Parses the input and optionally ensures that the entire input is consumed.
@@ -261,24 +253,38 @@ public class Parser<I, A> {
      * @param in the input to parse
      * @return the result of parsing the input, which can be either a success or a failure
      */
+
     public Result<I, A> apply(Input<I> in) {
-        // Fast path - avoid ThreadLocal lookup if position is different
-        int lastPosition = in.position();
+        int position = in.position();
+        int[] positions = POSITIONS.get();
+        Object[] parsers = PARSERS.get();
+        int size = SIZE.get();
 
-        // Use a more efficient data structure than Map
-        IntObjectMap<Object> config = this.contextLocal.get();
-
-        // Use containsKey+put instead of get+put to reduce lookup
-        if (config.get(lastPosition) == this) {
-            return Result.failure(in, null, INFINITE_LOOP_ERROR);
+        // Linear search is faster for small arrays (typically the case for parser depth)
+        for (int i = 0; i < size; i++) {
+            if (positions[i] == position && parsers[i] == this) {
+                return Result.failure(in, null, INFINITE_LOOP_ERROR);
+            }
         }
 
-        config.put(lastPosition, this);
+        // Resize if needed
+        if (size == positions.length) {
+            int newLength = positions.length * 2;
+            POSITIONS.set(Arrays.copyOf(positions, newLength));
+            PARSERS.set(Arrays.copyOf(parsers, newLength));
+            positions = POSITIONS.get();
+            parsers = PARSERS.get();
+        }
+
+        // Add current position
+        positions[size] = position;
+        parsers[size] = this;
+        SIZE.set(size + 1);
+
         try {
             return applyHandler.apply(in);
         } finally {
-            // Remove the parser from the context after parsing
-            config.remove(lastPosition);
+            SIZE.set(size); // Restore previous size
         }
     }
     /**
@@ -379,19 +385,21 @@ public class Parser<I, A> {
      * @return a parser that applies this parser repeatedly until it fails
      */
     public Parser<I, FList<A>> zeroOrMany() {
-        return new Parser<>(in -> {
-            FList<A> results = new FList<>();
-            for (Input<I> currentInput = in; ; ) {
-                Result<I, A> result = this.apply(currentInput);
-                if (!result.isSuccess() || currentInput.position() == result.next().position()) {
-                    return Result.success(currentInput, results);
-                }
-                results.add(result.get());
-                currentInput = result.next();
-            }
-        });
+        return repeatInternal(0, Integer.MAX_VALUE, null);
     }
 
+    /**
+     * A parser that applies this parser zero or more times until the until parser succeeds,
+     * and then returns a list of the results.
+     * The terminator is consumed when found.
+     * If this parser fails on the first attempt, an empty list is returned.
+     *
+     * @param terminator the parser that signals when to stop collecting
+     * @return a parser that applies this parser repeatedly until the until parser succeeds
+     */
+    public Parser<I, FList<A>> zeroOrManyUntil(Parser<I, ?> terminator) {
+        return repeatInternal(0, Integer.MAX_VALUE, terminator);
+    }
 
     /**
      * Chains this parser with another parser, applying them in sequence.
@@ -558,7 +566,7 @@ public class Parser<I, A> {
      * @return a parser that applies this parser repeatedly until it fails
      */
     public Parser<I, FList<A>> many() {
-        return this.then(this.zeroOrMany()).map(a -> l -> l.push(a));
+        return repeatInternal(1, Integer.MAX_VALUE, null);
     }
 
     /**
@@ -571,38 +579,7 @@ public class Parser<I, A> {
      * @return a parser that applies this parser repeatedly until the until parser succeeds
      */
     public Parser<I, FList<A>> manyUntil(Parser<I, ?> until) {
-        return new Parser<>(in -> {
-            FList<A> results = new FList<>();
-            Input<I> currentInput = in;
-
-            while (true) {
-                // Try to match the terminator first
-                Result<I, ?> untilResult = until.apply(currentInput);
-                if (untilResult.isSuccess()) {
-                    if (results.isEmpty()) {
-                        return Result.failure(currentInput, "Expected at least one item before terminator");
-                    }
-                    // Consume the terminator and return the results
-                    return Result.success(untilResult.next(), results);
-                }
-
-                // Try to match the item parser
-                Result<I, A> result = this.apply(currentInput);
-                if (!result.isSuccess()) {
-                    // Cannot parse more items and didn't find terminator
-                    return Result.failure(currentInput, "Expected more items or terminator");
-                }
-
-                // Check for empty consumption to prevent infinite loops
-                if (currentInput.position() == result.next().position()) {
-                    return Result.failure(currentInput, "Parser didn't consume any input, preventing infinite loop");
-                }
-
-                // Add the parsed item to our results
-                results.add(result.get());
-                currentInput = result.next();
-            }
-        });
+        return repeatInternal(1, Integer.MAX_VALUE, until);
     }
 
     /**
@@ -646,7 +623,7 @@ public class Parser<I, A> {
      * @throws java.lang.IllegalArgumentException if the target of repetitions is negative or if target is greater than max
      */
     public Parser<I, FList<A>> repeat(int target) {
-        return repeat(target, target);
+        return repeatInternal(target, target, null);
     }
 
     /**
@@ -659,8 +636,22 @@ public class Parser<I, A> {
      * @throws java.lang.IllegalArgumentException if the target of repetitions is negative or if target is greater than max
      */
     public Parser<I, FList<A>> repeatAtLeast(int target) {
-        return repeat(target, Integer.MAX_VALUE);
+        return repeatInternal(target, Integer.MAX_VALUE, null);
     }
+
+    /**
+     * A parser that applies this parser at most `max` times
+     * If the parser fails before reaching the target of repetitions, the parser passes.
+     * If the parser succeeds at most `max` times, the results are collected in a list and returned by the parser.
+     *
+     * @param max the maximum number of times to apply this parser
+     * @return a parser that applies this parser at most 'max' number of times
+     * @throws java.lang.IllegalArgumentException if the number of repetitions is negative or if min is greater than max
+     */
+    public Parser<I, FList<A>> repeatAtMost(int max) {
+        return repeatInternal(0, max, null);
+    }
+
 
     /**
      * A parser that applies this parser between `min` and `max` times.
@@ -673,6 +664,10 @@ public class Parser<I, A> {
      * @throws java.lang.IllegalArgumentException if the number of repetitions is negative or if min is greater than max
      */
     public Parser<I, FList<A>> repeat(int min, int max) {
+        return repeatInternal(min, max, null);
+    }
+
+    private Parser<I, FList<A>> repeatInternal(int min, int max, Parser<I, ?> terminator) {
         if (min < 0 || max < 0) {
             throw new IllegalArgumentException("The number of repetitions cannot be negative");
         }
@@ -680,34 +675,45 @@ public class Parser<I, A> {
             throw new IllegalArgumentException("The minimum number of repetitions cannot be greater than the maximum");
         }
         return new Parser<>(in -> {
-            FList<A> accumulator = new FList<>();
-            Input<I> currentInput = in;
+            List<A> buffer = new ArrayList<>();
+            Input<I> current = in;
             int count = 0;
-            while (count < max) {
-                if (currentInput.isEof()) {
-                    if (count >= min) {
-                        return Result.success(currentInput, accumulator);
-                    } else {
-                        return Result.failure(currentInput, min +" repetitions");
+
+            while (true) {
+                // Check terminator (for manyUntil)
+                if (terminator != null) {
+                    Result<I, ?> termRes = terminator.apply(current);
+                    if (termRes.isSuccess()) {
+                        if (count < min) {
+                            return Result.failure(current, "Expected at least " + min + " items");
+                        }
+                        return Result.success(termRes.next(), new FList<>(buffer));
                     }
                 }
-                Result<I, A> result = this.apply(currentInput);
-                if (result.isSuccess()) {
-                    accumulator.add(result.get());
-                    currentInput = result.next();
-                    count++;
-                } else {
+                // End-of-input or max reached
+                if (current.isEof() || count >= max) {
                     if (count >= min) {
-                        return Result.success(currentInput, accumulator);
-                    } else {
-                        return Result.failure(currentInput, null,"Parsing failed before reaching the required number of repetitions");
+                        return Result.success(current, new FList<>(buffer));
                     }
+                    return Result.failure(current, min + " repetitions");
                 }
+                // Parse an item
+                Result<I, A> res = this.apply(current);
+                if (!res.isSuccess()) {
+                    if (count >= min) {
+                        return Result.success(current, new FList<>(buffer));
+                    }
+                    return res.cast();
+                }
+                if (current.position() == res.next().position()) {
+                    return Result.failure(current, "Parser consumed no input");
+                }
+                buffer.add(res.get());
+                current = res.next();
+                count++;
             }
-            return Result.success(currentInput, accumulator);
         });
     }
-
     /**
      * A parser that applies this parser zero or more times until it fails,
      * alternating with calls to the separator parser.
@@ -731,10 +737,7 @@ public class Parser<I, A> {
      * @return a parser that applies this parser one or more times alternated with the separator parser
      */
     public <SEP> Parser<I, FList<A>> separatedByMany(Parser<I, SEP> sep) {
-        return this.then(sep.skipThen(this).zeroOrMany()).map(a -> l -> {
-            l.push(a);
-            return l;
-        });
+        return this.then(sep.skipThen(this).zeroOrMany()).map(a -> l -> l.prepend(a));
     }
 
     /**

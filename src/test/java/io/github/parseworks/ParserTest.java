@@ -23,12 +23,7 @@ public class ParserTest {
 
     @Test
     public void testZeroOrMany() {
-        Parser<Character, List<Character>> parser = chr(Character::isLetter).zeroOrMany().then(chr(Character::isDigit).zeroOrMany()).map((letters, digits) -> {
-            for (var digit : digits) {
-                ((List<Character>) letters).add(digit);
-            }
-            return letters;
-        });
+        Parser<Character, List<Character>> parser = chr(Character::isLetter).zeroOrMany().then(chr(Character::isDigit).zeroOrMany()).map(FList::appendAll);
         Input<Character> input = Input.of("abc123");
         Result<Character, List<Character>> result = parser.parse(input);
         assertTrue(result.isSuccess());

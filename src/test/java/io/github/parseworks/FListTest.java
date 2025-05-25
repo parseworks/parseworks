@@ -11,7 +11,7 @@ public class FListTest {
     @Test
     public void testPush() {
         FList<Integer> list = new FList<>();
-        list.push(1);
+        list = list.prepend(1);
         assertEquals(1, list.size());
         assertEquals(1, list.head());
     }
