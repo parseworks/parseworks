@@ -1,5 +1,7 @@
 package io.github.parseworks;
 
+import io.github.parseworks.impl.parser.NoCheckParser;
+
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -12,7 +14,7 @@ import java.util.function.Function;
  * Each successive parser is incorporated by passing it to a call to {@code then} or {@code thenSkip}.
  * The chain of calls is concluded by calling {@code map} with a handler for the parse results.
  * <p>
- * {@code ApplyBuilder} is a more readable way of using {@link io.github.parseworks.Parser#apply Parser.ap}.
+ * {@code ApplyBuilder} is a more readable way of using {@link ApplyBuilder#apply Parser.ap}.
  * For example, {@code pa.then(pb).then(pc).map(f)} is equivalent to {@code ap(ap(pa.map(f), pb), pc)}.
  *
  * @param <I> the type of the input to the parsers
@@ -45,6 +47,32 @@ public class ApplyBuilder<I, A, B> {
     }
 
     /**
+     * Applies a function provided by one parser to the result of another parser.
+     *
+     * @param functionProvider the parser that provides the function
+     * @param valueParser      the parser that provides the value
+     * @param <I>              the type of the input symbols
+     * @param <A>              the type of the parsed value
+     * @param <B>              the type of the result of the function
+     * @return a parser that applies the function to the value
+     */
+    public static <I, A, B> Parser<I, B> apply(Parser<I, Function<A, B>> functionProvider, Parser<I, A> valueParser) {
+        return new NoCheckParser<>(in -> {
+            Result<I, Function<A, B>> functionResult = functionProvider.apply(in);
+            if (functionResult.isError()) {
+                return functionResult.cast();
+            }
+            Function<A, B> func = functionResult.get();
+            Input<I> in2 = functionResult.next();
+            Result<I, A> valueResult = valueParser.apply(in2);
+            if (valueResult.isError()) {
+                return valueResult.cast();
+            }
+            return valueResult.map(func);
+        });
+    }
+
+    /**
      * Maps the results of the parsers to a new result using the provided function.
      *
      * @param f   the function to map the results
@@ -52,7 +80,7 @@ public class ApplyBuilder<I, A, B> {
      * @return a new parser with the mapped result
      */
     public <R> Parser<I, R> map(Function<A, Function<B, R>> f) {
-        return Parser.apply(pa.map(f), pb);
+        return apply(pa.map(f), pb);
     }
 
     /**
@@ -63,7 +91,7 @@ public class ApplyBuilder<I, A, B> {
      * @return a new parser with the mapped result
      */
     public <R> Parser<I, R> map(BiFunction<A, B, R> f) {
-        return new Parser<>(in -> {
+        return new NoCheckParser<>(in -> {
             Result<I, A> ra = pa.apply(in);
             if (ra.isError()) {
                 return ra.cast();
@@ -133,7 +161,7 @@ public class ApplyBuilder<I, A, B> {
          * @return a new parser with the mapped result
          */
         public <R> Parser<I, R> map(Function<A, Function<B, Function<C, R>>> f) {
-            return Parser.apply(ApplyBuilder.this.map(f), pc);
+            return apply(ApplyBuilder.this.map(f), pc);
         }
 
         /**
@@ -204,7 +232,7 @@ public class ApplyBuilder<I, A, B> {
              * @return a new parser with the mapped result
              */
             public <R> Parser<I, R> map(Function<A, Function<B, Function<C, Function<D, R>>>> f) {
-                return Parser.apply(ApplyBuilder3.this.map(f), pd);
+                return apply(ApplyBuilder3.this.map(f), pd);
             }
 
             /**
@@ -275,7 +303,7 @@ public class ApplyBuilder<I, A, B> {
                  * @return a new parser with the mapped result
                  */
                 public <R> Parser<I, R> map(Function<A, Function<B, Function<C, Function<D, Function<E, R>>>>> f) {
-                    return Parser.apply(ApplyBuilder4.this.map(f), pe);
+                    return apply(ApplyBuilder4.this.map(f), pe);
                 }
 
                 /**
@@ -346,7 +374,7 @@ public class ApplyBuilder<I, A, B> {
                      * @return a new parser with the mapped result
                      */
                     public <R> Parser<I, R> map(Function<A, Function<B, Function<C, Function<D, Function<E, Function<G, R>>>>>> f) {
-                        return Parser.apply(ApplyBuilder5.this.map(f), pg);
+                        return apply(ApplyBuilder5.this.map(f), pg);
                     }
 
                     /**
@@ -417,7 +445,7 @@ public class ApplyBuilder<I, A, B> {
                          * @return a new parser with the mapped result
                          */
                         public <R> Parser<I, R> map(Function<A, Function<B, Function<C, Function<D, Function<E, Function<G, Function<H, R>>>>>>> f) {
-                            return Parser.apply(ApplyBuilder6.this.map(f), ph);
+                            return apply(ApplyBuilder6.this.map(f), ph);
                         }
 
                         /**
@@ -488,7 +516,7 @@ public class ApplyBuilder<I, A, B> {
                              * @return a new parser with the mapped result
                              */
                             public <R> Parser<I, R> map(Function<A, Function<B, Function<C, Function<D, Function<E, Function<G, Function<H, Function<J, R>>>>>>>> f) {
-                                return Parser.apply(ApplyBuilder7.this.map(f), pj);
+                                return apply(ApplyBuilder7.this.map(f), pj);
                             }
 
                             /**

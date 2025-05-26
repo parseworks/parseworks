@@ -405,7 +405,7 @@ public class ParserTest {
 
     @Test
     public void testIsNot() {
-        Parser<Character, Character> parser = chr('a').isNot('b');
+        Parser<Character, Character> parser = chr(Character::isLetter).isNot('b');
 
         // Should succeed when current character is 'a'
         Result<Character, Character> result1 = parser.parse("a");
