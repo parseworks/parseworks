@@ -14,14 +14,11 @@ public class AssociativityTest {
 
     @Test
     public void testDouble() {
-        Parser<Character, Double> addition = number.then(chr('+')).then(number).map((left, op, right) -> {
-            System.out.println("here");
-            return Double.sum(left, right);
-        });
+        Parser<Character, Double> addition = number.then(chr('+')).then(number).map((left, op, right) -> Double.sum(left, right));
 
 
         var result = addition.parse(Input.of("2+3"));
-        System.out.println(result.get());
+        assertEquals(5.0, result.get(), "Expected 5.0 but got " + result.get());
 
     }
 

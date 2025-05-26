@@ -13,6 +13,78 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ParserTest {
 
     @Test
+    public void testParserRef() {
+        Parser<Character, Character> ref = Parser.ref();
+        Parser<Character, Character> realParser = chr('a');
+        ref.set(realParser);
+
+        Result<Character, Character> result = ref.parse("a");
+        assertTrue(result.isSuccess());
+        assertEquals('a', result.get());
+    }
+
+    @Test
+    public void testParseAllWithPartialConsumption() {
+        Parser<Character, Character> parser = chr('a');
+        Result<Character, Character> result = parser.parseAll("ab");
+        assertTrue(result.isError()); // Should fail as not all input is consumed
+    }
+
+    @Test
+    public void testParseWithoutFullConsumption() {
+        Parser<Character, Character> parser = chr('a');
+        Result<Character, Character> result = parser.parse("ab");
+        assertTrue(result.isSuccess()); // Should succeed as partial consumption is allowed
+        assertEquals('a', result.get());
+    }
+
+    @Test
+    public void testBetweenWithParsers() {
+        Parser<Character, Character> open = chr('[');
+        Parser<Character, Character> close = chr(']');
+        Parser<Character, Character> content = chr('a');
+
+        Parser<Character, Character> parser = content.between(open, close);
+        Result<Character, Character> result = parser.parse("[a]");
+
+        assertTrue(result.isSuccess());
+        assertEquals('a', result.get());
+    }
+
+    @Test
+    public void testAs() {
+        Parser<Character, String> parser = chr('a').as("constant");
+        Result<Character, String> result = parser.parse("a");
+
+        assertTrue(result.isSuccess());
+        assertEquals("constant", result.get());
+    }
+
+    @Test
+    public void testMap() {
+        Parser<Character, Integer> parser = chr('a').map(c -> (int)c);
+        Result<Character, Integer> result = parser.parse("a");
+
+        assertTrue(result.isSuccess());
+        assertEquals(Integer.valueOf('a'), result.get());
+    }
+
+    @Test
+    public void testMultipleThen() {
+        Parser<Character, Character> a = chr('a');
+        Parser<Character, Character> b = chr('b');
+        Parser<Character, Character> c = chr('c');
+
+        Parser<Character, String> parser = a.then(b).then(c)
+                .map((first, second, third) -> String.valueOf(first) + second + third);
+
+        Result<Character, String> result = parser.parse("abc");
+        assertTrue(result.isSuccess());
+        assertEquals("abc", result.get());
+    }
+
+
+    @Test
     public void testPure() {
         Parser<Character, String> parser = Parser.pure("test");
         Input<Character> input = Input.of("");
@@ -203,6 +275,235 @@ public class ParserTest {
         assertEquals(3, result.get().size());
     }
 
+    @Test
+    public void testTakeWhile() {
+        // Create a parser that parses digits
+        Parser<Character, Character> digitParser = chr(Character::isDigit);
+
+        // Create a condition that checks if a character is a digit
+        Parser<Character, Boolean> isDigit = digitParser.map(c -> true).orElse(false);
+
+        // Create a parser that takes digits while they are present
+        Parser<Character, FList<Character>> takeWhileParser = digitParser.takeWhile(isDigit);
+
+        // Test case 1: Only digits
+        Result<Character, FList<Character>> result1 = takeWhileParser.parse("12345");
+        assertTrue(result1.isSuccess());
+        assertEquals(5, result1.get().size());
+        assertEquals(List.of('1', '2', '3', '4', '5'), result1.get());
+
+        // Test case 2: Digits followed by letters
+        Result<Character, FList<Character>> result2 = takeWhileParser.parse("123abc");
+        assertTrue(result2.isSuccess());
+        assertEquals(3, result2.get().size());
+        assertEquals(List.of('1', '2', '3'), result2.get());
+
+        // Test case 3: Starts with letters
+        Result<Character, FList<Character>> result3 = takeWhileParser.parse("abc123");
+        assertTrue(result3.isSuccess());
+        assertEquals(0, result3.get().size()); // Empty list when no matches at start
+
+        // Test case 4: Empty input
+        Result<Character, FList<Character>> result4 = takeWhileParser.parse("");
+        assertTrue(result4.isSuccess());
+        assertEquals(0, result4.get().size()); // Empty list for empty input
+
+        // Test case 5: Mixed content with digits returning
+        Result<Character, FList<Character>> result5 = takeWhileParser.parse("123abc456");
+        assertTrue(result5.isSuccess());
+        assertEquals(3, result5.get().size());
+        assertEquals(List.of('1', '2', '3'), result5.get());
+    }
+
+    @Test
+    public void testRepeatAtMost() {
+        Parser<Character, FList<Character>> parser = chr('a').repeatAtMost(3);
+
+        // Test case 1: Less than max
+        Result<Character, FList<Character>> result1 = parser.parse("aa");
+        assertTrue(result1.isSuccess());
+        assertEquals(2, result1.get().size());
+
+        // Test case 2: Exactly max
+        Result<Character, FList<Character>> result2 = parser.parse("aaa");
+        assertTrue(result2.isSuccess());
+        assertEquals(3, result2.get().size());
+
+        // Test case 3: More than max (should only take max)
+        Result<Character, FList<Character>> result3 = parser.parse("aaaaa");
+        assertTrue(result3.isSuccess());
+        assertEquals(3, result3.get().size());
+
+        // Test case 4: Zero matches
+        Result<Character, FList<Character>> result4 = parser.parse("bbb");
+        assertTrue(result4.isSuccess());
+        assertEquals(0, result4.get().size());
+    }
+
+    @Test
+    public void testZeroOrManyUntil() {
+        Parser<Character, FList<Character>> parser = chr('a').zeroOrManyUntil(chr(';'));
+
+        // Test case 1: Zero matches with terminator
+        Result<Character, FList<Character>> result1 = parser.parse(";");
+        assertTrue(result1.isSuccess());
+        assertEquals(0, result1.get().size());
+
+        // Test case 2: Multiple matches with terminator
+        Result<Character, FList<Character>> result2 = parser.parse("aaa;");
+        assertTrue(result2.isSuccess());
+        assertEquals(3, result2.get().size());
+
+        // Test case 3: No terminator (should fail)
+        Result<Character, FList<Character>> result3 = parser.parse("aaa");
+        assertTrue(result3.isError());
+    }
+
+    @Test
+    public void testManyUntil() {
+        Parser<Character, FList<Character>> parser = chr('a').manyUntil(chr(';'));
+
+        // Test case 1: Multiple matches with terminator
+        Result<Character, FList<Character>> result1 = parser.parse("aaa;");
+        assertTrue(result1.isSuccess());
+        assertEquals(3, result1.get().size());
+
+        // Test case 2: Zero matches with terminator (should fail)
+        Result<Character, FList<Character>> result2 = parser.parse(";");
+        assertTrue(result2.isError());
+    }
+
+    @Test
+    public void testThenSkipAndSkipThen() {
+        // Test thenSkip - keep first result, skip second
+        Parser<Character, Character> thenSkipParser = chr('a').thenSkip(chr('b'));
+        Result<Character, Character> result1 = thenSkipParser.parse("ab");
+        assertTrue(result1.isSuccess());
+        assertEquals('a', result1.get());
+
+        // Test skipThen - skip first result, keep second
+        Parser<Character, Character> skipThenParser = chr('a').skipThen(chr('b'));
+        Result<Character, Character> result2 = skipThenParser.parse("ab");
+        assertTrue(result2.isSuccess());
+        assertEquals('b', result2.get());
+    }
+
+    @Test
+    public void testOrElse() {
+        Parser<Character, Character> parser = chr('a').orElse('x');
+
+        // Test case 1: Success
+        Result<Character, Character> result1 = parser.parse("a");
+        assertTrue(result1.isSuccess());
+        assertEquals('a', result1.get());
+
+        // Test case 2: Failure but returns default
+        Result<Character, Character> result2 = parser.parse("b");
+        assertTrue(result2.isSuccess());
+        assertEquals('x', result2.get());
+    }
+
+    @Test
+    public void testIsNot() {
+        Parser<Character, Character> parser = chr('a').isNot('b');
+
+        // Should succeed when current character is 'a'
+        Result<Character, Character> result1 = parser.parse("a");
+        assertTrue(result1.isSuccess());
+        assertEquals('a', result1.get());
+
+        // Should fail when current character is 'b'
+        Result<Character, Character> result2 = parser.parse("b");
+        assertTrue(result2.isError());
+    }
+
+    @Test
+    public void testTrim() {
+        Parser<Character, Character> parser = chr('a').trim();
+
+        // Test with whitespace before and after
+        Result<Character, Character> result = parser.parse("  a  ");
+        assertTrue(result.isSuccess());
+        assertEquals('a', result.get());
+        assertTrue(result.next().isEof());
+    }
+
+    @Test
+    public void testSeparatedByMany() {
+        Parser<Character, FList<Character>> parser = chr('a').separatedByMany(chr(','));
+
+        // Test with multiple separated elements
+        Result<Character, FList<Character>> result1 = parser.parse("a,a,a");
+        assertTrue(result1.isSuccess());
+        assertEquals(3, result1.get().size());
+
+        // Test with single element (no separators)
+        Result<Character, FList<Character>> result2 = parser.parse("a");
+        assertTrue(result2.isSuccess());
+        assertEquals(1, result2.get().size());
+
+        // Test with no elements (should fail)
+        Result<Character, FList<Character>> result3 = parser.parse("");
+        assertTrue(result3.isError());
+    }
+
+    @Test
+    public void testChainZeroOrMany() {
+        Parser<Character, Integer> number = TextUtils.number;
+        Parser<Character, BinaryOperator<Integer>> plus = chr('+').map(op -> Integer::sum);
+
+        // Test chainLeftZeroOrMany
+        Parser<Character, Integer> leftParser = number.chainLeftZeroOrMany(plus, 0);
+        Result<Character, Integer> leftResult = leftParser.parse("");
+        assertTrue(leftResult.isSuccess());
+        assertEquals(0, leftResult.get());  // Should return default value for empty input
+
+        // Test chainRightZeroOrMany
+        Parser<Character, Integer> rightParser = number.chainRightZeroOrMany(plus, 0);
+        Result<Character, Integer> rightResult = rightParser.parse("");
+        assertTrue(rightResult.isSuccess());
+        assertEquals(0, rightResult.get());  // Should return default value for empty input
+    }
+
+    @Test
+    public void testNot() {
+        // Create a parser that recognizes the letter 'a'
+        Parser<Character, Character> aParser = chr('a');
+
+        // Create a parser that recognizes digits
+        Parser<Character, Character> digitParser = chr(Character::isDigit);
+
+        // Create a parser that recognizes 'a' but only if there's no digit
+        Parser<Character, Character> aNotDigitParser = aParser.not(digitParser);
+
+        // Test case 1: Input 'a' - should succeed because there's no digit
+        Result<Character, Character> result1 = aNotDigitParser.parse("a");
+        assertTrue(result1.isSuccess());
+        assertEquals('a', result1.get());
+
+        // Test case 2: Input '5' - should fail because there's a digit
+        Result<Character, Character> result2 = aNotDigitParser.parse("5");
+        assertTrue(result2.isError());
+        //assertEquals("Parser to fail", result2.fullErrorMessage());
+
+        // Test case 3: Input 'a5' - should succeed because digit is after 'a'
+        Result<Character, Character> result3 = aNotDigitParser.parse("a5");
+        assertTrue(result3.isSuccess());
+        assertEquals('a', result3.get());
+
+        // Test case 4: Multiple negations - parser that matches 'a' but not 'a' followed by 'b'
+        Parser<Character, Character> abParser = chr('a').then(chr('b')).map((a, b) -> a);
+        Parser<Character, Character> aNotAbParser = aParser.not(abParser);
+
+        // Should fail on "ab" because abParser succeeds
+        Result<Character, Character> result4 = aNotAbParser.parse("ab");
+        assertTrue(result4.isError());
+
+        // Should succeed on "ac" because abParser fails
+        Result<Character, Character> result5 = aNotAbParser.parse("ac");
+        assertTrue(result5.isSuccess());
+        assertEquals('a', result5.get());
+    }
 
     @Test
     public void testBetweenParsers() {
@@ -258,25 +559,6 @@ public class ParserTest {
 
         // Verify the result
         assertTrue(result.isError());
-    }
-
-
-
-
-
-
-    @Test
-    public void testSeparatedByMany() {
-        // Define a parser for comma-separated integers
-        Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
-        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.separatedByMany(chr(','));
-
-        // Test input
-        String input = "1,2,3,4,5";
-        List<Integer> result = separatedByManyParser.parse(Input.of(input)).get();
-
-        // Verify the result
-        assertEquals(List.of(1, 2, 3, 4, 5), result);
     }
 
 

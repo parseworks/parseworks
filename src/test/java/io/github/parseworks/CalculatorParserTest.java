@@ -7,6 +7,7 @@ import java.util.function.BinaryOperator;
 
 import static io.github.parseworks.Combinators.chr;
 import static io.github.parseworks.TextUtils.numeric;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CalculatorParserTest {
 
@@ -34,11 +35,7 @@ public class CalculatorParserTest {
         term.set(term2);
         Input<Character> input = Input.of("3+(2*4)-5");
         Result<Character, Integer> result = expression.parse(input);
-        if (result.isSuccess()) {
-            System.out.println("Result: " + result.get());
-        } else {
-            System.out.println("Parsing failed: " + result.error());
-        }
+        assertEquals(3 + (2 * 4) - 5, result.get(), "Parsing failed for expression: " + input);
     }
 
 

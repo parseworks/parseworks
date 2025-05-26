@@ -2,7 +2,6 @@ package io.github.parseworks;
 
 import org.junit.jupiter.api.Test;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
 import static io.github.parseworks.Combinators.*;
 import static org.junit.jupiter.api.Assertions.*;

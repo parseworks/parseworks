@@ -8,6 +8,7 @@ import java.util.function.UnaryOperator;
 
 import static io.github.parseworks.Combinators.*;
 import static io.github.parseworks.TextUtils.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ReadMeTest {
 
@@ -34,23 +35,23 @@ public class ReadMeTest {
                 failure -> "Error: " + failure.fullErrorMessage()
         );
 
-        System.out.println(response);
+        assertTrue(response.contains("Error: Position 0: Expected equivalence but found A"), "Message was " + response);
+
         // This is a test class for the README.md file.
         // It is used to validate the code snippets in the README.md file.
         Parser<Character, Integer> sum =
                 number.thenSkip(chr('+')).then(number).map(Integer::sum);
 
         int sumResult = sum.parse(Input.of("1+2")).get();
-        System.out.println(sumResult); // 3
+        assertTrue(sumResult == 3); // 3
 
-        sum.parse(Input.of("1+z")).errorOptional().ifPresent(System.out::println);
+        //sum.parse(Input.of("1+z")).errorOptional().ifPresent(System.out::println);
 
         var response2 = sum.parse(Input.of("1+z")).handle(
                 success -> "Success: no way!",
                 failure -> "Error: " + failure.fullErrorMessage()
         );
-        System.out.println(response2);
-        // Error: Failure at position 2, saw 'z', expected <number>
+        assertTrue(response2.contains("Error: Position 2: Expected <number> but found z"));
     }
 
     @Test

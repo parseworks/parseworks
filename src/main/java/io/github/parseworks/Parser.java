@@ -402,6 +402,70 @@ public class Parser<I, A> {
     }
 
     /**
+     * Creates a parser that repeatedly applies this parser as long as the condition evaluates to true.
+     * <p>
+     * This parser will:
+     * <ul>
+     *   <li>Check if the condition is true for the current input position</li>
+     *   <li>If true, apply this parser and collect the result</li>
+     *   <li>Continue until either the condition becomes false, parsing fails, or input is exhausted</li>
+     *   <li>Return all collected results as an FList</li>
+     * </ul>
+     * <p>
+     * Unlike {@link #zeroOrMany()}, this parser uses a separate condition parser to determine
+     * when to stop collecting items rather than relying on parse failures. This allows for more
+     * flexible parsing based on lookahead or contextual conditions.
+     * <p>
+     * The implementation includes a check to prevent infinite loops in cases where the parser
+     * succeeds but doesn't advance the input position.
+     *
+     * @param condition a parser that returns a boolean indicating whether to continue collecting
+     * @return a parser that collects elements while the condition is true
+     * @throws IllegalArgumentException if the condition parser is null
+     */
+    public Parser<I, FList<A>> takeWhile(Parser<I, Boolean> condition) {
+        if (condition == null) {
+            throw new IllegalArgumentException("Condition parser cannot be null");
+        }
+
+        return new NoCheckParser<>(in -> {
+            FList<A> results = new FList<>();
+            Input<I> currentInput = in;
+
+            while (!currentInput.isEof()) {
+                // Check if the condition is met
+                Result<I, Boolean> conditionResult = condition.apply(currentInput);
+                if (conditionResult.isError() || !conditionResult.get()) {
+                    // Condition not met, stop collecting
+                    return Result.success(currentInput, results);
+                }
+
+                // Store the current position to check for advancement
+                int currentPosition = currentInput.position();
+
+                // Condition met, try to parse an element
+                Result<I, A> elementResult = this.apply(currentInput);
+                if (elementResult.isError()) {
+                    // Failed to parse an element, stop collecting
+                    return Result.success(currentInput, results);
+                }
+
+                // Add parsed element to results
+                results = results.append(elementResult.get());
+                currentInput = elementResult.next();
+
+                // Check if we've advanced the position - if not, break to avoid infinite loop
+                if (currentInput.position() == currentPosition) {
+                    return Result.success(currentInput, results);
+                }
+            }
+
+            // Reached end of input
+            return Result.success(currentInput, results);
+        });
+    }
+
+    /**
      * Chains this parser with another parser, applying them in sequence.
      *
      * @param next the next parser to apply in sequence
@@ -459,10 +523,27 @@ public class Parser<I, A> {
     }
 
     /**
-     * Negates the result of the given parser.
+     * If this parser fails, it returns the other value.
      *
-     * @param parser the parser to negate
-     * @return a parser that succeeds if the given parser fails, and fails if the given parser succeeds
+     * @param other the value to return if this parser fails
+     * @return a parser that returns the other value if this parser fails
+     */
+    public Parser<I, A> orElse(A other) {
+        return new NoCheckParser<>(in -> {
+            Result<I, A> result = this.apply(in);
+            if (result.isError()) {
+                return Result.success(in, other);
+            }
+            return result;
+        });
+    }
+
+    /**
+     *
+     *
+     * @param parser
+     * @return
+     * @param <B>
      */
     public <B> Parser<I, A> not(Parser<I, B> parser) {
         return new Parser<>(in -> {
@@ -597,23 +678,6 @@ public class Parser<I, A> {
     }
 
     /**
-     * Creates a parser that tries `this` parser first, and if it fails, compares the equality of the current input vs
-     * the `other` value.
-     *
-     * @param other the other parser to try if this parser fails
-     * @return a parser that tries this parser first, and if it fails, tries the other parser
-     */
-    public Parser<I, A> or(A other) {
-        return new Parser<>(in -> {
-            Result<I, A> result = this.apply(in);
-            if (result.isSuccess()) {
-                return result;
-            }
-            return Objects.equals(in.current(),other) ? Result.success(in.next(), other) : Result.failure(in,"Expected " + other, String.valueOf(in.current()));
-        });
-    }
-
-    /**
      * A parser that applies this parser the `target` number of times
      * If the parser fails before reaching the target of repetitions, the parser fails.
      * If the parser succeeds at least `target` times, the results are collected in a list and returned by the parser.
@@ -692,7 +756,7 @@ public class Parser<I, A> {
                 }
                 // End-of-input or max reached
                 if (current.isEof() || count >= max) {
-                    if (count >= min) {
+                    if (count >= min && terminator == null) {
                         return Result.success(current, new FList<>(buffer));
                     }
                     return Result.failure(current, min + " repetitions");
