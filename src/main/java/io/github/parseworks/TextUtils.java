@@ -124,14 +124,11 @@ public class TextUtils {
      */
     public static Parser<Character, Character> alpha = satisfy("<alphabet>", Character::isLetter);
 
-
-
     /**
      * Parses a single alphanumeric character.
      * This parser will succeed if the next input symbol is a letter or digit.
      */
     public static Parser<Character, Character> alphaNum = satisfy( "<alphanumeric>", Character::isLetterOrDigit);
-
 
 
     /**

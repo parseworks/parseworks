@@ -73,6 +73,116 @@ public class ApplyBuilder<I, A, B> {
     }
 
     /**
+     * Creates a parser that applies a function to the result of another parser.
+     * <p>
+     * The {@code apply} method creates a composite parser that first runs the input parser {@code pa}
+     * and then transforms its result using the provided function {@code f}. The parsing process works
+     * as follows:
+     * <ol>
+     *   <li>First applies the parser {@code pa} to the input</li>
+     *   <li>If {@code pa} succeeds, applies the function {@code f} to its result</li>
+     *   <li>Returns a new parser that produces the transformed result</li>
+     * </ol>
+     * <p>
+     * This method is a fundamental building block for functional parser composition, enabling
+     * transformation of parser results without affecting the parsing logic. It implements the
+     * applicative functor pattern, allowing functions to be applied to values inside a parser context.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Uses {@link Parser#pure(Object)} to lift the function into a parser context</li>
+     *   <li>Delegates to {@link ApplyBuilder#apply(Parser, Parser)} for the actual application</li>
+     *   <li>Preserves the original parsing behavior but transforms the result type</li>
+     *   <li>Input consumption depends solely on the behavior of parser {@code pa}</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // A parser that recognizes integers
+     * Parser<Character, Integer> intParser = intr;
+     *
+     * // A function that doubles a number
+     * Function<Integer, Integer> doubleIt = n -> n * 2;
+     *
+     * // Create a parser that recognizes integers and doubles them
+     * Parser<Character, Integer> doubledInt = Parser.apply(doubleIt, intParser);
+     *
+     * // Succeeds with 84 for input "42"
+     * // Fails for input "abc" (not an integer)
+     * }</pre>
+     *
+     * @param f the function to apply to the parser's result
+     * @param pa the parser that provides the value to transform
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the original parser's result
+     * @param <B> the type of the transformed result
+     * @return a parser that applies the function to the result of the input parser
+     * @see Parser#pure(Object) for creating a parser that always returns a constant value
+     * @see #apply(Parser, Object) for applying a parser-provided function to a constant value
+     * @see Parser#map(Function) for a similar operation that directly maps a parser's result
+     */
+    public static <I, A, B> Parser<I, B> apply(Function<A, B> f, Parser<I, A> pa) {
+        return ApplyBuilder.apply(Parser.pure(f), pa);
+    }
+
+    /**
+     * Creates a parser that applies a function produced by one parser to a constant value.
+     * <p>
+     * The {@code apply} method creates a composite parser that first runs the function-producing
+     * parser {@code pf} and then applies the resulting function to the constant value {@code a}.
+     * The parsing process works as follows:
+     * <ol>
+     *   <li>First applies the parser {@code pf} to the input to obtain a function</li>
+     *   <li>If {@code pf} succeeds, applies the parsed function to the constant value {@code a}</li>
+     *   <li>Returns a new parser that produces the transformed result</li>
+     * </ol>
+     * <p>
+     * This method is the dual of {@link #apply(Function, Parser)}, implementing the applicative
+     * functor pattern for parsers. It enables combining parsers with fixed values, which is
+     * useful for parameterizing parsers with external data.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Uses {@link Parser#pure(Object)} to lift the constant value into a parser context</li>
+     *   <li>Delegates to {@link ApplyBuilder#apply(Parser, Parser)} for the actual application</li>
+     *   <li>The input consumption depends solely on the behavior of parser {@code pf}</li>
+     *   <li>The constant value is never parsed from the input</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // A parser that recognizes a function symbol and returns a math function
+     * Parser<Character, Function<Integer, Integer>> opParser =
+     *     chr('+').as(n -> n + 1)
+     *     .or(chr('-').as(n -> n - 1))
+     *     .or(chr('*').as(n -> n * 2))
+     *     .or(chr('/').as(n -> n / 2));
+     *
+     * // Apply that function to a constant value
+     * Parser<Character, Integer> appliedToTen = Parser.apply(opParser, 10);
+     *
+     * // Succeeds with 11 for input "+"
+     * // Succeeds with 9 for input "-"
+     * // Succeeds with 20 for input "*"
+     * // Succeeds with 5 for input "/"
+     * // Fails for input "^" (not a recognized operator)
+     * }</pre>
+     *
+     * @param pf the parser that provides the function to apply
+     * @param a the constant value to which the function will be applied
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the constant value
+     * @param <B> the type of the result after applying the function
+     * @return a parser that applies the parsed function to the constant value
+     * @see #apply(Function, Parser) for applying a constant function to a parser's result
+     * @see Parser#pure(Object) for creating a parser that always returns a constant value
+     * @see ApplyBuilder for combining multiple parsers with functions
+     */
+    public static <I, A, B> Parser<I, B> apply(Parser<I, Function<A, B>> pf, A a) {
+        return ApplyBuilder.apply(pf, Parser.pure(a));
+    }
+
+    /**
      * Maps the results of the parsers to a new result using the provided function.
      *
      * @param f   the function to map the results

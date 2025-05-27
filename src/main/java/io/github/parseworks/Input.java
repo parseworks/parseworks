@@ -26,12 +26,12 @@ public interface Input<I> {
     }
 
     /**
-     * Construct an {@code Input} from a {@link java.lang.String}.
+     * Construct an {@code Input} from a {@link java.lang.CharSequence}.
      *
      * @param s the input data
      * @return the input stream
      */
-    static Input<Character> of(String s) {
+    static Input<Character> of(CharSequence s) {
         return new CharSequenceInput(s);
     }
 

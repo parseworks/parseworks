@@ -14,7 +14,7 @@ public class CombinatorsTest {
 
     @Test
     public void testAny() {
-        Parser<Character, Character> parser = any(Character.class);
+        Parser<Character, Character> parser = any();
 
         // Success case
         Result<Character, Character> result = parser.parse("a");
@@ -27,8 +27,8 @@ public class CombinatorsTest {
     }
 
     @Test
-    public void testError() {
-        Parser<Character, Object> parser = error(() -> new IOException("Test exception"));
+    public void testThrowError() {
+        Parser<Character, Object> parser = throwError(() -> new IOException("Test exception"));
         assertThrows(IOException.class, () -> parser.parse("a"));
     }
 
@@ -250,12 +250,17 @@ public class CombinatorsTest {
         // Email pattern
         Parser<Character, String> parser = regex("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
 
+        // Another regex for testing
+        Parser<Character, String> parser2 = regex("[a-zA-Z]+");
         // Success case
         assertTrue(parser.parse("test@example.com").isSuccess());
+        assertFalse(parser.parse("test@example").isSuccess());
         assertEquals("test@example.com", parser.parse("test@example.com").get());
 
         // Failure case
         assertFalse(parser.parse("not-an-email").isSuccess());
+
+        assertFalse(parser2.parse("234454535233443234556435435435634534").isSuccess());
 
         // Prefix match case
         Result<Character, String> prefixResult = parser.parse("user@domain.com_extratext");
@@ -270,7 +275,7 @@ public class CombinatorsTest {
     @Test
     public void testComplexParsers() {
         // Simple arithmetic expression: number + number
-        Parser<Character, Integer> number = oneOf("0123456789").map(c -> Character.getNumericValue(c));
+        Parser<Character, Integer> number = oneOf("0123456789").map(Character::getNumericValue);
         Parser<Character, Character> plus = chr('+');
         Parser<Character, Integer> expr = number.then(plus).then(number)
                 .map((n1, op, n2) -> n1 + n2);

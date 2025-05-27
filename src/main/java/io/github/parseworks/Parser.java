@@ -3,7 +3,9 @@ package io.github.parseworks;
 import io.github.parseworks.impl.IntObjectMap;
 import io.github.parseworks.impl.parser.NoCheckParser;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -24,414 +26,45 @@ import static io.github.parseworks.Combinators.is;
  */
 public class Parser<I, A> {
 
-    protected Function<Input<I>, Result<I, A>> applyHandler;
-    protected static final String INFINITE_LOOP_ERROR = "Infinite loop detected";
     /**
-     * A default apply handler that throws an exception if the parser is not initialized.
-     */
-    private Function<Input<I>, Result<I, A>> defaultApplyHandler;
-
-    protected final ThreadLocal<IntObjectMap<Object>> contextLocal = ThreadLocal.withInitial(IntObjectMap::new);
-    private static final ThreadLocal<int[]> POSITIONS = ThreadLocal.withInitial(() -> new int[64]);
-    private static final ThreadLocal<Object[]> PARSERS = ThreadLocal.withInitial(() -> new Object[64]);
-    private static final ThreadLocal<Integer> SIZE = ThreadLocal.withInitial(() -> 0);
-
-    /**
-     * Private constructor to create a parser reference that can be initialized later.
-     */
-    private Parser() {
-        this.applyHandler = defaultApplyHandler = in -> { throw new IllegalStateException("Parser not initialized"); };
-    }
-
-    /**
-     * Creates a reference to a parser that can be initialized later, enabling recursive grammar definitions.
+     * Transforms the result of this parser to a constant value, regardless of the actual parsed result.
      * <p>
-     * The {@code ref} method addresses the challenge of defining recursive parsers by creating a
-     * placeholder parser that can be initialized after its creation. This allows for handling
-     * self-referential grammar rules that would otherwise cause initialization issues. The process
-     * works as follows:
+     * The {@code as} method provides a way to acknowledge that a particular pattern was successfully
+     * parsed, but replace its value with a predefined constant. This is useful when:
      * <ol>
-     *   <li>Create a parser reference using {@code ref()}</li>
-     *   <li>Use this reference in other parser definitions as needed</li>
-     *   <li>Later, initialize the reference using {@link #set(Parser)} or {@link #set(Function)}</li>
+     *   <li>You need to recognize a pattern but care only about its presence, not its content</li>
+     *   <li>You want to map specific token patterns to semantic constants</li>
+     *   <li>You need to convert parsing results to domain-specific enumerations or values</li>
      * </ol>
-     * <p>
-     * This technique is essential for parsing recursive structures such as:
-     * <ul>
-     *   <li>Nested expressions (e.g., arithmetic expressions with parentheses)</li>
-     *   <li>Recursive data structures (e.g., JSON objects containing other JSON objects)</li>
-     *   <li>Self-referential grammar rules (e.g., a term that can contain other terms)</li>
-     * </ul>
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>Creates a parser with a default handler that throws an exception if used before initialization</li>
-     *   <li>Must be initialized with {@link #set(Parser)} or {@link #set(Function)} before use</li>
-     *   <li>Thread-safe, allowing for concurrent parser creation and initialization</li>
-     *   <li>Cannot be reinitialized after being set once</li>
-     * </ul>
-     * <p>
-     * Example usage for parsing nested arithmetic expressions:
-     * <pre>{@code
-     * // Create a forward reference for an expression parser
-     * Parser<Character, Integer> expr = Parser.ref();
-     *
-     * // Define a parser for simple numbers
-     * Parser<Character, Integer> number = intr;
-     *
-     * // Define a parser for parenthesized expressions using the reference
-     * Parser<Character, Integer> parens = expr.between('(', ')');
-     *
-     * // Define operators
-     * Parser<Character, BinaryOperator<Integer>> addOp =
-     *     chr('+').as((a, b) -> a + b);
-     *
-     * // Now initialize the expression parser with a definition that references itself
-     * expr.set(number.or(parens).chainLeftMany(addOp));
-     *
-     * // Can now parse recursive expressions like "1+(2+3)"
-     * }</pre>
-     *
-     * @param <I> the type of the input symbols
-     * @param <A> the type of the parsed value
-     * @return a new uninitialized parser reference
-     * @see #set(Parser) for initializing the parser reference with another parser
-     * @see #set(Function) for initializing the parser reference with an apply handler
-     * @throws IllegalStateException if the parser is used before being initialized
-     */
-    public static <I,A> Parser<I,A> ref() {
-        return new Parser<>();
-    }
-
-    /**
-     * Creates a new parser with the specified apply handler function.
-     * <p>
-     * The {@code Parser} constructor creates a parser that uses the provided function to process input and
-     * produce results. The apply handler is the core parsing function that defines how this parser
-     * transforms input into parsed results. The function works as follows:
-     * <ol>
-     *   <li>Receives an {@link Input} object representing the current parsing state</li>
-     *   <li>Processes the input according to the parser's grammar rules</li>
-     *   <li>Returns a {@link Result} object containing either a successful parse result or an error</li>
-     * </ol>
-     * <p>
-     * This constructor is the primary way to create custom parsers with specific parsing logic. Most users
-     * will not need to use this constructor directly, instead using combinators and factory methods to
-     * build parsers from simpler components.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>The apply handler should return a successful result with the parsed value if parsing succeeds</li>
-     *   <li>The apply handler should return a failure result with an error message if parsing fails</li>
-     *   <li>The apply handler is responsible for properly advancing the input position on success</li>
-     *   <li>Thread safety is maintained as parsers are immutable after construction</li>
+     *   <li>First applies this parser to the input</li>
+     *   <li>If this parser succeeds, its result is discarded and replaced with the specified value</li>
+     *   <li>If this parser fails, the failure is propagated without providing the constant value</li>
+     *   <li>The input position advances according to the original parser's consumption</li>
      * </ul>
      * <p>
      * Example usage:
      * <pre>{@code
-     * // Create a custom parser that recognizes a specific pattern
-     * Parser<Character, String> customParser = new Parser<>(input -> {
-     *     if (input.atEnd()) {
-     *         return Result.failure("Unexpected end of input", input);
-     *     }
+     * // Parse "true" or "false" strings and convert them directly to boolean values
+     * Parser<Character, Boolean> trueParser = string("true").as(Boolean.TRUE);
+     * Parser<Character, Boolean> falseParser = string("false").as(Boolean.FALSE);
+     * Parser<Character, Boolean> boolParser = trueParser.or(falseParser);
      *
-     *     // Check for a specific pattern
-     *     if (input.get() == 'a' && input.get(1) == 'b') {
-     *         return Result.success("ab", input.advance(2));
-     *     }
-     *
-     *     return Result.failure("Expected 'ab'", input);
-     * });
+     * // Succeeds with true for input "true"
+     * // Succeeds with false for input "false"
+     * // Fails for any other input
      * }</pre>
      *
-     * @param applyHandler the function that defines this parser's behavior
-     * @throws IllegalArgumentException if the applyHandler is null
-     * @see #apply(Input) for the method that uses this handler to parse input
-     * @see Result for the result type returned by the apply handler
-     * @see Input for the input type consumed by the apply handler
+     * @param value the constant value to return when this parser succeeds
+     * @param <R>   the type of the constant value
+     * @return a parser that returns the constant value when this parser succeeds
+     * @see #map(Function) for transforming results with a function
+     * @see #skipThen(Parser) for discarding this parser's result
      */
-    public Parser(Function<Input<I>, Result<I, A>> applyHandler) {
-        if (applyHandler == null) {
-            throw new IllegalArgumentException("applyHandler cannot be null");
-        }
-        this.applyHandler = applyHandler;
-    }
-
-    /**
-     * Initializes a parser reference with another parser's behavior.
-     * <p>
-     * The {@code set} method initializes a parser reference created by {@link #ref()} with the
-     * parsing behavior of another parser. This is a key component in creating recursive parsers
-     * that can reference themselves or contain mutual references. The method works as follows:
-     * <ol>
-     *   <li>Takes an already-constructed parser that defines the desired parsing behavior</li>
-     *   <li>Transfers that parser's apply handler to this parser reference</li>
-     *   <li>Can only be called once on a given parser reference</li>
-     * </ol>
-     * <p>
-     * This method is primarily used in conjunction with {@link #ref()} to create parsers for
-     * recursive grammar structures. It solves the initialization problem for recursive definitions
-     * by allowing forward references to parsers whose complete definitions depend on themselves.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Thread-safe with synchronized access to prevent concurrent initialization</li>
-     *   <li>Throws an exception if the parser is already initialized</li>
-     *   <li>Only transfers the apply handler function, not any other properties</li>
-     *   <li>Must be called before the reference parser is used for parsing</li>
-     * </ul>
-     * <p>
-     * Example usage for recursive JSON-like parser:
-     * <pre>{@code
-     * // Create a forward reference for a JSON value parser
-     * Parser<Character, Object> jsonValue = Parser.ref();
-     *
-     * // Define parsers for different JSON types
-     * Parser<Character, String> jsonString = stringLiteral;
-     * Parser<Character, Integer> jsonNumber = intr;
-     * Parser<Character, Boolean> jsonBoolean = string("true").as(true).or(string("false").as(false));
-     * Parser<Character, Object> jsonNull = string("null").as(null);
-     *
-     * // Define array parser using the value reference
-     * Parser<Character, List<Object>> jsonArray =
-     *     jsonValue.separatedByZeroOrMany(chr(',')).between('[', ']');
-     *
-     * // Define object parser using the value reference
-     * Parser<Character, Map<String, Object>> jsonObject =
-     *     jsonString.skipThen(chr(':')).then(jsonValue)
-     *         .map((key, val) -> Map.entry(key, val))
-     *         .separatedByZeroOrMany(chr(','))
-     *         .between('{', '}')
-     *         .map(entries -> {
-     *             Map<String, Object> map = new HashMap<>();
-     *             entries.forEach(e -> map.put(e.getKey(), e.getValue()));
-     *             return map;
-     *         });
-     *
-     * // Finally, initialize the value parser with all possible JSON value types
-     * jsonValue.set(jsonString.or(jsonNumber).or(jsonBoolean).or(jsonNull).or(jsonArray).or(jsonObject));
-     * }</pre>
-     *
-     * @param parser the parser whose behavior should be used to initialize this reference
-     * @throws IllegalArgumentException if the parser parameter is null
-     * @throws IllegalStateException if this parser has already been initialized
-     * @see #ref() for creating an uninitialized parser reference
-     * @see #set(Function) for initializing with a custom apply handler
-     */
-    public synchronized void set(Parser<I, A> parser) {
-        if (parser == null) {
-            throw new IllegalArgumentException("parser cannot be null");
-        }
-        if (this.applyHandler != defaultApplyHandler) {
-            throw new IllegalStateException("Parser already has an applyHandler");
-        }
-        this.applyHandler = parser.applyHandler;
-    }
-
-    /**
-     * Initializes a parser reference with a custom apply handler function.
-     * <p>
-     * The {@code set} method initializes a parser reference created by {@link #ref()} with a
-     * custom function that defines the parsing behavior. This provides more control than
-     * {@link #set(Parser)} by allowing direct specification of the parsing logic. The method
-     * works as follows:
-     * <ol>
-     *   <li>Takes a function that defines how the parser should process input</li>
-     *   <li>Sets this function as the parser's apply handler</li>
-     *   <li>Can only be called once on a given parser reference</li>
-     * </ol>
-     * <p>
-     * This method is primarily used for creating advanced recursive parsers where more control
-     * is needed over the parsing behavior than simply using an existing parser. It provides
-     * direct access to the core parsing mechanism for implementing custom parser logic.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Thread-safe with synchronized access to prevent concurrent initialization</li>
-     *   <li>Throws an exception if the parser is already initialized</li>
-     *   <li>The apply handler function should handle input appropriately and return valid results</li>
-     *   <li>Must be called before the reference parser is used for parsing</li>
-     * </ul>
-     * <p>
-     * Example usage for a custom recursive parser:
-     * <pre>{@code
-     * // Create a forward reference for an expression parser
-     * Parser<Character, Integer> expr = Parser.ref();
-     *
-     * // Define parsers for basic components
-     * Parser<Character, Integer> number = intr;
-     * Parser<Character, Character> plus = chr('+');
-     * Parser<Character, Character> openParen = chr('(');
-     * Parser<Character, Character> closeParen = chr(')');
-     *
-     * // Define a custom apply handler for the expression parser
-     * expr.set(input -> {
-     *     // First try to parse a number
-     *     Result<Character, Integer> numResult = number.apply(input);
-     *     if (numResult.isSuccess()) {
-     *         return numResult;
-     *     }
-     *
-     *     // Then try to parse a parenthesized expression
-     *     if (input.atEnd() || input.get() != '(') {
-     *         return Result.failure("Expected number or expression", input);
-     *     }
-     *
-     *     // Parse: (expr + expr)
-     *     Input<Character> afterOpen = input.advance(1);
-     *     Result<Character, Integer> leftResult = expr.apply(afterOpen);
-     *     if (!leftResult.isSuccess()) {
-     *         return leftResult;
-     *     }
-     *
-     *     Result<Character, Character> opResult = plus.apply(leftResult.getRemaining());
-     *     if (!opResult.isSuccess()) {
-     *         return Result.failure("Expected '+'", leftResult.getRemaining());
-     *     }
-     *
-     *     Result<Character, Integer> rightResult = expr.apply(opResult.getRemaining());
-     *     if (!rightResult.isSuccess()) {
-     *         return rightResult;
-     *     }
-     *
-     *     Result<Character, Character> closeResult = closeParen.apply(rightResult.getRemaining());
-     *     if (!closeResult.isSuccess()) {
-     *         return Result.failure("Expected ')'", rightResult.getRemaining());
-     *     }
-     *
-     *     int result = leftResult.getValue() + rightResult.getValue();
-     *     return Result.success(result, closeResult.getRemaining());
-     * });
-     *
-     * // Now expr can parse recursive expressions like "5" or "(1+2)" or "((1+2)+3)"
-     * }</pre>
-     *
-     * @param applyHandler the function that defines the parser's behavior
-     * @throws IllegalArgumentException if the applyHandler is null
-     * @throws IllegalStateException if this parser has already been initialized
-     * @see #ref() for creating an uninitialized parser reference
-     * @see #set(Parser) for initializing with another parser's behavior
-     * @see Result for the result type that should be returned by the apply handler
-     * @see Input for the input type that will be provided to the apply handler
-     */
-    public synchronized void set(Function<Input<I>, Result<I, A>> applyHandler){
-        if (applyHandler == null) {
-            throw new IllegalArgumentException("applyHandler cannot be null");
-        }
-        if (this.applyHandler != defaultApplyHandler) {
-            throw new IllegalStateException("Parser already has an applyHandler");
-        }
-        this.applyHandler = applyHandler;
-    }
-
-    /**
-     * Creates a parser that applies a function to the result of another parser.
-     * <p>
-     * The {@code apply} method creates a composite parser that first runs the input parser {@code pa}
-     * and then transforms its result using the provided function {@code f}. The parsing process works
-     * as follows:
-     * <ol>
-     *   <li>First applies the parser {@code pa} to the input</li>
-     *   <li>If {@code pa} succeeds, applies the function {@code f} to its result</li>
-     *   <li>Returns a new parser that produces the transformed result</li>
-     * </ol>
-     * <p>
-     * This method is a fundamental building block for functional parser composition, enabling
-     * transformation of parser results without affecting the parsing logic. It implements the
-     * applicative functor pattern, allowing functions to be applied to values inside a parser context.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses {@link #pure(Object)} to lift the function into a parser context</li>
-     *   <li>Delegates to {@link ApplyBuilder#apply(Parser, Parser)} for the actual application</li>
-     *   <li>Preserves the original parsing behavior but transforms the result type</li>
-     *   <li>Input consumption depends solely on the behavior of parser {@code pa}</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // A parser that recognizes integers
-     * Parser<Character, Integer> intParser = intr;
-     *
-     * // A function that doubles a number
-     * Function<Integer, Integer> doubleIt = n -> n * 2;
-     *
-     * // Create a parser that recognizes integers and doubles them
-     * Parser<Character, Integer> doubledInt = Parser.apply(doubleIt, intParser);
-     *
-     * // Succeeds with 84 for input "42"
-     * // Fails for input "abc" (not an integer)
-     * }</pre>
-     *
-     * @param f the function to apply to the parser's result
-     * @param pa the parser that provides the value to transform
-     * @param <I> the type of the input symbols
-     * @param <A> the type of the original parser's result
-     * @param <B> the type of the transformed result
-     * @return a parser that applies the function to the result of the input parser
-     * @see #pure(Object) for creating a parser that always returns a constant value
-     * @see #apply(Parser, Object) for applying a parser-provided function to a constant value
-     * @see Parser#map(Function) for a similar operation that directly maps a parser's result
-     */
-    public static <I, A, B> Parser<I, B> apply(Function<A, B> f, Parser<I, A> pa) {
-        return ApplyBuilder.apply(pure(f), pa);
-    }
-
-    /**
-     * Creates a parser that applies a function produced by one parser to a constant value.
-     * <p>
-     * The {@code apply} method creates a composite parser that first runs the function-producing
-     * parser {@code pf} and then applies the resulting function to the constant value {@code a}.
-     * The parsing process works as follows:
-     * <ol>
-     *   <li>First applies the parser {@code pf} to the input to obtain a function</li>
-     *   <li>If {@code pf} succeeds, applies the parsed function to the constant value {@code a}</li>
-     *   <li>Returns a new parser that produces the transformed result</li>
-     * </ol>
-     * <p>
-     * This method is the dual of {@link #apply(Function, Parser)}, implementing the applicative
-     * functor pattern for parsers. It enables combining parsers with fixed values, which is
-     * useful for parameterizing parsers with external data.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses {@link #pure(Object)} to lift the constant value into a parser context</li>
-     *   <li>Delegates to {@link ApplyBuilder#apply(Parser, Parser)} for the actual application</li>
-     *   <li>The input consumption depends solely on the behavior of parser {@code pf}</li>
-     *   <li>The constant value is never parsed from the input</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // A parser that recognizes a function symbol and returns a math function
-     * Parser<Character, Function<Integer, Integer>> opParser =
-     *     chr('+').as(n -> n + 1)
-     *     .or(chr('-').as(n -> n - 1))
-     *     .or(chr('*').as(n -> n * 2))
-     *     .or(chr('/').as(n -> n / 2));
-     *
-     * // Apply that function to a constant value
-     * Parser<Character, Integer> appliedToTen = Parser.apply(opParser, 10);
-     *
-     * // Succeeds with 11 for input "+"
-     * // Succeeds with 9 for input "-"
-     * // Succeeds with 20 for input "*"
-     * // Succeeds with 5 for input "/"
-     * // Fails for input "^" (not a recognized operator)
-     * }</pre>
-     *
-     * @param pf the parser that provides the function to apply
-     * @param a the constant value to which the function will be applied
-     * @param <I> the type of the input symbols
-     * @param <A> the type of the constant value
-     * @param <B> the type of the result after applying the function
-     * @return a parser that applies the parsed function to the constant value
-     * @see #apply(Function, Parser) for applying a constant function to a parser's result
-     * @see #pure(Object) for creating a parser that always returns a constant value
-     * @see ApplyBuilder for combining multiple parsers with functions
-     */
-    public static <I, A, B> Parser<I, B> apply(Parser<I, Function<A, B>> pf, A a) {
-        return ApplyBuilder.apply(pf, pure(a));
+    public <R> Parser<I, R> as(R value) {
+        return this.skipThen(pure(value));
     }
 
     /**
@@ -454,7 +87,7 @@ public class Parser<I, A> {
      *   <li>Uses an optimized {@code NoCheckParser} implementation for efficiency</li>
      *   <li>Always succeeds regardless of the input</li>
      *   <li>Does not modify or consume the input in any way</li>
-     *   <li>Often used with {@link #apply} methods to combine parsers functionally</li>
+     *   <li>Often used with {@link ApplyBuilder#apply} methods to combine parsers functionally</li>
      * </ul>
      * <p>
      * Example usage:
@@ -473,176 +106,43 @@ public class Parser<I, A> {
      * }</pre>
      *
      * @param value the constant value that the parser will always return
-     * @param <I> the type of the input symbols (which will be ignored)
-     * @param <A> the type of the constant value
+     * @param <I>   the type of the input symbols (which will be ignored)
+     * @param <A>   the type of the constant value
      * @return a parser that always succeeds with the given value
-     * @see #apply(Function, Parser) for applying functions to parser results
-     * @see #apply(Parser, Object) for applying parser-produced functions to values
+     * @see ApplyBuilder#apply(Function, Parser) for applying functions to parser results
+     * @see ApplyBuilder#apply(Parser, Object) for applying parser-produced functions to values
      * @see ApplyBuilder for combining multiple parsers with transformation functions
      */
     public static <I, A> Parser<I, A> pure(A value) {
         return new NoCheckParser<>(in -> Result.success(in, value));
     }
 
-
     /**
-     * Parses the input and optionally ensures that the entire input is consumed.
-     * This is the core parsing method that other parse methods delegate to.
-     *
-     * @param in         the input to parse
-     * @param consumeAll whether to consume the entire input
-     * @return the result of parsing the input
-     */
-    public Result<I, A> parse(Input<I> in, boolean consumeAll) {
-        Result<I, A> result = this.apply(in);
-        if (consumeAll && result.isSuccess()) {
-            result = result.next().isEof() ? result : Result.failure(result.next(), "eof");
-        }
-        return result;
-    }
-
-    /**
-     * Parses the input string and optionally ensures that the entire input is consumed.
-     *
-     * @param input      the input string to parse
-     * @param consumeAll whether to consume the entire input
-     * @return the result of parsing the input string
-     */
-    @SuppressWarnings("unchecked")
-    public Result<I, A> parse(String input, boolean consumeAll) {
-        Input<I> in = (Input<I>) Input.of(input);
-        return this.parse(in, consumeAll);
-    }
-
-    /**
-     * Parses the input without requiring that the entire input is consumed.
-     *
-     * @param in the input to parse
-     * @return the result of parsing the input
-     */
-    public Result<I, A> parse(Input<I> in) {
-        return parse(in, false);
-    }
-
-    /**
-     * Parses the input string without requiring that the entire input is consumed.
-     *
-     * @param input the input string to parse
-     * @return the result of parsing the input string
-     */
-    @SuppressWarnings("unchecked")
-    public Result<I, A> parse(String input) {
-        Input<I> in = (Input<I>) Input.of(input);
-        return parse(in);
-    }
-
-    /**
-     * Parses the input and ensures that the entire input is consumed.
-     *
-     * @param in the input to parse
-     * @return the result of parsing the input
-     */
-    public Result<I, A> parseAll(Input<I> in) {
-        return parse(in, true);
-    }
-
-    /**
-     * Parses the input string and ensures that the entire input is consumed.
-     *
-     * @param input the input string to parse
-     * @return the result of parsing the input string
-     */
-    @SuppressWarnings("unchecked")
-    public Result<I, A> parseAll(String input) {
-        Input<I> in = (Input<I>) Input.of(input);
-        return parseAll(in);
-    }
-
-    /**
-     * Applies this parser to the given input, performing the core parsing operation.
+     * A parser for expressions with enclosing bracket symbols.
+     * Validates the open bracket, then this parser, and then the close bracket.
+     * If all three succeed, the result of this parser is returned.
      * <p>
-     * The {@code apply} method is the fundamental parsing operation that processes input according
-     * to this parser's rules and produces a result. It's the primary mechanism by which all parsers
-     * evaluate input, with built-in protection against infinite recursive loops. The parsing process
-     * works as follows:
-     * <ol>
-     *   <li>Checks for potential infinite recursion by tracking parser/position combinations</li>
-     *   <li>Records the current parser and input position in thread-local tracking arrays</li>
-     *   <li>Delegates to the parser's apply handler function to perform the actual parsing</li>
-     *   <li>Cleans up the tracking state after parsing completes</li>
-     *   <li>Returns a result containing either the successfully parsed value or failure information</li>
-     * </ol>
-     * <p>
-     * This method serves as the core implementation called by all higher-level parsing methods like
-     * {@link #parse(Input)} and {@link #parseAll(Input)}. It's rarely called directly by client code
-     * but is the foundation of the entire parsing process.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses thread-local arrays to efficiently track parser positions across the call stack</li>
-     *   <li>Implements a loop detection algorithm that prevents infinite recursion in recursive grammars</li>
-     *   <li>Automatically fails with an {@code INFINITE_LOOP_ERROR} message if recursion is detected</li>
-     *   <li>Ensures proper cleanup of tracking data in both success and failure cases</li>
-     *   <li>Thread-safe implementation that allows concurrent parsing with different parsers</li>
-     * </ul>
-     * <p>
-     * Example usage (typically internal):
-     * <pre>{@code
-     * Parser<Character, Integer> numberParser = intr;
-     * Input<Character> input = Input.of("123");
+     * This method is useful for parsing expressions that are enclosed by the same bracket symbol,
+     * such as parentheses, brackets, or quotes.
      *
-     * // Direct application of the parser to input
-     * Result<Character, Integer> result = numberParser.apply(input);
-     *
-     * if (result.isSuccess()) {
-     *     // Successfully parsed 123
-     *     Integer value = result.getValue();             // 123
-     *     Input<Character> remaining = result.getRemaining();  // Input after consuming "123"
-     * } else {
-     *     // Parse failure
-     *     String errorMsg = result.getErrorMessage();    // Description of the parsing error
-     *     Input<Character> errorPos = result.getInput(); // Position where the error occurred
-     * }
-     * }</pre>
-     *
-     * @param in the input to parse
-     * @return a result containing either the successfully parsed value or failure information
-     * @see Result for the structure that contains parsing results
-     * @see #parse(Input) for a higher-level method that wraps this core functionality
-     * @see #parseAll(Input) for parsing that requires consuming the entire input
+     * @param bracket the bracket symbol
+     * @return a parser for expressions with enclosing bracket symbols
      */
-    public Result<I, A> apply(Input<I> in) {
-        int position = in.position();
-        int[] positions = POSITIONS.get();
-        Object[] parsers = PARSERS.get();
-        int size = SIZE.get();
+    public Parser<I, A> between(I bracket) {
+        return between(bracket, bracket);
+    }
 
-        // Linear search is faster for small arrays (typically the case for parser depth)
-        for (int i = 0; i < size; i++) {
-            if (positions[i] == position && parsers[i] == this) {
-                return Result.failure(in, null, INFINITE_LOOP_ERROR);
-            }
-        }
-
-        // Resize if needed
-        if (size == positions.length) {
-            int newLength = positions.length * 2;
-            POSITIONS.set(Arrays.copyOf(positions, newLength));
-            PARSERS.set(Arrays.copyOf(parsers, newLength));
-            positions = POSITIONS.get();
-            parsers = PARSERS.get();
-        }
-
-        // Add current position
-        positions[size] = position;
-        parsers[size] = this;
-        SIZE.set(size + 1);
-
-        try {
-            return applyHandler.apply(in);
-        } finally {
-            SIZE.set(size); // Restore previous size
-        }
+    /**
+     * A parser for expressions with enclosing symbols.
+     * Validates the open symbol, then this parser, and then the close symbol.
+     * If all three succeed, the result of this parser is returned.
+     *
+     * @param open  the open symbol
+     * @param close the close symbol
+     * @return a parser for expressions with enclosing symbols
+     */
+    public Parser<I, A> between(I open, I close) {
+        return is(open).skipThen(this).thenSkip(is(close));
     }
 
     /**
@@ -746,215 +246,6 @@ public class Parser<I, A> {
     }
 
     /**
-     * A parser for expressions with enclosing symbols.
-     * Validates the open symbol, then this parser, and then the close symbol.
-     * If all three succeed, the result of this parser is returned.
-     *
-     * @param open  the open symbol
-     * @param close the close symbol
-     * @return a parser for expressions with enclosing symbols
-     */
-    public Parser<I, A> between(I open, I close) {
-        return is(open).skipThen(this).thenSkip(is(close));
-    }
-
-    /**
-     * A parser for expressions with enclosing symbols.
-     * Validates the open symbol, then this parser, and then the close symbol.
-     * If all three succeed, the result of this parser is returned.
-     *
-     * @param open  the open symbol
-     * @param close the close symbol
-     * @return a parser for expressions with enclosing symbols
-     */
-    public <B, C> Parser<I, A> between(Parser<I, B> open, Parser<I, C> close) {
-        return open.skipThen(this).thenSkip(close);
-    }
-
-    /**
-     * A parser for expressions with enclosing bracket symbols.
-     * Validates the open bracket, then this parser, and then the close bracket.
-     * If all three succeed, the result of this parser is returned.
-     * <p>
-     * This method is useful for parsing expressions that are enclosed by the same bracket symbol,
-     * such as parentheses, brackets, or quotes.
-     *
-     * @param bracket the bracket symbol
-     * @return a parser for expressions with enclosing bracket symbols
-     */
-    public Parser<I, A> between(I bracket) {
-        return between(bracket, bracket);
-    }
-
-    /**
-     * A parser for expressions with enclosing bracket symbols.
-     * Validates the open bracket, then this parser, and then the close bracket.
-     * If all three succeed, the result of this parser is returned.
-     *
-     * @param bracket the bracket symbol
-     * @return a parser for expressions with enclosing bracket symbols
-     */
-    public <B> Parser<I, A> between(Parser<I, B> bracket) {
-        return between(bracket, bracket);
-    }
-
-    /**
-     * Creates a parser that applies this parser zero or more times until it fails,
-     * collecting all successful results into a list.
-     * <p>
-     * This method implements the Kleene star (*) operation from formal language theory,
-     * matching the pattern represented by this parser repeated any number of times (including zero).
-     * The parsing process works as follows:
-     * <ol>
-     *   <li>Attempts to apply this parser at the current input position</li>
-     *   <li>If successful, adds the result to the collection and advances the input position</li>
-     *   <li>Repeats until this parser fails or end of input is reached</li>
-     *   <li>Returns all collected results as an {@code FList}</li>
-     * </ol>
-     * <p>
-     * If this parser fails on the first attempt or the input is empty, an empty list is returned
-     * and the parser still succeeds.
-     * <p>
-     * Important implementation details:
-     * <ul>
-     *   <li>The parser checks for infinite loops by ensuring input position advances</li>
-     *   <li>This is a greedy operation that consumes as much input as possible</li>
-     *   <li>The resulting parser always succeeds, even with empty input</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse zero or more digits
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, FList<Character>> digits = digit.zeroOrMany();
-     *
-     * // Succeeds with [1,2,3] for input "123"
-     * // Succeeds with [] for input "abc" (empty list, no input consumed)
-     * // Succeeds with [1,2,3] for input "123abc" (consuming only "123")
-     * }</pre>
-     *
-     * @return a parser that applies this parser zero or more times until it fails,
-     *         returning a list of all successful parse results
-     * @see #many() for a version that requires at least one match
-     * @see #repeat(int, int) for a version with explicit min and max counts
-     */
-    public Parser<I, FList<A>> zeroOrMany() {
-        return repeatInternal(0, Integer.MAX_VALUE, null);
-    }
-
-    /**
-     * Creates a parser that applies this parser zero or more times until a terminator parser succeeds,
-     * collecting all successful results into a list.
-     * <p>
-     * This method is a variant of {@link #zeroOrMany()} that stops collection when a specific
-     * terminating pattern is found rather than when this parser fails. The parsing process works as follows:
-     * <ol>
-     *   <li>At each position, first check if the terminator parser succeeds</li>
-     *   <li>If the terminator succeeds, stop collecting and return the results collected so far</li>
-     *   <li>If the terminator fails, attempt to apply this parser</li>
-     *   <li>If this parser succeeds, add the result to the collection and advance the input position</li>
-     *   <li>If this parser fails, return all results collected so far</li>
-     *   <li>Repeat until either the terminator succeeds or end of input is reached</li>
-     * </ol>
-     * <p>
-     * Important implementation details:
-     * <ul>
-     *   <li>The terminator parser is consumed when found (its input position advances)</li>
-     *   <li>This parser always succeeds, even with empty input or when no elements match</li>
-     *   <li>If this parser fails on the first attempt, an empty list is returned</li>
-     *   <li>The parser checks for infinite loops by ensuring input position advances</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse a comma-separated list of numbers terminated by a semicolon
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, Character> comma = chr(',');
-     * Parser<Character, Character> semicolon = chr(';');
-     *
-     * // Collect digits until semicolon is found
-     * Parser<Character, FList<Character>> digitList = digit.zeroOrManyUntil(semicolon);
-     *
-     * // Succeeds with [1,2,3] for input "123;" (consuming all input including semicolon)
-     * // Succeeds with [] for input ";" (consuming only the semicolon)
-     * // Succeeds with [1,2,3] for input "123" (consuming all input, no semicolon found)
-     * }</pre>
-     *
-     * @param terminator the parser that signals when to stop collecting elements
-     * @return a parser that applies this parser zero or more times until the terminator succeeds
-     * @throws IllegalArgumentException if the terminator parameter is null
-     * @see #manyUntil(Parser) for a version that requires at least one match
-     * @see #zeroOrMany() for a version that collects until this parser fails
-     */
-    public Parser<I, FList<A>> zeroOrManyUntil(Parser<I, ?> terminator) {
-        return repeatInternal(0, Integer.MAX_VALUE, terminator);
-    }
-
-    /**
-     * Creates a parser that repeatedly applies this parser as long as the condition evaluates to true.
-     * <p>
-     * This parser will:
-     * <ul>
-     *   <li>Check if the condition is true for the current input position</li>
-     *   <li>If true, apply this parser and collect the result</li>
-     *   <li>Continue until either the condition becomes false, parsing fails, or input is exhausted</li>
-     *   <li>Return all collected results as an FList</li>
-     * </ul>
-     * <p>
-     * Unlike {@link #zeroOrMany()}, this parser uses a separate condition parser to determine
-     * when to stop collecting items rather than relying on parse failures. This allows for more
-     * flexible parsing based on lookahead or contextual conditions.
-     * <p>
-     * The implementation includes a check to prevent infinite loops in cases where the parser
-     * succeeds but doesn't advance the input position.
-     *
-     * @param condition a parser that returns a boolean indicating whether to continue collecting
-     * @return a parser that collects elements while the condition is true
-     * @throws IllegalArgumentException if the condition parser is null
-     */
-    public Parser<I, FList<A>> takeWhile(Parser<I, Boolean> condition) {
-        if (condition == null) {
-            throw new IllegalArgumentException("Condition parser cannot be null");
-        }
-
-        return new NoCheckParser<>(in -> {
-            FList<A> results = new FList<>();
-            Input<I> currentInput = in;
-
-            while (!currentInput.isEof()) {
-                // Check if the condition is met
-                Result<I, Boolean> conditionResult = condition.apply(currentInput);
-                if (conditionResult.isError() || !conditionResult.get()) {
-                    // Condition not met, stop collecting
-                    return Result.success(currentInput, results);
-                }
-
-                // Store the current position to check for advancement
-                int currentPosition = currentInput.position();
-
-                // Condition met, try to parse an element
-                Result<I, A> elementResult = this.apply(currentInput);
-                if (elementResult.isError()) {
-                    // Failed to parse an element, stop collecting
-                    return Result.success(currentInput, results);
-                }
-
-                // Add parsed element to results
-                results = results.append(elementResult.get());
-                currentInput = elementResult.next();
-
-                // Check if we've advanced the position - if not, break to avoid infinite loop
-                if (currentInput.position() == currentPosition) {
-                    return Result.success(currentInput, results);
-                }
-            }
-
-            // Reached end of input
-            return Result.success(currentInput, results);
-        });
-    }
-
-    /**
      * Chains this parser with another parser, applying them in sequence and allowing for
      * further parser composition.
      * <p>
@@ -984,7 +275,7 @@ public class Parser<I, A> {
      * }</pre>
      *
      * @param next the next parser to apply in sequence
-     * @param <B> the type of the result of the next parser
+     * @param <B>  the type of the result of the next parser
      * @return an ApplyBuilder that allows further parser composition
      * @throws IllegalArgumentException if the next parameter is null
      * @see #thenSkip(Parser) for keeping only this parser's result
@@ -995,304 +286,126 @@ public class Parser<I, A> {
     }
 
     /**
-     * Creates a parser that skips whitespace characters before and after applying this parser.
-     * <p>
-     * The {@code trim} method provides a convenient way to handle whitespace in parsers,
-     * especially useful when parsing formats where whitespace is insignificant. The parsing
-     * process works as follows:
-     * <ol>
-     *   <li>Skips all leading whitespace characters from the current input position</li>
-     *   <li>Applies this parser to the whitespace-trimmed input</li>
-     *   <li>If this parser succeeds, skips all trailing whitespace characters after the result</li>
-     *   <li>Returns the original parser's result with the input position advanced past any trailing whitespace</li>
-     * </ol>
-     * <p>
-     * Important implementation details:
-     * <ul>
-     *   <li>Whitespace is determined using Java's {@link Character#isWhitespace(char)} method</li>
-     *   <li>Trimming only occurs when the input elements are of type {@code Character}</li>
-     *   <li>If the original parser fails, the failure is returned without attempting to skip trailing whitespace</li>
-     *   <li>The parser result value remains unchanged; only the input position is affected</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse an integer, ignoring surrounding whitespace
-     * Parser<Character, Integer> parser = intr.trim();
+     * A parser for expressions with enclosing bracket symbols.
+     * Validates the open bracket, then this parser, and then the close bracket.
+     * If all three succeed, the result of this parser is returned.
      *
-     * // Succeeds with 42 for input "42"
-     * // Succeeds with 42 for input "  42  "
-     * // Succeeds with 42 for input "\t42\n"
-     * }</pre>
-     *
-     * @return a new parser that skips whitespace before and after applying this parser
-     * @see Character#isWhitespace(char) for the definition of whitespace characters
+     * @param bracket the bracket symbol
+     * @return a parser for expressions with enclosing bracket symbols
      */
-    public Parser<I, A> trim() {
-        return new Parser<>(in -> {
-            Input<I> trimmedInput = skipWhitespace(in);
-            Result<I, A> result = this.apply(trimmedInput);
-            if (result.isSuccess()) {
-                trimmedInput = skipWhitespace(result.next());
-                return Result.success(trimmedInput, result.get());
-            }
-            return result;
-        });
-    }
-
-    private Input<I> skipWhitespace(Input<I> in) {
-        while (!in.isEof() && in.current() instanceof Character ch && Character.isWhitespace(ch)) {
-            in = in.next();
-        }
-        return in;
+    public <B> Parser<I, A> between(Parser<I, B> bracket) {
+        return between(bracket, bracket);
     }
 
     /**
-     * Transforms the result of this parser using the given function without affecting the parsing logic.
-     * <p>
-     * The {@code map} method is a fundamental parser combinator that allows transformation of successful
-     * parse results without changing how the input is consumed. It operates as follows:
-     * <ol>
-     *   <li>First applies this parser to the input</li>
-     *   <li>If this parser succeeds, applies the provided function to the result value</li>
-     *   <li>Returns a new parser that produces the transformed result</li>
-     *   <li>If this parser fails, the failure is propagated without applying the function</li>
-     * </ol>
-     * <p>
-     * This method is essential for converting parsed values to different types or structures while
-     * maintaining the same parsing behavior. The input position handling remains unchanged from the
-     * original parser.
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse a digit character and convert it to its integer value
-     * Parser<Character, Character> digitChar = chr(Character::isDigit);
-     * Parser<Character, Integer> digitValue = digitChar.map(c -> Character.getNumericValue(c));
+     * A parser for expressions with enclosing symbols.
+     * Validates the open symbol, then this parser, and then the close symbol.
+     * If all three succeed, the result of this parser is returned.
      *
-     * // Succeeds with 5 for input "5"
-     * // Fails for input "a"
-     * }</pre>
-     *
-     * @param func the function to apply to the parsed result
-     * @param <R>  the type of the transformed result
-     * @return a new parser that applies the given function to successful parse results
-     * @throws IllegalArgumentException if the function parameter is null
-     * @see #as(Object) for mapping to a constant value
-     * @see ApplyBuilder for mapping multiple parser results
+     * @param open  the open symbol
+     * @param close the close symbol
+     * @return a parser for expressions with enclosing symbols
      */
-    public <R> Parser<I, R> map(Function<A, R> func) {
-        return new Parser<>(in -> apply(in).map(func));
+    public <B, C> Parser<I, A> between(Parser<I, B> open, Parser<I, C> close) {
+        return open.skipThen(this).thenSkip(close);
     }
 
     /**
-     * Transforms the result of this parser to a constant value, regardless of the actual parsed result.
+     * Creates a parser for left-associative operator expressions that succeeds even when no operands are found.
      * <p>
-     * The {@code as} method provides a way to acknowledge that a particular pattern was successfully
-     * parsed, but replace its value with a predefined constant. This is useful when:
+     * The {@code chainLeftZeroOrMany} method extends {@link #chainLeftMany(Parser)} to handle the case
+     * where no operands are present in the input by providing a default value. It processes the input as follows:
      * <ol>
-     *   <li>You need to recognize a pattern but care only about its presence, not its content</li>
-     *   <li>You want to map specific token patterns to semantic constants</li>
-     *   <li>You need to convert parsing results to domain-specific enumerations or values</li>
+     *   <li>First attempts to parse a left-associative operator expression using {@code chainLeftMany}</li>
+     *   <li>If successful, returns the parsed expression value</li>
+     *   <li>If parsing fails (no valid expression found), returns the provided default value</li>
      * </ol>
+     * <p>
+     * This method is particularly useful for handling optional expressions or providing default values
+     * in grammar rules where an expression might not be present. The left associativity means that
+     * operators are evaluated from left to right. For example, "a-b-c" is interpreted as "(a-b)-c".
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>First applies this parser to the input</li>
-     *   <li>If this parser succeeds, its result is discarded and replaced with the specified value</li>
-     *   <li>If this parser fails, the failure is propagated without providing the constant value</li>
-     *   <li>The input position advances according to the original parser's consumption</li>
+     *   <li>Combines {@link #chainLeftMany(Parser)} with {@link #or(Parser)} and {@link #pure(Object)}</li>
+     *   <li>No input is consumed if the expression cannot be parsed</li>
+     *   <li>Always succeeds, either with the parsed result or the default value</li>
      * </ul>
      * <p>
      * Example usage:
      * <pre>{@code
-     * // Parse "true" or "false" strings and convert them directly to boolean values
-     * Parser<Character, Boolean> trueParser = string("true").as(Boolean.TRUE);
-     * Parser<Character, Boolean> falseParser = string("false").as(Boolean.FALSE);
-     * Parser<Character, Boolean> boolParser = trueParser.or(falseParser);
-     *
-     * // Succeeds with true for input "true"
-     * // Succeeds with false for input "false"
-     * // Fails for any other input
-     * }</pre>
-     *
-     * @param value the constant value to return when this parser succeeds
-     * @param <R>   the type of the constant value
-     * @return a parser that returns the constant value when this parser succeeds
-     * @see #map(Function) for transforming results with a function
-     * @see #skipThen(Parser) for discarding this parser's result
-     */
-    public <R> Parser<I, R> as(R value) {
-        return this.skipThen(pure(value));
-    }
-
-    /**
-     * Creates a parser that provides a default value if this parser fails.
-     * <p>
-     * The {@code orElse} method provides a way to handle parser failures by substituting a default value
-     * rather than propagating the failure. This is different from the {@code or} method which tries an
-     * alternative parsing strategy.
-     * <p>
-     * When applied to input:
-     * <ol>
-     *   <li>First attempts to apply this parser to the input</li>
-     *   <li>If this parser succeeds, its result is returned</li>
-     *   <li>If this parser fails, a success result containing the default value is returned</li>
-     * </ol>
-     * <p>
-     * Important: When returning the default value, the input position remains unchanged from the original position.
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse an integer, or use 0 as default if parsing fails
-     * Parser<Character, Integer> parser = intr.orElse(0);
-     *
-     * // Succeeds with 42 for input "42"
-     * // Succeeds with 0 for input "abc"
-     * }</pre>
-     *
-     * @param other the default value to return if this parser fails
-     * @return a parser that returns either the successful parse result or the default value
-     */
-    public Parser<I, A> orElse(A other) {
-        return new NoCheckParser<>(in -> {
-            Result<I, A> result = this.apply(in);
-            if (result.isError()) {
-                return Result.success(in, other);
-            }
-            return result;
-        });
-    }
-
-    /**
-     * Creates a negative lookahead parser that succeeds only if this parser succeeds and the provided parser fails.
-     * <p>
-     * This method implements negative lookahead, which is a powerful parsing technique where we verify
-     * that a certain pattern does NOT appear at the current position before proceeding. The negative
-     * lookahead operates as follows:
-     * <ol>
-     *   <li>First tries the provided parser at the current position</li>
-     *   <li>If that parser succeeds, this composite parser fails</li>
-     *   <li>If that parser fails, this parser is applied and its result is returned</li>
-     * </ol>
-     * <p>
-     * Important: The lookahead parser never consumes any input. It only checks if a pattern matches
-     * without advancing the parser position.
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse a letter that is not followed by a digit
-     * Parser<Character, Character> letter = chr(Character::isLetter);
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, Character> letterNotFollowedByDigit = letter.not(digit);
-     *
-     * // Succeeds for "a" or "aX", fails for "a1"
-     * }</pre>
-     *
-     * @param parser the parser to use as negative lookahead
-     * @param <B> the result type of the lookahead parser (not used in the result)
-     * @return a parser that succeeds only if this parser succeeds and the lookahead parser fails
-     * @throws IllegalArgumentException if the parser parameter is null
-     */
-    public <B> Parser<I, A> not(Parser<I, B> parser) {
-        return new Parser<>(in -> {
-            Result<I,B> result = parser.apply(in);
-            if (result.isSuccess()) {
-                return Result.failure(in, "Parser to fail", String.valueOf(result.get()));
-            }
-            return this.apply(in);
-        });
-    }
-
-    /**
-     * Creates a parser that verifies the current input element is not equal to a specific value.
-     * <p>
-     * The {@code isNot} method provides a convenient way to exclude specific tokens from being
-     * accepted. It operates as follows:
-     * <ol>
-     *   <li>First checks if the current input element matches the specified value</li>
-     *   <li>If the value matches, the parser fails</li>
-     *   <li>If the value does not match, this parser is applied and its result is returned</li>
-     * </ol>
-     * <p>
-     * This method is implemented as a combination of {@link #not(Parser)} and {@link Combinators#is(Object)},
-     * providing a more readable way to express "match anything except this specific value".
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse any character that is not a semicolon
-     * Parser<Character, Character> notSemicolon = chr().isNot(';');
-     *
-     * // Succeeds with 'a' for input "a"
-     * // Succeeds with '5' for input "5"
-     * // Fails for input ";"
-     * }</pre>
-     *
-     * @param value the value that should not be matched
-     * @return a parser that succeeds only when the input element is not equal to the specified value
-     * @see #not(Parser) for the more general negative lookahead mechanism
-     * @see Combinators#is(Object) for the complementary parser that matches a specific value
-     */
-    public Parser<I, A> isNot(I value) {
-        return this.not(is(value));
-    }
-
-    /**
-     * Creates a parser that handles operator expressions with specified associativity.
-     * <p>
-     * The {@code chain} method is a powerful parser combinator for parsing sequences of
-     * operands separated by operators, commonly used for expression parsing. It processes
-     * the input as follows:
-     * <ol>
-     *   <li>First applies this parser to obtain an initial operand</li>
-     *   <li>Then repeatedly tries to parse an operator followed by another operand</li>
-     *   <li>Combines the results using the parsed operators according to the specified associativity</li>
-     * </ol>
-     * <p>
-     * The method supports two associativity modes:
-     * <ul>
-     *   <li><b>LEFT</b>: Operators are evaluated from left to right. For example, "a+b+c" is
-     *       interpreted as "(a+b)+c"</li>
-     *   <li><b>RIGHT</b>: Operators are evaluated from right to left. For example, "a+b+c" is
-     *       interpreted as "a+(b+c)"</li>
-     * </ul>
-     * <p>
-     * This method serves as the foundation for more specific chainXxx methods like
-     * {@link #chainLeftMany(Parser)} and {@link #chainRightMany(Parser)}.
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse addition expressions with left associativity
+     * // Parse arithmetic expressions with left-associative subtraction
      * Parser<Character, Integer> number = intr;
-     * Parser<Character, BinaryOperator<Integer>> add =
-     *     chr('+').as((a, b) -> a + b);
+     * Parser<Character, BinaryOperator<Integer>> subtract =
+     *     chr('-').as((a, b) -> a - b);
      *
+     * // Parse subtraction expression or return 0 if none found
      * Parser<Character, Integer> expression =
-     *     number.chain(add, Associativity.LEFT);
+     *     number.chainLeftZeroOrMany(subtract, 0);
      *
-     * // Parses "1+2+3" as (1+2)+3 = 6
+     * // Parses "5-3-2" as (5-3)-2 = 0
+     * // Returns 0 for empty input
      * }</pre>
      *
      * @param op the parser that recognizes and returns binary operators
-     * @param associativity the associativity rule to apply (LEFT or RIGHT)
-     * @return a parser that handles operator expressions with the specified associativity
-     * @throws IllegalArgumentException if any parameter is null
-     * @see #chainLeftMany(Parser) for a specialized left-associative version
-     * @see #chainRightMany(Parser) for a specialized right-associative version
-     * @see Associativity for the associativity options
+     * @param a  the default value to return if no expression can be parsed
+     * @return a parser that handles left-associative expressions or returns the default value
+     * @throws IllegalArgumentException if the operator parser is null
+     * @see #chainLeftMany(Parser) for the version that requires at least one operand
+     * @see #chainRightZeroOrMany(Parser, Object) for the right-associative equivalent
+     * @see Associativity for associativity options
      */
-    public Parser<I, A> chain(Parser<I, BinaryOperator<A>> op, Associativity associativity) {
-        if (associativity == Associativity.LEFT) {
-            final Parser<I, UnaryOperator<A>> plo =
-                    op.then(this)
-                            .map((f, y) -> x -> f.apply(x, y));
-            return this.then(plo.zeroOrMany())
-                    .map((a, lf) -> lf.foldLeft(a, (acc, f) -> f.apply(acc)));
-        } else {
-            return this.then(op.then(this).map(Pair::new).zeroOrMany())
-                    .map((a, pairs) -> pairs.stream().reduce(a, (acc, tuple) -> tuple.left().apply(tuple.right(), acc), (a1, a2) -> a1));
-        }
+    public Parser<I, A> chainLeftZeroOrMany(Parser<I, BinaryOperator<A>> op, A a) {
+        return this.chainLeftMany(op).or(pure(a));
     }
 
+    /**
+     * Creates a parser for left-associative operator expressions requiring at least one operand.
+     * <p>
+     * The {@code chainLeftMany} method provides specialized support for parsing expressions
+     * with left associativity, which means operators are evaluated from left to right. For example,
+     * in "a-b-c", the operations are grouped as "(a-b)-c" rather than "a-(b-c)".
+     * <p>
+     * This method is particularly useful for operators that naturally associate left-to-right,
+     * such as:
+     * <ul>
+     *   <li>Arithmetic operators like addition and subtraction (e.g., 5-3-2 = (5-3)-2 = 0)</li>
+     *   <li>Function application (e.g., f(g(x)) is evaluated as (f applied to (g applied to x)))</li>
+     *   <li>Method chaining (e.g., a.b().c() is evaluated as (a.b()).c())</li>
+     * </ul>
+     * <p>
+     * Implementation details:
+     * <ol>
+     *   <li>First applies this parser to get the initial operand</li>
+     *   <li>Then repeatedly tries to parse an operator followed by another operand</li>
+     *   <li>Combines the results from left to right using the binary operators</li>
+     *   <li>Fails if no valid expression is found</li>
+     * </ol>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse arithmetic expressions with left-associative subtraction
+     * Parser<Character, Integer> number = intr;
+     * Parser<Character, BinaryOperator<Integer>> subtract =
+     *     chr('-').as((a, b) -> a - b);
+     *
+     * Parser<Character, Integer> expression = number.chainLeftMany(subtract);
+     *
+     * // Parses "5-3-2" as (5-3)-2 = 0
+     * // Parses "7" as simply 7
+     * // Fails for empty input
+     * }</pre>
+     *
+     * @param op the parser that recognizes and returns binary operators
+     * @return a parser that handles left-associative expressions with at least one operand
+     * @throws IllegalArgumentException if the operator parser is null
+     * @see #chain(Parser, Associativity) for the more general method with explicit associativity
+     * @see #chainLeftZeroOrMany(Parser, Object) for a version that provides a default value
+     * @see #chainRightMany(Parser) for the right-associative equivalent
+     */
+    public Parser<I, A> chainLeftMany(Parser<I, BinaryOperator<A>> op) {
+        return chain(op, Associativity.LEFT);
+    }
 
     /**
      * Creates a parser for right-associative operator expressions that succeeds even when no operands are found.
@@ -1332,7 +445,7 @@ public class Parser<I, A> {
      * }</pre>
      *
      * @param op the parser that recognizes and returns binary operators
-     * @param a the default value to return if no expression can be parsed
+     * @param a  the default value to return if no expression can be parsed
      * @return a parser that handles right-associative expressions or returns the default value
      * @throws IllegalArgumentException if the operator parser is null
      * @see #chainRightMany(Parser) for the version that requires at least one operand
@@ -1341,6 +454,54 @@ public class Parser<I, A> {
      */
     public Parser<I, A> chainRightZeroOrMany(Parser<I, BinaryOperator<A>> op, A a) {
         return this.chainRightMany(op).or(pure(a));
+    }
+
+    /**
+     * Creates a parser that tries this parser first, and if it fails, tries an alternative parser.
+     * <p>
+     * The {@code or} method implements choice between parsers, similar to the logical OR operation
+     * or the | (pipe) operator in regular expressions. It provides a way to try multiple parsing
+     * strategies in sequence until one succeeds. The parsing process works as follows:
+     * <ol>
+     *   <li>First applies this parser to the input</li>
+     *   <li>If this parser succeeds, its result is returned</li>
+     *   <li>If this parser fails, the alternative parser is applied to the <i>original</i> input</li>
+     *   <li>The result of the first successful parser is returned</li>
+     *   <li>If both parsers fail, the composite parser fails</li>
+     * </ol>
+     * <p>
+     * Important implementation details:
+     * <ul>
+     *   <li>The alternative parser is only tried if the first parser fails</li>
+     *   <li>If the first parser fails, no input is consumed before trying the alternative</li>
+     *   <li>This implements ordered choice - the first matching parser takes precedence</li>
+     *   <li>The result types of both parsers must be the same</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse either an integer or a string "null" as an Optional<Integer>
+     * Parser<Character, Integer> intParser = intr;
+     * Parser<Character, Integer> nullParser = string("null").as(null);
+     *
+     * Parser<Character, Integer> optionalInt = intParser.or(nullParser);
+     *
+     * // Succeeds with 42 for input "42"
+     * // Succeeds with null for input "null"
+     * // Fails for input "abc" or ""
+     * }</pre>
+     *
+     * @param other the alternative parser to try if this parser fails
+     * @return a parser that tries this parser first, and if it fails, tries the alternative parser
+     * @throws IllegalArgumentException if the other parameter is null
+     * @see #orElse(Object) for providing a default value instead of an alternative parser
+     * @see Combinators#oneOf for choosing between multiple parsers
+     */
+    public Parser<I, A> or(Parser<I, A> other) {
+        return new Parser<>(in -> {
+            Result<I, A> result = this.apply(in);
+            return result.isSuccess() ? result : other.apply(in);
+        });
     }
 
     /**
@@ -1391,105 +552,179 @@ public class Parser<I, A> {
         return chain(op, Associativity.RIGHT);
     }
 
-
     /**
-     * Creates a parser for left-associative operator expressions that succeeds even when no operands are found.
+     * Creates a parser that handles operator expressions with specified associativity.
      * <p>
-     * The {@code chainLeftZeroOrMany} method extends {@link #chainLeftMany(Parser)} to handle the case
-     * where no operands are present in the input by providing a default value. It processes the input as follows:
+     * The {@code chain} method is a powerful parser combinator for parsing sequences of
+     * operands separated by operators, commonly used for expression parsing. It processes
+     * the input as follows:
      * <ol>
-     *   <li>First attempts to parse a left-associative operator expression using {@code chainLeftMany}</li>
-     *   <li>If successful, returns the parsed expression value</li>
-     *   <li>If parsing fails (no valid expression found), returns the provided default value</li>
-     * </ol>
-     * <p>
-     * This method is particularly useful for handling optional expressions or providing default values
-     * in grammar rules where an expression might not be present. The left associativity means that
-     * operators are evaluated from left to right. For example, "a-b-c" is interpreted as "(a-b)-c".
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Combines {@link #chainLeftMany(Parser)} with {@link #or(Parser)} and {@link #pure(Object)}</li>
-     *   <li>No input is consumed if the expression cannot be parsed</li>
-     *   <li>Always succeeds, either with the parsed result or the default value</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse arithmetic expressions with left-associative subtraction
-     * Parser<Character, Integer> number = intr;
-     * Parser<Character, BinaryOperator<Integer>> subtract =
-     *     chr('-').as((a, b) -> a - b);
-     *
-     * // Parse subtraction expression or return 0 if none found
-     * Parser<Character, Integer> expression =
-     *     number.chainLeftZeroOrMany(subtract, 0);
-     *
-     * // Parses "5-3-2" as (5-3)-2 = 0
-     * // Returns 0 for empty input
-     * }</pre>
-     *
-     * @param op the parser that recognizes and returns binary operators
-     * @param a the default value to return if no expression can be parsed
-     * @return a parser that handles left-associative expressions or returns the default value
-     * @throws IllegalArgumentException if the operator parser is null
-     * @see #chainLeftMany(Parser) for the version that requires at least one operand
-     * @see #chainRightZeroOrMany(Parser, Object) for the right-associative equivalent
-     * @see Associativity for associativity options
-     */
-    public Parser<I, A> chainLeftZeroOrMany(Parser<I, BinaryOperator<A>> op, A a) {
-        return this.chainLeftMany(op).or(pure(a));
-    }
-
-
-    /**
-     * Creates a parser for left-associative operator expressions requiring at least one operand.
-     * <p>
-     * The {@code chainLeftMany} method provides specialized support for parsing expressions
-     * with left associativity, which means operators are evaluated from left to right. For example,
-     * in "a-b-c", the operations are grouped as "(a-b)-c" rather than "a-(b-c)".
-     * <p>
-     * This method is particularly useful for operators that naturally associate left-to-right,
-     * such as:
-     * <ul>
-     *   <li>Arithmetic operators like addition and subtraction (e.g., 5-3-2 = (5-3)-2 = 0)</li>
-     *   <li>Function application (e.g., f(g(x)) is evaluated as (f applied to (g applied to x)))</li>
-     *   <li>Method chaining (e.g., a.b().c() is evaluated as (a.b()).c())</li>
-     * </ul>
-     * <p>
-     * Implementation details:
-     * <ol>
-     *   <li>First applies this parser to get the initial operand</li>
+     *   <li>First applies this parser to obtain an initial operand</li>
      *   <li>Then repeatedly tries to parse an operator followed by another operand</li>
-     *   <li>Combines the results from left to right using the binary operators</li>
-     *   <li>Fails if no valid expression is found</li>
+     *   <li>Combines the results using the parsed operators according to the specified associativity</li>
      * </ol>
+     * <p>
+     * The method supports two associativity modes:
+     * <ul>
+     *   <li><b>LEFT</b>: Operators are evaluated from left to right. For example, "a+b+c" is
+     *       interpreted as "(a+b)+c"</li>
+     *   <li><b>RIGHT</b>: Operators are evaluated from right to left. For example, "a+b+c" is
+     *       interpreted as "a+(b+c)"</li>
+     * </ul>
+     * <p>
+     * This method serves as the foundation for more specific chainXxx methods like
+     * {@link #chainLeftMany(Parser)} and {@link #chainRightMany(Parser)}.
      * <p>
      * Example usage:
      * <pre>{@code
-     * // Parse arithmetic expressions with left-associative subtraction
+     * // Parse addition expressions with left associativity
      * Parser<Character, Integer> number = intr;
-     * Parser<Character, BinaryOperator<Integer>> subtract =
-     *     chr('-').as((a, b) -> a - b);
+     * Parser<Character, BinaryOperator<Integer>> add =
+     *     chr('+').as((a, b) -> a + b);
      *
-     * Parser<Character, Integer> expression = number.chainLeftMany(subtract);
+     * Parser<Character, Integer> expression =
+     *     number.chain(add, Associativity.LEFT);
      *
-     * // Parses "5-3-2" as (5-3)-2 = 0
-     * // Parses "7" as simply 7
-     * // Fails for empty input
+     * // Parses "1+2+3" as (1+2)+3 = 6
      * }</pre>
      *
-     * @param op the parser that recognizes and returns binary operators
-     * @return a parser that handles left-associative expressions with at least one operand
-     * @throws IllegalArgumentException if the operator parser is null
-     * @see #chain(Parser, Associativity) for the more general method with explicit associativity
-     * @see #chainLeftZeroOrMany(Parser, Object) for a version that provides a default value
-     * @see #chainRightMany(Parser) for the right-associative equivalent
+     * @param op            the parser that recognizes and returns binary operators
+     * @param associativity the associativity rule to apply (LEFT or RIGHT)
+     * @return a parser that handles operator expressions with the specified associativity
+     * @throws IllegalArgumentException if any parameter is null
+     * @see #chainLeftMany(Parser) for a specialized left-associative version
+     * @see #chainRightMany(Parser) for a specialized right-associative version
+     * @see Associativity for the associativity options
      */
-    public Parser<I, A> chainLeftMany(Parser<I, BinaryOperator<A>> op) {
-        return chain(op, Associativity.LEFT);
+    public Parser<I, A> chain(Parser<I, BinaryOperator<A>> op, Associativity associativity) {
+        if (associativity == Associativity.LEFT) {
+            final Parser<I, UnaryOperator<A>> plo =
+                    op.then(this)
+                            .map((f, y) -> x -> f.apply(x, y));
+            return this.then(plo.zeroOrMany())
+                    .map((a, lf) -> lf.foldLeft(a, (acc, f) -> f.apply(acc)));
+        } else {
+            return this.then(op.then(this).map(Pair::new).zeroOrMany())
+                    .map((a, pairs) -> pairs.stream().reduce(a, (acc, tuple) -> tuple.left().apply(tuple.right(), acc), (a1, a2) -> a1));
+        }
     }
 
+    /**
+     * Creates a parser that applies this parser zero or more times until it fails,
+     * collecting all successful results into a list.
+     * <p>
+     * This method implements the Kleene star (*) operation from formal language theory,
+     * matching the pattern represented by this parser repeated any number of times (including zero).
+     * The parsing process works as follows:
+     * <ol>
+     *   <li>Attempts to apply this parser at the current input position</li>
+     *   <li>If successful, adds the result to the collection and advances the input position</li>
+     *   <li>Repeats until this parser fails or end of input is reached</li>
+     *   <li>Returns all collected results as an {@code FList}</li>
+     * </ol>
+     * <p>
+     * If this parser fails on the first attempt or the input is empty, an empty list is returned
+     * and the parser still succeeds.
+     * <p>
+     * Important implementation details:
+     * <ul>
+     *   <li>The parser checks for infinite loops by ensuring input position advances</li>
+     *   <li>This is a greedy operation that consumes as much input as possible</li>
+     *   <li>The resulting parser always succeeds, even with empty input</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse zero or more digits
+     * Parser<Character, Character> digit = chr(Character::isDigit);
+     * Parser<Character, FList<Character>> digits = digit.zeroOrMany();
+     *
+     * // Succeeds with [1,2,3] for input "123"
+     * // Succeeds with [] for input "abc" (empty list, no input consumed)
+     * // Succeeds with [1,2,3] for input "123abc" (consuming only "123")
+     * }</pre>
+     *
+     * @return a parser that applies this parser zero or more times until it fails,
+     * returning a list of all successful parse results
+     * @see #many() for a version that requires at least one match
+     * @see #repeat(int, int) for a version with explicit min and max counts
+     */
+    public Parser<I, FList<A>> zeroOrMany() {
+        return repeatInternal(0, Integer.MAX_VALUE, null);
+    }
+
+    /**
+     * Creates a parser that verifies the current input element is not equal to a specific value.
+     * <p>
+     * The {@code isNot} method provides a convenient way to exclude specific tokens from being
+     * accepted. It operates as follows:
+     * <ol>
+     *   <li>First checks if the current input element matches the specified value</li>
+     *   <li>If the value matches, the parser fails</li>
+     *   <li>If the value does not match, this parser is applied and its result is returned</li>
+     * </ol>
+     * <p>
+     * This method is implemented as a combination of {@link #not(Parser)} and {@link Combinators#is(Object)},
+     * providing a more readable way to express "match anything except this specific value".
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse any character that is not a semicolon
+     * Parser<Character, Character> notSemicolon = chr().isNot(';');
+     *
+     * // Succeeds with 'a' for input "a"
+     * // Succeeds with '5' for input "5"
+     * // Fails for input ";"
+     * }</pre>
+     *
+     * @param value the value that should not be matched
+     * @return a parser that succeeds only when the input element is not equal to the specified value
+     * @see #not(Parser) for the more general negative lookahead mechanism
+     * @see Combinators#is(Object) for the complementary parser that matches a specific value
+     */
+    public Parser<I, A> isNot(I value) {
+        return this.not(is(value));
+    }
+
+    /**
+     * Creates a negative lookahead parser that succeeds only if this parser succeeds and the provided parser fails.
+     * <p>
+     * This method implements negative lookahead, which is a powerful parsing technique where we verify
+     * that a certain pattern does NOT appear at the current position before proceeding. The negative
+     * lookahead operates as follows:
+     * <ol>
+     *   <li>First tries the provided parser at the current position</li>
+     *   <li>If that parser succeeds, this composite parser fails</li>
+     *   <li>If that parser fails, this parser is applied and its result is returned</li>
+     * </ol>
+     * <p>
+     * Important: The lookahead parser never consumes any input. It only checks if a pattern matches
+     * without advancing the parser position.
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse a letter that is not followed by a digit
+     * Parser<Character, Character> letter = chr(Character::isLetter);
+     * Parser<Character, Character> digit = chr(Character::isDigit);
+     * Parser<Character, Character> letterNotFollowedByDigit = letter.not(digit);
+     *
+     * // Succeeds for "a" or "aX", fails for "a1"
+     * }</pre>
+     *
+     * @param parser the parser to use as negative lookahead
+     * @param <B>    the result type of the lookahead parser (not used in the result)
+     * @return a parser that succeeds only if this parser succeeds and the lookahead parser fails
+     * @throws IllegalArgumentException if the parser parameter is null
+     */
+    public <B> Parser<I, A> not(Parser<I, B> parser) {
+        return new Parser<>(in -> {
+            Result<I, B> result = parser.apply(in);
+            if (result.isSuccess()) {
+                return Result.failure(in, "Parser to fail", String.valueOf(result.get()));
+            }
+            return this.apply(in);
+        });
+    }
 
     /**
      * Creates a parser that applies this parser one or more times until it fails,
@@ -1528,7 +763,7 @@ public class Parser<I, A> {
      * }</pre>
      *
      * @return a parser that applies this parser one or more times until it fails,
-     *         returning a list of all successful parse results
+     * returning a list of all successful parse results
      * @see #zeroOrMany() for a version that succeeds even with zero matches
      * @see #repeat(int) for a version with an exact count
      * @see #repeat(int, int) for a version with explicit min and max counts
@@ -1587,51 +822,263 @@ public class Parser<I, A> {
     }
 
     /**
-     * Creates a parser that tries this parser first, and if it fails, tries an alternative parser.
+     * Creates a parser that always succeeds, optionally containing this parser's result.
      * <p>
-     * The {@code or} method implements choice between parsers, similar to the logical OR operation
-     * or the | (pipe) operator in regular expressions. It provides a way to try multiple parsing
-     * strategies in sequence until one succeeds. The parsing process works as follows:
+     * The {@code optional} method creates a parser that attempts to apply this parser, but always
+     * succeeds regardless of the result. The parsing process works as follows:
      * <ol>
-     *   <li>First applies this parser to the input</li>
-     *   <li>If this parser succeeds, its result is returned</li>
-     *   <li>If this parser fails, the alternative parser is applied to the <i>original</i> input</li>
-     *   <li>The result of the first successful parser is returned</li>
-     *   <li>If both parsers fail, the composite parser fails</li>
+     *   <li>First attempts to apply this parser to the input</li>
+     *   <li>If this parser succeeds, its result is wrapped in a non-empty {@link Optional}</li>
+     *   <li>If this parser fails, an empty {@link Optional} is returned without consuming any input</li>
      * </ol>
      * <p>
-     * Important implementation details:
+     * This method is particularly useful for parsing optional elements in a grammar, such as optional
+     * parameters, modifiers, or any syntax structures that may or may not be present. It provides
+     * a convenient way to handle the presence or absence of elements without disrupting the overall
+     * parsing flow.
+     * <p>
+     * Implementation details:
      * <ul>
-     *   <li>The alternative parser is only tried if the first parser fails</li>
-     *   <li>If the first parser fails, no input is consumed before trying the alternative</li>
-     *   <li>This implements ordered choice - the first matching parser takes precedence</li>
-     *   <li>The result types of both parsers must be the same</li>
+     *   <li>Combines {@link #map(Function)} with {@link #orElse(Object)} to achieve the optional behavior</li>
+     *   <li>Always succeeds, never causing parsing failure</li>
+     *   <li>No input is consumed when the parser fails</li>
+     *   <li>The result type is transformed from {@code A} to {@code Optional<A>}</li>
      * </ul>
      * <p>
      * Example usage:
      * <pre>{@code
-     * // Parse either an integer or a string "null" as an Optional<Integer>
-     * Parser<Character, Integer> intParser = intr;
-     * Parser<Character, Integer> nullParser = string("null").as(null);
+     * // Parse an optional minus sign followed by a number
+     * Parser<Character, Character> minus = chr('-');
+     * Parser<Character, Optional<Character>> optionalMinus = minus.optional();
+     * Parser<Character, Integer> number = intr;
      *
-     * Parser<Character, Integer> optionalInt = intParser.or(nullParser);
+     * // Combine to parse signed numbers
+     * Parser<Character, Integer> signedNumber = optionalMinus.then(number)
+     *     .map(sign -> num -> sign.isPresent() ? -num : num);
      *
      * // Succeeds with 42 for input "42"
-     * // Succeeds with null for input "null"
-     * // Fails for input "abc" or ""
+     * // Succeeds with -42 for input "-42"
+     * // Fails for input "abc" (no number found)
      * }</pre>
      *
-     * @param other the alternative parser to try if this parser fails
-     * @return a parser that tries this parser first, and if it fails, tries the alternative parser
-     * @throws IllegalArgumentException if the other parameter is null
-     * @see #orElse(Object) for providing a default value instead of an alternative parser
-     * @see Combinators#oneOf for choosing between multiple parsers
+     * @return a parser that always succeeds, returning either an Optional containing this
+     * parser's result or an empty Optional
+     * @see #orElse(Object) for providing a default value instead of an Optional
+     * @see #zeroOrMany() for collecting zero or more occurrences of a pattern
      */
-    public Parser<I, A> or(Parser<I, A> other) {
-        return new Parser<>(in -> {
+    public Parser<I, Optional<A>> optional() {
+        return this.map(Optional::of).orElse(Optional.empty());
+    }
+
+    /**
+     * Creates a parser that provides a default value if this parser fails.
+     * <p>
+     * The {@code orElse} method provides a way to handle parser failures by substituting a default value
+     * rather than propagating the failure. This is different from the {@code or} method which tries an
+     * alternative parsing strategy.
+     * <p>
+     * When applied to input:
+     * <ol>
+     *   <li>First attempts to apply this parser to the input</li>
+     *   <li>If this parser succeeds, its result is returned</li>
+     *   <li>If this parser fails, a success result containing the default value is returned</li>
+     * </ol>
+     * <p>
+     * Important: When returning the default value, the input position remains unchanged from the original position.
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse an integer, or use 0 as default if parsing fails
+     * Parser<Character, Integer> parser = intr.orElse(0);
+     *
+     * // Succeeds with 42 for input "42"
+     * // Succeeds with 0 for input "abc"
+     * }</pre>
+     *
+     * @param other the default value to return if this parser fails
+     * @return a parser that returns either the successful parse result or the default value
+     */
+    public Parser<I, A> orElse(A other) {
+        return new NoCheckParser<>(in -> {
             Result<I, A> result = this.apply(in);
-            return result.isSuccess() ? result : other.apply(in);
+            if (result.isError()) {
+                return Result.success(in, other);
+            }
+            return result;
         });
+    }
+
+    /**
+     * Parses the input without requiring that the entire input is consumed.
+     *
+     * @param in the input to parse
+     * @return the result of parsing the input
+     */
+    public Result<I, A> parse(Input<I> in) {
+        return parse(in, false);
+    }
+
+    /**
+     * Parses the input with an option to require complete input consumption.
+     * <p>
+     * The {@code parse} method is the core parsing method that applies this parser to the given input.
+     * It serves as the foundation for all other parsing methods in this class. The parsing process
+     * works as follows:
+     * <ol>
+     *   <li>Applies this parser to the provided input</li>
+     *   <li>If the parser succeeds and {@code consumeAll} is {@code true}, verifies that all input has been consumed</li>
+     *   <li>Returns a {@link Result} object containing either the successful parse result or an error</li>
+     * </ol>
+     * <p>
+     * The {@code consumeAll} parameter provides control over whether parsing should succeed only when
+     * the entire input is processed. This is useful for distinguishing between:
+     * <ul>
+     *   <li>Complete parsing: When you expect the parser to consume all available input</li>
+     *   <li>Partial parsing: When you want to parse just a portion of the input, leaving the rest for later processing</li>
+     * </ul>
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>First applies this parser using the {@link #apply(Input)} method</li>
+     *   <li>If {@code consumeAll} is {@code true} and the parser succeeds but doesn't consume all input,
+     *       returns a failure result with an "eof" error message</li>
+     *   <li>Thread-safe, maintaining parser immutability</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse a complete JSON document
+     * Parser<Character, JsonValue> jsonParser = // ... json parser definition
+     * Input<Character> input = Input.of("{\"name\":\"John\",\"age\":30}");
+     * Result<Character, JsonValue> result = jsonParser.parse(input, true);
+     * // result.isSuccess() == true only if the entire JSON document was valid and fully consumed
+     *
+     * // Parse just a number from the beginning of input
+     * Parser<Character, Integer> numberParser = intr;
+     * Input<Character> partialInput = Input.of("42 and more text");
+     * Result<Character, Integer> partialResult = numberParser.parse(partialInput, false);
+     * // partialResult.isSuccess() == true, partialResult.get() == 42
+     * }</pre>
+     *
+     * @param in         the input to parse
+     * @param consumeAll whether to require that the entire input is consumed
+     * @return the result of parsing the input
+     * @see #parse(Input) for parsing without requiring complete input consumption
+     * @see #parseAll(Input) for parsing with mandatory complete input consumption
+     * @see Result for the structure of successful and failure results
+     */
+    public Result<I, A> parse(Input<I> in, boolean consumeAll) {
+        Result<I, A> result = this.apply(in);
+        if (consumeAll && result.isSuccess()) {
+            result = result.next().isEof() ? result : Result.failure(result.next(), "eof");
+        }
+        return result;
+    }
+
+    /**
+     * Applies this parser to the given input, performing the core parsing operation.
+     * <p>
+     * The {@code apply} method is the fundamental parsing operation that processes input according
+     * to this parser's rules and produces a result. It's the primary mechanism by which all parsers
+     * evaluate input, with built-in protection against infinite recursive loops. The parsing process
+     * works as follows:
+     * <ol>
+     *   <li>Checks for potential infinite recursion by tracking parser/position combinations</li>
+     *   <li>Records the current parser and input position in thread-local tracking arrays</li>
+     *   <li>Delegates to the parser's apply handler function to perform the actual parsing</li>
+     *   <li>Cleans up the tracking state after parsing completes</li>
+     *   <li>Returns a result containing either the successfully parsed value or failure information</li>
+     * </ol>
+     * <p>
+     * This method serves as the core implementation called by all higher-level parsing methods like
+     * {@link #parse(Input)} and {@link #parseAll(Input)}. It's rarely called directly by client code
+     * but is the foundation of the entire parsing process.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Uses thread-local storage to efficiently track parser positions across the call stack</li>
+     *   <li>Implements a loop detection algorithm that prevents infinite recursion in recursive grammars</li>
+     *   <li>Automatically fails with an {@code INFINITE_LOOP_ERROR} message if recursion is detected</li>
+     *   <li>Ensures proper cleanup of tracking data in both success and failure cases</li>
+     *   <li>Thread-safe implementation that allows concurrent parsing with different parsers</li>
+     * </ul>
+     * <p>
+     * Example usage (typically internal):
+     * <pre>{@code
+     * Parser<Character, Integer> numberParser = intr;
+     * Input<Character> input = Input.of("123");
+     *
+     * // Direct application of the parser to input
+     * Result<Character, Integer> result = numberParser.apply(input);
+     *
+     * if (result.isSuccess()) {
+     *     // Successfully parsed 123
+     *     Integer value = result.getValue();             // 123
+     *     Input<Character> remaining = result.getRemaining();  // Input after consuming "123"
+     * } else {
+     *     // Parse failure
+     *     String errorMsg = result.getErrorMessage();    // Description of the parsing error
+     *     Input<Character> errorPos = result.getInput(); // Position where the error occurred
+     * }
+     * }</pre>
+     *
+     * @param in the input to parse
+     * @return a result containing either the successfully parsed value or failure information
+     * @see Result for the structure that contains parsing results
+     * @see #parse(Input) for a higher-level method that wraps this core functionality
+     * @see #parseAll(Input) for parsing that requires consuming the entire input
+     */
+    public Result<I, A> apply(Input<I> in) {
+        // Fast path - avoid ThreadLocal lookup if position is different
+        int lastPosition = in.position();
+
+        // Use a more efficient data structure than Map
+        IntObjectMap<Object> config = this.contextLocal.get();
+
+        // Use containsKey+put instead of get+put to reduce lookup
+        if (config.get(lastPosition) == this) {
+            return Result.failure(in, null, INFINITE_LOOP_ERROR);
+        }
+
+        config.put(lastPosition, this);
+        try {
+            return applyHandler.apply(in);
+        } finally {
+            // Remove the parser from the context after parsing
+            config.remove(lastPosition);
+        }
+    }
+
+    /**
+     * Parses the input string without requiring that the entire input is consumed.
+     *
+     * @param input the input string to parse
+     * @return the result of parsing the input string
+     */
+    @SuppressWarnings("unchecked")
+    public Result<I, A> parse(CharSequence input) {
+        return parse((Input<I>) Input.of(input), false);
+    }
+
+    /**
+     * Parses the input and ensures that the entire input is consumed.
+     *
+     * @param in the input to parse
+     * @return the result of parsing the input
+     */
+    public Result<I, A> parseAll(Input<I> in) {
+        return parse(in, true);
+    }
+
+    /**
+     * Parses the input string and ensures that the entire input is consumed.
+     *
+     * @param input the input string to parse
+     * @return the result of parsing the input string
+     */
+    @SuppressWarnings("unchecked")
+    public Result<I, A> parseAll(CharSequence input) {
+        return parse((Input<I>) Input.of(input), true);
     }
 
     /**
@@ -1680,6 +1127,61 @@ public class Parser<I, A> {
      */
     public Parser<I, FList<A>> repeat(int target) {
         return repeatInternal(target, target, null);
+    }
+
+    /**
+     * Creates a parser that applies this parser between a minimum and maximum number of times,
+     * collecting all results into a list.
+     * <p>
+     * The {@code repeat} method with min and max arguments creates a parser that matches this parser's pattern
+     * a variable number of times within the specified range. The parsing process works as follows:
+     * <ol>
+     *   <li>Attempts to apply this parser repeatedly</li>
+     *   <li>Requires at least {@code min} successful applications to succeed</li>
+     *   <li>Will not attempt more than {@code max} applications, even if more matches are possible</li>
+     *   <li>Returns all results collected in an {@code FList}</li>
+     *   <li>If this parser fails before reaching the minimum count, the entire parser fails</li>
+     * </ol>
+     * <p>
+     * This method generalizes several other repetition parsers, allowing explicit control over both
+     * the lower and upper bounds of repetition. It is particularly useful for parsing structures with
+     * flexible but constrained repetition patterns, such as optional sections with limits, or required
+     * elements with additional optional elements.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>All parse results are collected in order of occurrence</li>
+     *   <li>The parser checks for infinite loops by ensuring input position advances</li>
+     *   <li>The input position is advanced after each successful application</li>
+     *   <li>Collection stops either when the maximum count is reached or when this parser fails</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse between 2 and 4 digits
+     * Parser<Character, Character> digit = chr(Character::isDigit);
+     * Parser<Character, FList<Character>> digits = digit.repeat(2, 4);
+     *
+     * // Succeeds with [1,2,3,4] for input "1234"
+     * // Succeeds with [1,2,3,4] for input "12345" (consuming only "1234")
+     * // Succeeds with [1,2,3] for input "123"
+     * // Succeeds with [1,2] for input "12"
+     * // Fails for input "1" (not enough digits)
+     * // Fails for input "abc" (no digits found)
+     * }</pre>
+     *
+     * @param min the minimum number of times to apply this parser
+     * @param max the maximum number of times to apply this parser
+     * @return a parser that applies this parser between min and max times
+     * @throws IllegalArgumentException if min or max is negative, or if min is greater than max
+     * @see #repeat(int) for a version with an exact count
+     * @see #repeatAtLeast(int) for a version with only a minimum count
+     * @see #repeatAtMost(int) for a version with only a maximum count
+     * @see #many() for matching one or more occurrences without an upper limit
+     * @see #zeroOrMany() for matching zero or more occurrences without an upper limit
+     */
+    public Parser<I, FList<A>> repeat(int min, int max) {
+        return repeatInternal(min, max, null);
     }
 
     /**
@@ -1782,60 +1284,473 @@ public class Parser<I, A> {
         return repeatInternal(0, max, null);
     }
 
-
     /**
-     * Creates a parser that applies this parser between a minimum and maximum number of times,
-     * collecting all results into a list.
+     * Creates a parser that parses a potentially empty sequence of elements separated by a delimiter.
      * <p>
-     * The {@code repeat} method with min and max arguments creates a parser that matches this parser's pattern
-     * a variable number of times within the specified range. The parsing process works as follows:
+     * The {@code separatedByZeroOrMany} method creates a parser that matches elements using this parser,
+     * with each element separated by the specified separator parser. The parsing process works as follows:
      * <ol>
-     *   <li>Attempts to apply this parser repeatedly</li>
-     *   <li>Requires at least {@code min} successful applications to succeed</li>
-     *   <li>Will not attempt more than {@code max} applications, even if more matches are possible</li>
-     *   <li>Returns all results collected in an {@code FList}</li>
-     *   <li>If this parser fails before reaching the minimum count, the entire parser fails</li>
+     *   <li>Attempts to parse a first element using this parser</li>
+     *   <li>If the first element is found, then repeatedly tries to parse a separator followed by another element</li>
+     *   <li>Collects all parsed elements (ignoring separators) into an {@code FList}</li>
+     *   <li>Returns an empty list if no elements are found (unlike {@link #separatedByMany(Parser)} which requires at least one element)</li>
      * </ol>
      * <p>
-     * This method generalizes several other repetition parsers, allowing explicit control over both
-     * the lower and upper bounds of repetition. It is particularly useful for parsing structures with
-     * flexible but constrained repetition patterns, such as optional sections with limits, or required
-     * elements with additional optional elements.
+     * This method is particularly useful for parsing common data formats like comma-separated lists,
+     * space-delimited tokens, or any syntax that involves items separated by delimiters, where empty
+     * collections are valid. Examples include empty parameter lists, empty arrays, or optional sequences.
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>All parse results are collected in order of occurrence</li>
-     *   <li>The parser checks for infinite loops by ensuring input position advances</li>
-     *   <li>The input position is advanced after each successful application</li>
-     *   <li>Collection stops either when the maximum count is reached or when this parser fails</li>
+     *   <li>Builds on {@link #separatedByMany(Parser)} but succeeds even when no elements are found</li>
+     *   <li>Only the elements are collected; separator values are discarded</li>
+     *   <li>Always succeeds, returning an empty list if no elements match</li>
+     *   <li>The input position remains unchanged if no elements are found</li>
      * </ul>
      * <p>
      * Example usage:
      * <pre>{@code
-     * // Parse between 2 and 4 digits
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, FList<Character>> digits = digit.repeat(2, 4);
+     * // Parse a comma-separated list of numbers, allowing empty lists
+     * Parser<Character, Integer> number = intr;
+     * Parser<Character, Character> comma = chr(',');
+     * Parser<Character, FList<Integer>> optionalList = number.separatedByZeroOrMany(comma);
      *
-     * // Succeeds with [1,2,3,4] for input "1234"
-     * // Succeeds with [1,2,3,4] for input "12345" (consuming only "1234")
-     * // Succeeds with [1,2,3] for input "123"
-     * // Succeeds with [1,2] for input "12"
-     * // Fails for input "1" (not enough digits)
-     * // Fails for input "abc" (no digits found)
+     * // Succeeds with [1,2,3] for input "1,2,3"
+     * // Succeeds with [] for input "" (empty list)
+     * // Succeeds with [42] for input "42"
+     * // Succeeds with [] for input ";" (empty list, no input consumed)
      * }</pre>
      *
-     * @param min the minimum number of times to apply this parser
-     * @param max the maximum number of times to apply this parser
-     * @return a parser that applies this parser between min and max times
-     * @throws IllegalArgumentException if min or max is negative, or if min is greater than max
-     * @see #repeat(int) for a version with an exact count
-     * @see #repeatAtLeast(int) for a version with only a minimum count
-     * @see #repeatAtMost(int) for a version with only a maximum count
-     * @see #many() for matching one or more occurrences without an upper limit
-     * @see #zeroOrMany() for matching zero or more occurrences without an upper limit
+     * @param sep   the parser that recognizes the separator between elements
+     * @param <SEP> the type of the separator parse result (which is discarded)
+     * @return a parser that parses zero or more elements separated by the given separator
+     * @throws IllegalArgumentException if the separator parser is null
+     * @see #separatedByMany(Parser) for a version that requires at least one element
+     * @see #zeroOrMany() for collecting repeated elements without separators
+     * @see #repeat(int, int) for collecting a specific range of elements
      */
-    public Parser<I, FList<A>> repeat(int min, int max) {
-        return repeatInternal(min, max, null);
+    public <SEP> Parser<I, FList<A>> separatedByZeroOrMany(Parser<I, SEP> sep) {
+        return this.separatedByMany(sep).map(l -> l).or(pure(new FList<>()));
+    }
+
+    /**
+     * Transforms the result of this parser using the given function without affecting the parsing logic.
+     * <p>
+     * The {@code map} method is a fundamental parser combinator that allows transformation of successful
+     * parse results without changing how the input is consumed. It operates as follows:
+     * <ol>
+     *   <li>First applies this parser to the input</li>
+     *   <li>If this parser succeeds, applies the provided function to the result value</li>
+     *   <li>Returns a new parser that produces the transformed result</li>
+     *   <li>If this parser fails, the failure is propagated without applying the function</li>
+     * </ol>
+     * <p>
+     * This method is essential for converting parsed values to different types or structures while
+     * maintaining the same parsing behavior. The input position handling remains unchanged from the
+     * original parser.
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse a digit character and convert it to its integer value
+     * Parser<Character, Character> digitChar = chr(Character::isDigit);
+     * Parser<Character, Integer> digitValue = digitChar.map(c -> Character.getNumericValue(c));
+     *
+     * // Succeeds with 5 for input "5"
+     * // Fails for input "a"
+     * }</pre>
+     *
+     * @param func the function to apply to the parsed result
+     * @param <R>  the type of the transformed result
+     * @return a new parser that applies the given function to successful parse results
+     * @throws IllegalArgumentException if the function parameter is null
+     * @see #as(Object) for mapping to a constant value
+     * @see ApplyBuilder for mapping multiple parser results
+     */
+    public <R> Parser<I, R> map(Function<A, R> func) {
+        return new Parser<>(in -> apply(in).map(func));
+    }
+
+    /**
+     * Creates a parser that parses a non-empty sequence of elements separated by a delimiter.
+     * <p>
+     * The {@code separatedByMany} method creates a parser that matches elements using this parser,
+     * with each element separated by the specified separator parser. The parsing process works as follows:
+     * <ol>
+     *   <li>First parses an initial element using this parser (required)</li>
+     *   <li>Then repeatedly tries to parse a separator followed by another element</li>
+     *   <li>Collects all parsed elements (ignoring separators) into an {@code FList}</li>
+     *   <li>Succeeds only if at least one element is found</li>
+     * </ol>
+     * <p>
+     * This method is particularly useful for parsing common data formats like comma-separated lists,
+     * space-delimited tokens, or any syntax that requires at least one element with optional additional
+     * elements separated by delimiters. Examples include non-empty parameter lists, argument sequences,
+     * or any collection that must contain at least one item.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>The first element is parsed with this parser</li>
+     *   <li>Subsequent elements are parsed as pairs of separator followed by element</li>
+     *   <li>Only the elements are collected; separator values are discarded</li>
+     *   <li>Fails if no elements can be parsed</li>
+     *   <li>The input position is advanced after each successful match</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse a comma-separated list of numbers, requiring at least one number
+     * Parser<Character, Integer> number = intr;
+     * Parser<Character, Character> comma = chr(',');
+     * Parser<Character, FList<Integer>> numberList = number.separatedByMany(comma);
+     *
+     * // Succeeds with [1,2,3] for input "1,2,3"
+     * // Succeeds with [42] for input "42"
+     * // Fails for input "" (empty input)
+     * // Fails for input "," (no elements found)
+     * }</pre>
+     *
+     * @param sep   the parser that recognizes the separator between elements
+     * @param <SEP> the type of the separator parse result (which is discarded)
+     * @return a parser that parses one or more elements separated by the given separator
+     * @throws IllegalArgumentException if the separator parser is null
+     * @see #separatedByZeroOrMany(Parser) for a version that allows empty sequences
+     * @see #many() for collecting repeated elements without separators
+     * @see #repeat(int, int) for collecting a specific range of elements
+     */
+    public <SEP> Parser<I, FList<A>> separatedByMany(Parser<I, SEP> sep) {
+        return this.then(sep.skipThen(this).zeroOrMany()).map(a -> l -> l.prepend(a));
+    }
+
+    /**
+     * Initializes a parser reference with another parser's behavior.
+     * <p>
+     * The {@code set} method initializes a parser reference created by {@link #ref()} with the
+     * parsing behavior of another parser. This is a key component in creating recursive parsers
+     * that can reference themselves or contain mutual references. The method works as follows:
+     * <ol>
+     *   <li>Takes an already-constructed parser that defines the desired parsing behavior</li>
+     *   <li>Transfers that parser's apply handler to this parser reference</li>
+     *   <li>Can only be called once on a given parser reference</li>
+     * </ol>
+     * <p>
+     * This method is primarily used in conjunction with {@link #ref()} to create parsers for
+     * recursive grammar structures. It solves the initialization problem for recursive definitions
+     * by allowing forward references to parsers whose complete definitions depend on themselves.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Thread-safe with synchronized access to prevent concurrent initialization</li>
+     *   <li>Throws an exception if the parser is already initialized</li>
+     *   <li>Only transfers the apply handler function, not any other properties</li>
+     *   <li>Must be called before the reference parser is used for parsing</li>
+     * </ul>
+     * <p>
+     * Example usage for recursive JSON-like parser:
+     * <pre>{@code
+     * // Create a forward reference for a JSON value parser
+     * Parser<Character, Object> jsonValue = Parser.ref();
+     *
+     * // Define parsers for different JSON types
+     * Parser<Character, String> jsonString = stringLiteral;
+     * Parser<Character, Integer> jsonNumber = intr;
+     * Parser<Character, Boolean> jsonBoolean = string("true").as(true).or(string("false").as(false));
+     * Parser<Character, Object> jsonNull = string("null").as(null);
+     *
+     * // Define array parser using the value reference
+     * Parser<Character, List<Object>> jsonArray =
+     *     jsonValue.separatedByZeroOrMany(chr(',')).between('[', ']');
+     *
+     * // Define object parser using the value reference
+     * Parser<Character, Map<String, Object>> jsonObject =
+     *     jsonString.skipThen(chr(':')).then(jsonValue)
+     *         .map((key, val) -> Map.entry(key, val))
+     *         .separatedByZeroOrMany(chr(','))
+     *         .between('{', '}')
+     *         .map(entries -> {
+     *             Map<String, Object> map = new HashMap<>();
+     *             entries.forEach(e -> map.put(e.getKey(), e.getValue()));
+     *             return map;
+     *         });
+     *
+     * // Finally, initialize the value parser with all possible JSON value types
+     * jsonValue.set(jsonString.or(jsonNumber).or(jsonBoolean).or(jsonNull).or(jsonArray).or(jsonObject));
+     * }</pre>
+     *
+     * @param parser the parser whose behavior should be used to initialize this reference
+     * @throws IllegalArgumentException if the parser parameter is null
+     * @throws IllegalStateException    if this parser has already been initialized
+     * @see #ref() for creating an uninitialized parser reference
+     * @see #set(Function) for initializing with a custom apply handler
+     */
+    public synchronized void set(Parser<I, A> parser) {
+        if (parser == null) {
+            throw new IllegalArgumentException("parser cannot be null");
+        }
+        if (this.applyHandler != defaultApplyHandler) {
+            throw new IllegalStateException("Parser already has an applyHandler");
+        }
+        this.applyHandler = parser.applyHandler;
+    }
+
+    /**
+     * Initializes a parser reference with a custom apply handler function.
+     * <p>
+     * The {@code set} method initializes a parser reference created by {@link #ref()} with a
+     * custom function that defines the parsing behavior. This provides more control than
+     * {@link #set(Parser)} by allowing direct specification of the parsing logic. The method
+     * works as follows:
+     * <ol>
+     *   <li>Takes a function that defines how the parser should process input</li>
+     *   <li>Sets this function as the parser's apply handler</li>
+     *   <li>Can only be called once on a given parser reference</li>
+     * </ol>
+     * <p>
+     * This method is primarily used for creating advanced recursive parsers where more control
+     * is needed over the parsing behavior than simply using an existing parser. It provides
+     * direct access to the core parsing mechanism for implementing custom parser logic.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Thread-safe with synchronized access to prevent concurrent initialization</li>
+     *   <li>Throws an exception if the parser is already initialized</li>
+     *   <li>The apply handler function should handle input appropriately and return valid results</li>
+     *   <li>Must be called before the reference parser is used for parsing</li>
+     * </ul>
+     * <p>
+     * Example usage for a custom recursive parser:
+     * <pre>{@code
+     * // Create a forward reference for an expression parser
+     * Parser<Character, Integer> expr = Parser.ref();
+     *
+     * // Define parsers for basic components
+     * Parser<Character, Integer> number = intr;
+     * Parser<Character, Character> plus = chr('+');
+     * Parser<Character, Character> openParen = chr('(');
+     * Parser<Character, Character> closeParen = chr(')');
+     *
+     * // Define a custom apply handler for the expression parser
+     * expr.set(input -> {
+     *     // First try to parse a number
+     *     Result<Character, Integer> numResult = number.apply(input);
+     *     if (numResult.isSuccess()) {
+     *         return numResult;
+     *     }
+     *
+     *     // Then try to parse a parenthesized expression
+     *     if (input.atEnd() || input.get() != '(') {
+     *         return Result.failure("Expected number or expression", input);
+     *     }
+     *
+     *     // Parse: (expr + expr)
+     *     Input<Character> afterOpen = input.advance(1);
+     *     Result<Character, Integer> leftResult = expr.apply(afterOpen);
+     *     if (!leftResult.isSuccess()) {
+     *         return leftResult;
+     *     }
+     *
+     *     Result<Character, Character> opResult = plus.apply(leftResult.getRemaining());
+     *     if (!opResult.isSuccess()) {
+     *         return Result.failure("Expected '+'", leftResult.getRemaining());
+     *     }
+     *
+     *     Result<Character, Integer> rightResult = expr.apply(opResult.getRemaining());
+     *     if (!rightResult.isSuccess()) {
+     *         return rightResult;
+     *     }
+     *
+     *     Result<Character, Character> closeResult = closeParen.apply(rightResult.getRemaining());
+     *     if (!closeResult.isSuccess()) {
+     *         return Result.failure("Expected ')'", rightResult.getRemaining());
+     *     }
+     *
+     *     int result = leftResult.getValue() + rightResult.getValue();
+     *     return Result.success(result, closeResult.getRemaining());
+     * });
+     *
+     * // Now expr can parse recursive expressions like "5" or "(1+2)" or "((1+2)+3)"
+     * }</pre>
+     *
+     * @param applyHandler the function that defines the parser's behavior
+     * @throws IllegalArgumentException if the applyHandler is null
+     * @throws IllegalStateException    if this parser has already been initialized
+     * @see #ref() for creating an uninitialized parser reference
+     * @see #set(Parser) for initializing with another parser's behavior
+     * @see Result for the result type that should be returned by the apply handler
+     * @see Input for the input type that will be provided to the apply handler
+     */
+    public synchronized void set(Function<Input<I>, Result<I, A>> applyHandler) {
+        if (applyHandler == null) {
+            throw new IllegalArgumentException("applyHandler cannot be null");
+        }
+        if (this.applyHandler != defaultApplyHandler) {
+            throw new IllegalStateException("Parser already has an applyHandler");
+        }
+        this.applyHandler = applyHandler;
+    }
+
+    /**
+     * Creates a parser that repeatedly applies this parser as long as the condition evaluates to true.
+     * <p>
+     * This parser will:
+     * <ul>
+     *   <li>Check if the condition is true for the current input position</li>
+     *   <li>If true, apply this parser and collect the result</li>
+     *   <li>Continue until either the condition becomes false, parsing fails, or input is exhausted</li>
+     *   <li>Return all collected results as an FList</li>
+     * </ul>
+     * <p>
+     * Unlike {@link #zeroOrMany()}, this parser uses a separate condition parser to determine
+     * when to stop collecting items rather than relying on parse failures. This allows for more
+     * flexible parsing based on lookahead or contextual conditions.
+     * <p>
+     * The implementation includes a check to prevent infinite loops in cases where the parser
+     * succeeds but doesn't advance the input position.
+     *
+     * @param condition a parser that returns a boolean indicating whether to continue collecting
+     * @return a parser that collects elements while the condition is true
+     * @throws IllegalArgumentException if the condition parser is null
+     */
+    public Parser<I, FList<A>> takeWhile(Parser<I, Boolean> condition) {
+        if (condition == null) {
+            throw new IllegalArgumentException("Condition parser cannot be null");
+        }
+
+        return new NoCheckParser<>(in -> {
+            FList<A> results = new FList<>();
+            Input<I> currentInput = in;
+
+            while (!currentInput.isEof()) {
+                // Check if the condition is met
+                Result<I, Boolean> conditionResult = condition.apply(currentInput);
+                if (conditionResult.isError() || !conditionResult.get()) {
+                    // Condition not met, stop collecting
+                    return Result.success(currentInput, results);
+                }
+
+                // Store the current position to check for advancement
+                int currentPosition = currentInput.position();
+
+                // Condition met, try to parse an element
+                Result<I, A> elementResult = this.apply(currentInput);
+                if (elementResult.isError()) {
+                    // Failed to parse an element, stop collecting
+                    return Result.success(currentInput, results);
+                }
+
+                // Add parsed element to results
+                results = results.append(elementResult.get());
+                currentInput = elementResult.next();
+
+                // Check if we've advanced the position - if not, break to avoid infinite loop
+                if (currentInput.position() == currentPosition) {
+                    return Result.success(currentInput, results);
+                }
+            }
+
+            // Reached end of input
+            return Result.success(currentInput, results);
+        });
+    }
+
+    /**
+     * Creates a parser that skips whitespace characters before and after applying this parser.
+     * <p>
+     * The {@code trim} method provides a convenient way to handle whitespace in parsers,
+     * especially useful when parsing formats where whitespace is insignificant. The parsing
+     * process works as follows:
+     * <ol>
+     *   <li>Skips all leading whitespace characters from the current input position</li>
+     *   <li>Applies this parser to the whitespace-trimmed input</li>
+     *   <li>If this parser succeeds, skips all trailing whitespace characters after the result</li>
+     *   <li>Returns the original parser's result with the input position advanced past any trailing whitespace</li>
+     * </ol>
+     * <p>
+     * Important implementation details:
+     * <ul>
+     *   <li>Whitespace is determined using Java's {@link Character#isWhitespace(char)} method</li>
+     *   <li>Trimming only occurs when the input elements are of type {@code Character}</li>
+     *   <li>If the original parser fails, the failure is returned without attempting to skip trailing whitespace</li>
+     *   <li>The parser result value remains unchanged; only the input position is affected</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse an integer, ignoring surrounding whitespace
+     * Parser<Character, Integer> parser = intr.trim();
+     *
+     * // Succeeds with 42 for input "42"
+     * // Succeeds with 42 for input "  42  "
+     * // Succeeds with 42 for input "\t42\n"
+     * }</pre>
+     *
+     * @return a new parser that skips whitespace before and after applying this parser
+     * @see Character#isWhitespace(char) for the definition of whitespace characters
+     */
+    public Parser<I, A> trim() {
+        return new Parser<>(in -> {
+            Input<I> trimmedInput = skipWhitespace(in);
+            Result<I, A> result = this.apply(trimmedInput);
+            if (result.isSuccess()) {
+                trimmedInput = skipWhitespace(result.next());
+                return Result.success(trimmedInput, result.get());
+            }
+            return result;
+        });
+    }
+
+    private Input<I> skipWhitespace(Input<I> in) {
+        while (!in.isEof() && in.current() instanceof Character ch && Character.isWhitespace(ch)) {
+            in = in.next();
+        }
+        return in;
+    }
+
+    /**
+     * Creates a parser that applies this parser zero or more times until a terminator parser succeeds,
+     * collecting all successful results into a list.
+     * <p>
+     * This method is a variant of {@link #zeroOrMany()} that stops collection when a specific
+     * terminating pattern is found rather than when this parser fails. The parsing process works as follows:
+     * <ol>
+     *   <li>At each position, first check if the terminator parser succeeds</li>
+     *   <li>If the terminator succeeds, stop collecting and return the results collected so far</li>
+     *   <li>If the terminator fails, attempt to apply this parser</li>
+     *   <li>If this parser succeeds, add the result to the collection and advance the input position</li>
+     *   <li>If this parser fails, return all results collected so far</li>
+     *   <li>Repeat until either the terminator succeeds or end of input is reached</li>
+     * </ol>
+     * <p>
+     * Important implementation details:
+     * <ul>
+     *   <li>The terminator parser is consumed when found (its input position advances)</li>
+     *   <li>This parser always succeeds, even with empty input or when no elements match</li>
+     *   <li>If this parser fails on the first attempt, an empty list is returned</li>
+     *   <li>The parser checks for infinite loops by ensuring input position advances</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse a comma-separated list of numbers terminated by a semicolon
+     * Parser<Character, Character> digit = chr(Character::isDigit);
+     * Parser<Character, Character> comma = chr(',');
+     * Parser<Character, Character> semicolon = chr(';');
+     *
+     * // Collect digits until semicolon is found
+     * Parser<Character, FList<Character>> digitList = digit.zeroOrManyUntil(semicolon);
+     *
+     * // Succeeds with [1,2,3] for input "123;" (consuming all input including semicolon)
+     * // Succeeds with [] for input ";" (consuming only the semicolon)
+     * // Succeeds with [1,2,3] for input "123" (consuming all input, no semicolon found)
+     * }</pre>
+     *
+     * @param terminator the parser that signals when to stop collecting elements
+     * @return a parser that applies this parser zero or more times until the terminator succeeds
+     * @throws IllegalArgumentException if the terminator parameter is null
+     * @see #manyUntil(Parser) for a version that requires at least one match
+     * @see #zeroOrMany() for a version that collects until this parser fails
+     */
+    public Parser<I, FList<A>> zeroOrManyUntil(Parser<I, ?> terminator) {
+        return repeatInternal(0, Integer.MAX_VALUE, terminator);
     }
 
     private Parser<I, FList<A>> repeatInternal(int min, int max, Parser<I, ?> terminator) {
@@ -1885,153 +1800,136 @@ public class Parser<I, A> {
             }
         });
     }
+    protected static final String INFINITE_LOOP_ERROR = "Infinite loop detected";
+    private final ThreadLocal<IntObjectMap<Object>> contextLocal = ThreadLocal.withInitial(IntObjectMap::new);
+    protected Function<Input<I>, Result<I, A>> applyHandler;
+    /**
+     * A default apply handler that throws an exception if the parser is not initialized.
+     */
+    private Function<Input<I>, Result<I, A>> defaultApplyHandler;
 
     /**
-     * Creates a parser that parses a potentially empty sequence of elements separated by a delimiter.
+     * Private constructor to create a parser reference that can be initialized later.
+     */
+    private Parser() {
+        this.applyHandler = defaultApplyHandler = in -> {
+            throw new IllegalStateException("Parser not initialized");
+        };
+    }
+
+    /**
+     * Creates a new parser with the specified apply handler function.
      * <p>
-     * The {@code separatedByZeroOrMany} method creates a parser that matches elements using this parser,
-     * with each element separated by the specified separator parser. The parsing process works as follows:
+     * The {@code Parser} constructor creates a parser that uses the provided function to process input and
+     * produce results. The apply handler is the core parsing function that defines how this parser
+     * transforms input into parsed results. The function works as follows:
      * <ol>
-     *   <li>Attempts to parse a first element using this parser</li>
-     *   <li>If the first element is found, then repeatedly tries to parse a separator followed by another element</li>
-     *   <li>Collects all parsed elements (ignoring separators) into an {@code FList}</li>
-     *   <li>Returns an empty list if no elements are found (unlike {@link #separatedByMany(Parser)} which requires at least one element)</li>
+     *   <li>Receives an {@link Input} object representing the current parsing state</li>
+     *   <li>Processes the input according to the parser's grammar rules</li>
+     *   <li>Returns a {@link Result} object containing either a successful parse result or an error</li>
      * </ol>
      * <p>
-     * This method is particularly useful for parsing common data formats like comma-separated lists,
-     * space-delimited tokens, or any syntax that involves items separated by delimiters, where empty
-     * collections are valid. Examples include empty parameter lists, empty arrays, or optional sequences.
+     * This constructor is the primary way to create custom parsers with specific parsing logic. Most users
+     * will not need to use this constructor directly, instead using combinators and factory methods to
+     * build parsers from simpler components.
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>Builds on {@link #separatedByMany(Parser)} but succeeds even when no elements are found</li>
-     *   <li>Only the elements are collected; separator values are discarded</li>
-     *   <li>Always succeeds, returning an empty list if no elements match</li>
-     *   <li>The input position remains unchanged if no elements are found</li>
+     *   <li>The apply handler should return a successful result with the parsed value if parsing succeeds</li>
+     *   <li>The apply handler should return a failure result with an error message if parsing fails</li>
+     *   <li>The apply handler is responsible for properly advancing the input position on success</li>
+     *   <li>Thread safety is maintained as parsers are immutable after construction</li>
      * </ul>
      * <p>
      * Example usage:
      * <pre>{@code
-     * // Parse a comma-separated list of numbers, allowing empty lists
-     * Parser<Character, Integer> number = intr;
-     * Parser<Character, Character> comma = chr(',');
-     * Parser<Character, FList<Integer>> optionalList = number.separatedByZeroOrMany(comma);
+     * // Create a custom parser that recognizes a specific pattern
+     * Parser<Character, String> customParser = new Parser<>(input -> {
+     *     if (input.atEnd()) {
+     *         return Result.failure("Unexpected end of input", input);
+     *     }
      *
-     * // Succeeds with [1,2,3] for input "1,2,3"
-     * // Succeeds with [] for input "" (empty list)
-     * // Succeeds with [42] for input "42"
-     * // Succeeds with [] for input ";" (empty list, no input consumed)
+     *     // Check for a specific pattern
+     *     if (input.get() == 'a' && input.get(1) == 'b') {
+     *         return Result.success("ab", input.advance(2));
+     *     }
+     *
+     *     return Result.failure("Expected 'ab'", input);
+     * });
      * }</pre>
      *
-     * @param sep the parser that recognizes the separator between elements
-     * @param <SEP> the type of the separator parse result (which is discarded)
-     * @return a parser that parses zero or more elements separated by the given separator
-     * @throws IllegalArgumentException if the separator parser is null
-     * @see #separatedByMany(Parser) for a version that requires at least one element
-     * @see #zeroOrMany() for collecting repeated elements without separators
-     * @see #repeat(int, int) for collecting a specific range of elements
+     * @param applyHandler the function that defines this parser's behavior
+     * @throws IllegalArgumentException if the applyHandler is null
+     * @see #apply(Input) for the method that uses this handler to parse input
+     * @see Result for the result type returned by the apply handler
+     * @see Input for the input type consumed by the apply handler
      */
-    public <SEP> Parser<I, FList<A>> separatedByZeroOrMany(Parser<I, SEP> sep) {
-        return this.separatedByMany(sep).map(l -> l).or(pure(new FList<>()));
+    public Parser(Function<Input<I>, Result<I, A>> applyHandler) {
+        if (applyHandler == null) {
+            throw new IllegalArgumentException("applyHandler cannot be null");
+        }
+        this.applyHandler = applyHandler;
     }
 
     /**
-     * Creates a parser that parses a non-empty sequence of elements separated by a delimiter.
+     * Creates a reference to a parser that can be initialized later, enabling recursive grammar definitions.
      * <p>
-     * The {@code separatedByMany} method creates a parser that matches elements using this parser,
-     * with each element separated by the specified separator parser. The parsing process works as follows:
+     * The {@code ref} method addresses the challenge of defining recursive parsers by creating a
+     * placeholder parser that can be initialized after its creation. This allows for handling
+     * self-referential grammar rules that would otherwise cause initialization issues. The process
+     * works as follows:
      * <ol>
-     *   <li>First parses an initial element using this parser (required)</li>
-     *   <li>Then repeatedly tries to parse a separator followed by another element</li>
-     *   <li>Collects all parsed elements (ignoring separators) into an {@code FList}</li>
-     *   <li>Succeeds only if at least one element is found</li>
+     *   <li>Create a parser reference using {@code ref()}</li>
+     *   <li>Use this reference in other parser definitions as needed</li>
+     *   <li>Later, initialize the reference using {@link #set(Parser)} or {@link #set(Function)}</li>
      * </ol>
      * <p>
-     * This method is particularly useful for parsing common data formats like comma-separated lists,
-     * space-delimited tokens, or any syntax that requires at least one element with optional additional
-     * elements separated by delimiters. Examples include non-empty parameter lists, argument sequences,
-     * or any collection that must contain at least one item.
+     * This technique is essential for parsing recursive structures such as:
+     * <ul>
+     *   <li>Nested expressions (e.g., arithmetic expressions with parentheses)</li>
+     *   <li>Recursive data structures (e.g., JSON objects containing other JSON objects)</li>
+     *   <li>Self-referential grammar rules (e.g., a term that can contain other terms)</li>
+     * </ul>
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>The first element is parsed with this parser</li>
-     *   <li>Subsequent elements are parsed as pairs of separator followed by element</li>
-     *   <li>Only the elements are collected; separator values are discarded</li>
-     *   <li>Fails if no elements can be parsed</li>
-     *   <li>The input position is advanced after each successful match</li>
+     *   <li>Creates a parser with a default handler that throws an exception if used before initialization</li>
+     *   <li>Must be initialized with {@link #set(Parser)} or {@link #set(Function)} before use</li>
+     *   <li>Thread-safe, allowing for concurrent parser creation and initialization</li>
+     *   <li>Cannot be reinitialized after being set once</li>
      * </ul>
      * <p>
-     * Example usage:
+     * Example usage for parsing nested arithmetic expressions:
      * <pre>{@code
-     * // Parse a comma-separated list of numbers, requiring at least one number
-     * Parser<Character, Integer> number = intr;
-     * Parser<Character, Character> comma = chr(',');
-     * Parser<Character, FList<Integer>> numberList = number.separatedByMany(comma);
+     * // Create a forward reference for an expression parser
+     * Parser<Character, Integer> expr = Parser.ref();
      *
-     * // Succeeds with [1,2,3] for input "1,2,3"
-     * // Succeeds with [42] for input "42"
-     * // Fails for input "" (empty input)
-     * // Fails for input "," (no elements found)
+     * // Define a parser for simple numbers
+     * Parser<Character, Integer> number = intr;
+     *
+     * // Define a parser for parenthesized expressions using the reference
+     * Parser<Character, Integer> parens = expr.between('(', ')');
+     *
+     * // Define operators
+     * Parser<Character, BinaryOperator<Integer>> addOp =
+     *     chr('+').as((a, b) -> a + b);
+     *
+     * // Now initialize the expression parser with a definition that references itself
+     * expr.set(number.or(parens).chainLeftMany(addOp));
+     *
+     * // Can now parse recursive expressions like "1+(2+3)"
      * }</pre>
      *
-     * @param sep the parser that recognizes the separator between elements
-     * @param <SEP> the type of the separator parse result (which is discarded)
-     * @return a parser that parses one or more elements separated by the given separator
-     * @throws IllegalArgumentException if the separator parser is null
-     * @see #separatedByZeroOrMany(Parser) for a version that allows empty sequences
-     * @see #many() for collecting repeated elements without separators
-     * @see #repeat(int, int) for collecting a specific range of elements
+     * @param <I> the type of the input symbols
+     * @param <A> the type of the parsed value
+     * @return a new uninitialized parser reference
+     * @throws IllegalStateException if the parser is used before being initialized
+     * @see #set(Parser) for initializing the parser reference with another parser
+     * @see #set(Function) for initializing the parser reference with an apply handler
      */
-    public <SEP> Parser<I, FList<A>> separatedByMany(Parser<I, SEP> sep) {
-        return this.then(sep.skipThen(this).zeroOrMany()).map(a -> l -> l.prepend(a));
+    public static <I, A> Parser<I, A> ref() {
+        return new Parser<>();
     }
 
-    /**
-     * Creates a parser that always succeeds, optionally containing this parser's result.
-     * <p>
-     * The {@code optional} method creates a parser that attempts to apply this parser, but always
-     * succeeds regardless of the result. The parsing process works as follows:
-     * <ol>
-     *   <li>First attempts to apply this parser to the input</li>
-     *   <li>If this parser succeeds, its result is wrapped in a non-empty {@link Optional}</li>
-     *   <li>If this parser fails, an empty {@link Optional} is returned without consuming any input</li>
-     * </ol>
-     * <p>
-     * This method is particularly useful for parsing optional elements in a grammar, such as optional
-     * parameters, modifiers, or any syntax structures that may or may not be present. It provides
-     * a convenient way to handle the presence or absence of elements without disrupting the overall
-     * parsing flow.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Combines {@link #map(Function)} with {@link #orElse(Object)} to achieve the optional behavior</li>
-     *   <li>Always succeeds, never causing parsing failure</li>
-     *   <li>No input is consumed when the parser fails</li>
-     *   <li>The result type is transformed from {@code A} to {@code Optional<A>}</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse an optional minus sign followed by a number
-     * Parser<Character, Character> minus = chr('-');
-     * Parser<Character, Optional<Character>> optionalMinus = minus.optional();
-     * Parser<Character, Integer> number = intr;
-     *
-     * // Combine to parse signed numbers
-     * Parser<Character, Integer> signedNumber = optionalMinus.then(number)
-     *     .map(sign -> num -> sign.isPresent() ? -num : num);
-     *
-     * // Succeeds with 42 for input "42"
-     * // Succeeds with -42 for input "-42"
-     * // Fails for input "abc" (no number found)
-     * }</pre>
-     *
-     * @return a parser that always succeeds, returning either an Optional containing this
-     *         parser's result or an empty Optional
-     * @see #orElse(Object) for providing a default value instead of an Optional
-     * @see #zeroOrMany() for collecting zero or more occurrences of a pattern
-     */
-    public Parser<I, Optional<A>> optional() {
-        return this.map(Optional::of).orElse(Optional.empty());
-    }
+
 }

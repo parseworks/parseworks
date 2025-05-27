@@ -39,6 +39,38 @@ public class ParserTest {
     }
 
     @Test
+    public void testBetweenSameBracket() {
+        // Create a parser for content (letters)
+        Parser<Character, String> content = chr(Character::isLetter).many().map(chars -> {
+            StringBuilder sb = new StringBuilder();
+            for (var c : chars) {
+                sb.append(c);
+            }
+            return sb.toString();
+        });
+
+        // Create a parser that parses content between matching quote characters
+        Parser<Character, String> quotedParser = content.between('"');
+
+        // Test with properly quoted input
+        String test = "hello";
+        Result<Character, String> result = quotedParser.parse("\"" + test + "\"");
+
+        assertTrue(result.isSuccess());
+        assertEquals(test, result.get());
+
+        // Test with mismatched or missing quotes
+        Result<Character, String> resultMissingClosing = quotedParser.parse("\"" + test);
+        assertTrue(resultMissingClosing.isError());
+
+        Result<Character, String> resultMissingOpening = quotedParser.parse(test + "\"");
+        assertTrue(resultMissingOpening.isError());
+
+        Result<Character, String> resultNoQuotes = quotedParser.parse(test);
+        assertTrue(resultNoQuotes.isError());
+    }
+
+    @Test
     public void testBetweenWithParsers() {
         Parser<Character, Character> open = chr('[');
         Parser<Character, Character> close = chr(']');
@@ -241,7 +273,7 @@ public class ParserTest {
             return sb.toString();
         });
         String test = "example";
-        Parser<Character, String> parser = content.between('[', ']');
+        Parser<Character, String> parser = content.between(open, close);
         Input<Character> input = Input.of("[" + test + "]");
         Result<Character, String> result = parser.parse(input);
         assertTrue(result.isSuccess());
