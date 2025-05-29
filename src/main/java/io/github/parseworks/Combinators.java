@@ -198,10 +198,62 @@ public class Combinators {
 
     /**
      * Creates a parser that always fails with a generic error message.
+     * <p>
+     * The {@code fail()} method creates a parser that unconditionally fails regardless of the input.
+     * This parser is useful as a base case in recursive parsers, for indicating impossible branches
+     * in parser combinators, or as a placeholder during development. The parsing process is simple:
+     * <ol>
+     *   <li>The parser immediately returns a failure result</li>
+     *   <li>The failure contains a generic "to fail" error message</li>
+     *   <li>The input position remains unchanged (no input is consumed)</li>
+     * </ol>
+     * <p>
+     * Key features:
+     * <ul>
+     *   <li>Always fails without examining the input</li>
+     *   <li>Never consumes any input elements</li>
+     *   <li>Returns the original input position in the failure result</li>
+     *   <li>Provides a generic failure message</li>
+     * </ul>
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Creates a {@link NoCheckParser} that always returns a failure result</li>
+     *   <li>Preserves the input state, allowing for recovery with {@link Parser#or}</li>
+     *   <li>Uses the simple message "to fail" as the expected value in the error</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Create a parser with a fallback
+     * Parser<Character, String> fallbackParser = fail().or(string("default"));
+     * fallbackParser.parse("default").get();  // Returns "default"
+     *
+     * // Use in conditional parsing
+     * Parser<Character, String> conditional = input -> {
+     *     if (someCondition) {
+     *         return actualParser.apply(input);
+     *     } else {
+     *         return fail().apply(input);
+     *     }
+     * };
+     *
+     * // As a base case in recursive descent
+     * Parser<Character, Integer> expr = Parser.lazy(() ->
+     *     number.or(parens).or(fail()));
+     *
+     * // As a placeholder during development
+     * Parser<Character, User> parseUser = regex("[a-zA-Z]+").map(name -> {
+     *     // Not yet implemented
+     *     return fail().apply(input).cast();
+     * });
+     * }</pre>
      *
      * @param <I> the type of the input symbols
      * @param <A> the type of the parsed value
      * @return a parser that always fails
+     * @see #throwError(Supplier) for throwing exceptions instead of returning failure
+     * @see Parser#or(Parser) for providing alternatives when a parser fails
      */
     public static <I, A> Parser<I, A> fail() {
         return new NoCheckParser<>(in -> Result.failure(in, "to fail"));
@@ -319,6 +371,46 @@ public class Combinators {
         );
     }
 
+    /**
+     * Creates a parser that tries each of the provided parsers in order and succeeds with the first one that matches.
+     * <p>
+     * The {@code oneOf} combinator implements ordered choice: it attempts to apply each parser in the given
+     * array to the input, starting from the first. If a parser succeeds, its result is returned and no further
+     * parsers are tried. If a parser fails, the next parser is tried with the original input (no input is consumed
+     * on failure). If all parsers fail, the resulting parser fails.
+     * <p>
+     * This method is useful for matching input against multiple possible patterns, such as keywords, operators,
+     * or alternative syntactic forms.
+     * <p>
+     * <b>Behavior:</b>
+     * <ul>
+     *   <li>Parsers are tried in the order they are provided.</li>
+     *   <li>On the first success, parsing stops and the result is returned.</li>
+     *   <li>If all parsers fail, the composite parser fails with a generic "one of" error message.</li>
+     *   <li>No input is consumed unless a parser succeeds.</li>
+     *   <li>If the input is at EOF, the parser fails immediately.</li>
+     * </ul>
+     * <p>
+     * <b>Example usage:</b>
+     * <pre>{@code
+     * // Parse either "yes", "no", or "maybe"
+     * Parser<Character, String> answer = oneOf(
+     *     string("yes"),
+     *     string("no"),
+     *     string("maybe")
+     * );
+     *
+     * // Succeeds for input "yes", "no", or "maybe"
+     * // Fails for any other input
+     * }</pre>
+     *
+     * @param parsers the parsers to try in order
+     * @param <I>     the type of input elements
+     * @param <A>     the type of values produced by the parsers
+     * @return a parser that tries each parser in order and succeeds with the first successful result
+     * @see #oneOf(List) for a version that takes a list of parsers
+     * @see Parser#or(Parser) for binary choice between two parsers
+     */
     @SafeVarargs
     public static <I, A> Parser<I, A> oneOf(Parser<I, A>... parsers) {
         return new NoCheckParser<>(in -> {
@@ -510,7 +602,7 @@ public class Combinators {
      *
      * // Parse punctuated list items
      * Parser<Character, List<String>> commaSeparated =
-     *     word.sepBy(chr(','));
+     *     word.separatedByMany(chr(','));
      * }</pre>
      *
      * @param c the specific character to match

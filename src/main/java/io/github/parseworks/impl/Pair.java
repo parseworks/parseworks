@@ -1,4 +1,4 @@
-package io.github.parseworks;
+package io.github.parseworks.impl;
 
 /**
  * The `Pair` class represents a tuple of two elements.

@@ -1,6 +1,7 @@
 package io.github.parseworks;
 
 import io.github.parseworks.impl.IntObjectMap;
+import io.github.parseworks.impl.Pair;
 import io.github.parseworks.impl.parser.NoCheckParser;
 
 import java.util.ArrayList;
