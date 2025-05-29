@@ -20,7 +20,6 @@ public class Combinators {
     private Combinators() {
     }
 
-
     /**
      * Creates a parser that accepts any single input element.
      * <p>
@@ -61,7 +60,7 @@ public class Combinators {
      * @return a parser that accepts any single input element
      */
     public static <I> Parser<I, I> any() {
-        return new Parser<>(input -> {
+        return new NoCheckParser<>(input -> {
             if (input.isEof()) {
                 return Result.failure(input, "not end of file", "eof");
             } else {
@@ -711,11 +710,25 @@ public class Combinators {
     }
 
     /**
-     * Creates a parser that matches input against a regular expression pattern.
+     * Creates a parser that matches input against a regular expression pattern with specified flags.
      * <p>
      * The {@code regex()} method creates a parser that incrementally matches characters from the input
-     * stream against the provided regular expression pattern. This parser handles both start (^) and
-     * end ($) anchors appropriately in the context of streaming input.
+     * stream against the provided regular expression pattern, using the specified Pattern flags.
+     * This parser handles both start (^) and end ($) anchors appropriately in the context of streaming input.
+     * <p>
+     * Valid flag values from {@link Pattern} include:
+     * <ul>
+     *   <li>{@link Pattern#CASE_INSENSITIVE} - Case-insensitive matching</li>
+     *   <li>{@link Pattern#MULTILINE} - Multiline mode, affects ^ and $ behavior</li>
+     *   <li>{@link Pattern#DOTALL} - Dot matches all characters including line terminators</li>
+     *   <li>{@link Pattern#UNICODE_CASE} - Unicode-aware case folding</li>
+     *   <li>{@link Pattern#CANON_EQ} - Canonical equivalence</li>
+     *   <li>{@link Pattern#LITERAL} - Treat pattern as a literal string</li>
+     *   <li>{@link Pattern#UNICODE_CHARACTER_CLASS} - Unicode character classes</li>
+     *   <li>{@link Pattern#COMMENTS} - Permits whitespace and comments in pattern</li>
+     * </ul>
+     * <p>
+     * Multiple flags can be combined using the bitwise OR operator (|).
      * <p>
      * Key features:
      * <ul>
@@ -725,41 +738,32 @@ public class Combinators {
      *   <li>Properly respects end anchors ($) by only accepting matches at the end of input</li>
      *   <li>For non-anchored patterns, returns the longest valid match</li>
      *   <li>Efficiently handles streaming input by using {@link Matcher#hitEnd()} for optimization</li>
-     *   <li>Special case handling for empty input</li>
-     * </ul>
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses {@link Matcher#lookingAt()} to ensure matches start at the beginning of the buffer</li>
-     *   <li>Uses a maximum look-ahead limit (1000 characters) for safety</li>
-     *   <li>Compiled with {@link Pattern#DOTALL} and {@link Pattern#UNICODE_CHARACTER_CLASS} flags</li>
      * </ul>
      * <p>
      * Example usage:
      * <pre>{@code
-     * // Basic word parser
-     * Parser<Character, String> word = regex("[a-zA-Z]+");
-     * word.parse("Hello").get();  // Returns "Hello"
-     * word.parse("Hello123").get();  // Returns "Hello"
+     * // Case-insensitive word parser
+     * Parser<Character, String> caseInsensitiveWord = regex("[a-z]+", Pattern.CASE_INSENSITIVE);
+     * caseInsensitiveWord.parse("Hello").get();  // Returns "Hello"
      *
-     * // Pattern with end anchor - only matches at end of input
-     * Parser<Character, String> complete = regex("\\d+$");
-     * complete.parse("123").isSuccess();  // true
-     * complete.parse("123abc").isSuccess();  // false, digits not at end
+     * // Multiline regex with DOTALL flag
+     * Parser<Character, String> multiline = regex(".*end", Pattern.DOTALL);
+     * multiline.parse("line1\nline2\nend").get();  // Returns "line1\nline2\nend"
      *
-     * // Email address parser
-     * Parser<Character, String> email = regex("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
-     * email.parse("user@example.com").get();  // Returns "user@example.com"
+     * // Combined flags
+     * Parser<Character, String> complex = regex("# match digits\n\\d+",
+     *     Pattern.COMMENTS | Pattern.UNICODE_CHARACTER_CLASS);
      * }</pre>
      *
      * @param regex the regular expression pattern to match against
-     * @return a parser that matches the input against the given regular expression
-     * @see Pattern for information about Java regular expression syntax
-     * @see #string(String) for exact string matching
+     * @param flags the flags to be used with this pattern, as defined in {@link Pattern}
+     * @return a parser that matches the input against the given regular expression with specified flags
+     * @see Pattern for information about Java regular expression syntax and flag constants
+     * @see #regex(String) for the simpler version with default flags
      */
-    public static Parser<Character, String> regex(String regex) {
+    public static Parser<Character, String> regex(String regex, int flags) {
         boolean hasEndAnchor = regex.endsWith("$") && !regex.endsWith("\\$");
-        Pattern pattern = Pattern.compile(regex, Pattern.DOTALL | Pattern.UNICODE_CHARACTER_CLASS);
+        Pattern pattern = Pattern.compile(regex, flags);
 
         return new Parser<>(in -> {
             // Special case for empty input
@@ -818,5 +822,46 @@ public class Combinators {
             String preview = buffer.length() > 10 ? buffer.substring(0, 10) + "..." : buffer.toString();
             return Result.failure(in, regex, preview);
         });
+    }
+
+    /**
+     * Creates a parser that matches input against a regular expression pattern using default flags.
+     * <p>
+     * This is a convenience method that calls {@link #regex(String, int)} with flags set to 0,
+     * which means no special Pattern flags are enabled. The parser incrementally matches characters
+     * from the input stream against the provided regular expression pattern.
+     * <p>
+     * Key features:
+     * <ul>
+     *   <li>Progressively reads characters one by one, building a buffer</li>
+     *   <li>Attempts matching after each character to support early success/failure</li>
+     *   <li>Properly respects start anchors (^) by only matching from the beginning</li>
+     *   <li>Properly respects end anchors ($) by only accepting matches at the end of input</li>
+     *   <li>For non-anchored patterns, returns the longest valid match</li>
+     *   <li>Efficiently handles streaming input by using {@link Matcher#hitEnd()} for optimization</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse a word (sequence of letters)
+     * Parser<Character, String> wordParser = regex("[a-zA-Z]+");
+     * wordParser.parse("Hello123").get();  // Returns "Hello"
+     *
+     * // Parse an identifier (letters, digits, underscore)
+     * Parser<Character, String> identifier = regex("[a-zA-Z_][a-zA-Z0-9_]*");
+     * identifier.parse("_var123").get();  // Returns "_var123"
+     *
+     * // Parse a number with optional decimal part
+     * Parser<Character, String> number = regex("\\d+(\\.\\d+)?");
+     * number.parse("42.5").get();  // Returns "42.5"
+     * }</pre>
+     *
+     * @param regex the regular expression pattern to match against
+     * @return a parser that matches the input against the given regular expression
+     * @see #regex(String, int) for creating a regex parser with specific flags
+     * @see Pattern for information about Java regular expression syntax
+     */
+    public static Parser<Character, String> regex(String regex) {
+        return regex(regex, 0);
     }
 }
