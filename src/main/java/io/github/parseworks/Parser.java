@@ -774,41 +774,43 @@ public class Parser<I, A> {
 
     /**
      * Creates a parser that applies this parser one or more times until a terminator parser succeeds,
-     * collecting all successful results into a list.
+     * collecting all results into a list.
      * <p>
-     * This method is a variant of {@link #many()} that stops collection when a specific
-     * terminating pattern is found rather than when this parser fails. The parsing process works as follows:
+     * The {@code manyUntil} method combines the behavior of {@link #many()} with a termination condition.
+     * It repeatedly applies this parser until either:
      * <ol>
-     *   <li>At each position, first check if the terminator parser succeeds</li>
-     *   <li>If the terminator succeeds, stop collecting and return the results collected so far</li>
-     *   <li>If the terminator fails, attempt to apply this parser</li>
-     *   <li>If this parser succeeds, add the result to the collection and advance the input position</li>
-     *   <li>If this parser fails before any elements are collected, the entire parser fails</li>
-     *   <li>Repeat until either the terminator succeeds or end of input is reached</li>
+     *   <li>The terminator parser succeeds, indicating the end of the sequence</li>
+     *   <li>This parser fails after at least one successful parse</li>
+     *   <li>The end of input is reached</li>
      * </ol>
      * <p>
-     * Important implementation details:
+     * This method is particularly useful for parsing delimited sequences where the delimiter isn't
+     * part of the elements being collected, such as:
      * <ul>
+     *   <li>Content between opening and closing markers (e.g., string content until a quote)</li>
+     *   <li>Token sequences that end with a specific terminator (e.g., statements until semicolon)</li>
+     *   <li>Sections of input that continue until a boundary marker is reached</li>
+     * </ul>
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>At each position, first checks if the terminator succeeds</li>
+     *   <li>If the terminator succeeds, stops collection and returns results so far</li>
+     *   <li>Requires at least one successful match to succeed (min=1)</li>
      *   <li>The terminator parser is consumed when found (its input position advances)</li>
-     *   <li>This parser requires at least one successful match to succeed</li>
-     *   <li>If this parser fails on the first attempt, the entire parser fails</li>
-     *   <li>The parser checks for infinite loops by ensuring input position advances</li>
+     *   <li>Internally implemented using {@link #repeatInternal(int, int, Parser)}</li>
      * </ul>
      * <p>
      * Example usage:
      * <pre>{@code
-     * // Parse a comma-separated list of numbers terminated by a semicolon
-     * Parser<Character, Integer> number = intr;
-     * Parser<Character, Character> comma = chr(',');
+     * // Parse all characters until a semicolon
+     * Parser<Character, Character> anyChar = any();
      * Parser<Character, Character> semicolon = chr(';');
+     * Parser<Character, FList<Character>> content = anyChar.manyUntil(semicolon);
      *
-     * // Parse a list of numbers until semicolon
-     * Parser<Character, FList<Integer>> numberList =
-     *     number.separatedBy(comma).manyUntil(semicolon);
-     *
-     * // Succeeds with [1,2,3] for input "1,2,3;" (consuming all input including semicolon)
-     * // Fails for input ";" (no numbers found before semicolon)
-     * // Succeeds with [1,2,3] for input "1,2,3" (consuming all input, no semicolon found)
+     * // Succeeds with ['a','b','c'] for input "abc;" (consuming all input including semicolon)
+     * // Fails for input ";" (no characters found before semicolon)
+     * // Fails if no semicolon is found and no characters could be parsed
      * }</pre>
      *
      * @param until the parser that signals when to stop collecting elements
@@ -816,6 +818,7 @@ public class Parser<I, A> {
      * @throws IllegalArgumentException if the until parameter is null
      * @see #zeroOrManyUntil(Parser) for a version that succeeds even with zero matches
      * @see #many() for a version that collects until this parser fails
+     * @see #repeatInternal(int, int, Parser) for the underlying implementation
      */
     public Parser<I, FList<A>> manyUntil(Parser<I, ?> until) {
         return repeatInternal(1, Integer.MAX_VALUE, until);
@@ -1062,9 +1065,37 @@ public class Parser<I, A> {
 
     /**
      * Parses the input and ensures that the entire input is consumed.
+     * <p>
+     * The {@code parseAll} method applies this parser to the given input and verifies
+     * that no unconsumed input remains. It is useful for scenarios where the input
+     * must be fully parsed without leaving any trailing characters.
+     * <p>
+     * The parsing process works as follows:
+     * <ol>
+     *   <li>Applies this parser to the provided input</li>
+     *   <li>If the parser succeeds, checks whether the input has been fully consumed</li>
+     *   <li>If any unconsumed input remains, the method returns a failure result</li>
+     *   <li>If the parser fails or unconsumed input exists, an error is returned</li>
+     * </ol>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse a complete integer from the input
+     * Parser<Character, Integer> intParser = intr;
+     * Input<Character> input = Input.of("123");
+     * Result<Character, Integer> result = intParser.parseAll(input);
+     *
+     * if (result.isSuccess()) {
+     *     Integer value = result.get(); // Successfully parsed value
+     * } else {
+     *     String error = result.getErrorMessage(); // Error message for failure
+     * }
+     * }</pre>
      *
      * @param in the input to parse
-     * @return the result of parsing the input
+     * @return the result of parsing the input, ensuring the entire input is consumed
+     * @see #parse(Input) for parsing without requiring complete input consumption
+     * @see #parse(Input, boolean) for parsing with an explicit consumeAll flag
      */
     public Result<I, A> parseAll(Input<I> in) {
         return parse(in, true);
@@ -1753,7 +1784,50 @@ public class Parser<I, A> {
         return repeatInternal(0, Integer.MAX_VALUE, terminator);
     }
 
-    private Parser<I, FList<A>> repeatInternal(int min, int max, Parser<I, ?> terminator) {
+    /**
+     * Creates a parser that applies this parser a specified number of times, collecting results into a list.
+     * <p>
+     * The {@code repeatInternal} method is a utility for implementing parsers that match a pattern
+     * a minimum and/or maximum number of times. It processes the input as follows:
+     * <ol>
+     *   <li>Attempts to apply this parser repeatedly, starting from the current input position</li>
+     *   <li>Stops when the maximum number of repetitions is reached or the parser fails</li>
+     *   <li>Ensures that at least the minimum number of repetitions is satisfied</li>
+     *   <li>If a terminator parser is provided, stops when the terminator succeeds</li>
+     * </ol>
+     * <p>
+     * This method is used internally by higher-level combinators like {@link #zeroOrMany()},
+     * {@link #many()}, and {@link #manyUntil(Parser)}.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Fails if the minimum number of repetitions is not met</li>
+     *   <li>Consumes input greedily up to the maximum limit or until the terminator succeeds</li>
+     *   <li>Returns a list of all successfully parsed results</li>
+     *   <li>Handles edge cases like zero repetitions or infinite maximum limits</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse exactly 3 digits
+     * Parser<Character, FList<Character>> threeDigits = digit.repeatInternal(3, 3, null);
+     *
+     * // Parse 1 to 5 letters
+     * Parser<Character, FList<Character>> letters = letter.repeatInternal(1, 5, null);
+     *
+     * // Parse digits until a semicolon
+     * Parser<Character, FList<Character>> digitsUntilSemicolon =
+     *     digit.repeatInternal(0, Integer.MAX_VALUE, chr(';'));
+     * }</pre>
+     *
+     * @param min      the minimum number of repetitions (inclusive)
+     * @param max      the maximum number of repetitions (inclusive)
+     * @param until    an optional parser that terminates the repetition when it succeeds
+     * @return a parser that applies this parser the specified number of times
+     * @throws IllegalArgumentException if {@code min} is negative, {@code max} is less than {@code min},
+     *                                   or {@code until} is null when required
+     */
+    private Parser<I, FList<A>> repeatInternal(int min, int max, Parser<I, ?> until) {
         if (min < 0 || max < 0) {
             throw new IllegalArgumentException("The number of repetitions cannot be negative");
         }
@@ -1767,8 +1841,8 @@ public class Parser<I, A> {
 
             while (true) {
                 // Check terminator (for manyUntil)
-                if (terminator != null) {
-                    Result<I, ?> termRes = terminator.apply(current);
+                if (until != null) {
+                    Result<I, ?> termRes = until.apply(current);
                     if (termRes.isSuccess()) {
                         if (count < min) {
                             return Result.failure(current, "Expected at least " + min + " items");
@@ -1778,7 +1852,7 @@ public class Parser<I, A> {
                 }
                 // End-of-input or max reached
                 if (current.isEof() || count >= max) {
-                    if (count >= min && terminator == null) {
+                    if (count >= min && until == null) {
                         return Result.success(current, new FList<>(buffer));
                     }
                     return Result.failure(current, min + " repetitions");
