@@ -2,14 +2,11 @@ package io.github.parseworks;
 
 import io.github.parseworks.impl.parser.NoCheckParser;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * The `Combinators` class provides a set of combinator functions for creating complex parsers
@@ -392,6 +389,62 @@ public class Combinators {
     }
 
     /**
+     * Creates a parser that accepts a single character matching the given predicate.
+     * <p>
+     * The {@code chr(Predicate)} method creates a parser that tests if the current input character
+     * satisfies the provided predicate function. This parser succeeds if the predicate returns true
+     * for the current character. The parsing process works as follows:
+     * <ol>
+     *   <li>Checks if the input is not at EOF</li>
+     *   <li>Applies the predicate to the current character</li>
+     *   <li>If the predicate is satisfied, consumes the character and returns it</li>
+     *   <li>If the predicate is not satisfied or at EOF, fails with an error message</li>
+     * </ol>
+     * <p>
+     * This parser is a specialized version of {@link #satisfy(String, Predicate)} for character input.
+     * It's a fundamental building block for text-based parsers, allowing character filtering based
+     * on arbitrary conditions.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Delegates to {@link #satisfy(String, Predicate)} with a generic "character" expected type</li>
+     *   <li>Consumes exactly one character when successful</li>
+     *   <li>Returns the matched character as the result</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse any digit character
+     * Parser<Character, Character> digit = chr(Character::isDigit);
+     *
+     * // Parse any uppercase letter
+     * Parser<Character, Character> uppercase = chr(Character::isUpperCase);
+     *
+     * // Parse any whitespace character
+     * Parser<Character, Character> whitespace = chr(Character::isWhitespace);
+     *
+     * // Parse any character except 'x'
+     * Parser<Character, Character> notX = chr(c -> c != 'x');
+     *
+     * // Combining character parsers
+     * Parser<Character, String> hexDigit = chr(c ->
+     *     Character.isDigit(c) || "ABCDEFabcdef".indexOf(c) >= 0)
+     *     .many().map(chars -> chars.stream()
+     *         .map(String::valueOf)
+     *         .collect(Collectors.joining()));
+     * }</pre>
+     *
+     * @param predicate the condition that characters must satisfy
+     * @return a parser that matches a single character based on the predicate
+     * @see #satisfy(String, Predicate) for the generic version of this parser
+     * @see #chr(char) for matching a specific character
+     * @see #oneOf(String) for matching against a set of characters
+     */
+    public static Parser<Character, Character> chr(Predicate<Character> predicate) {
+        return satisfy("<character>", predicate);
+    }
+
+    /**
      * Satisfy combinator: parses a single item that satisfies the given predicate.
      * <p>
      * This parser attempts to parse a single item from the input and checks if it satisfies the provided predicate.
@@ -418,6 +471,57 @@ public class Combinators {
                 return Result.failure(in, expectedType, String.valueOf(in.current()));
             }
         });
+    }
+
+    /**
+     * Creates a parser that matches a specific character.
+     * <p>
+     * The {@code chr(char)} method creates a parser that tests if the current input character
+     * equals the specified character value. This parser succeeds only when the current input
+     * character exactly matches the target character. The parsing process works as follows:
+     * <ol>
+     *   <li>Checks if the input is not at EOF</li>
+     *   <li>Compares the current character with the specified character</li>
+     *   <li>If they match, consumes the character and returns it</li>
+     *   <li>If they don't match or at EOF, fails with an error message</li>
+     * </ol>
+     * <p>
+     * This parser is a specialized version of {@link #is(Object)} for character input. It's
+     * commonly used for parsing punctuation, operators, and other specific characters in
+     * text-based parsing.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Delegates to {@link #is(Object)} for equality checking</li>
+     *   <li>Consumes exactly one character when successful</li>
+     *   <li>Returns the matched character as the result</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse specific characters
+     * Parser<Character, Character> comma = chr(',');
+     * Parser<Character, Character> semicolon = chr(';');
+     * Parser<Character, Character> plus = chr('+');
+     *
+     * // Combine to parse a simple addition expression
+     * Parser<Character, Integer> addExpr = digit.then(plus).then(digit)
+     *     .map((d1, op, d2) ->
+     *         Character.getNumericValue(d1) + Character.getNumericValue(d2));
+     *
+     * // Parse punctuated list items
+     * Parser<Character, List<String>> commaSeparated =
+     *     word.sepBy(chr(','));
+     * }</pre>
+     *
+     * @param c the specific character to match
+     * @return a parser that matches the specified character
+     * @see #is(Object) for the generic version of this parser
+     * @see #chr(Predicate) for matching characters based on predicates
+     * @see #string(String) for matching sequences of characters
+     */
+    public static Parser<Character, Character> chr(char c) {
+        return is(c);
     }
 
     /**
@@ -450,107 +554,218 @@ public class Combinators {
     }
 
     /**
-     * Parses a single character that satisfies the given predicate.
+     * Creates a parser that matches an exact string of characters.
+     * <p>
+     * The {@code string()} method creates a parser that attempts to match the input exactly
+     * against the provided string. This parser succeeds only if the entire string is matched
+     * character by character. The parsing process works as follows:
+     * <ol>
+     *   <li>Compares each character in the input with the corresponding character in the target string</li>
+     *   <li>If all characters match in sequence, returns the entire matched string</li>
+     *   <li>If any character differs, fails with information about the mismatch point</li>
+     *   <li>If input is too short, fails with an EOF error</li>
+     * </ol>
+     * <p>
+     * Key features:
+     * <ul>
+     *   <li>Performs exact, case-sensitive string matching</li>
+     *   <li>Provides detailed error information showing where the match failed</li>
+     *   <li>Optimized for performance with direct character comparison</li>
+     *   <li>Special case handling for empty strings</li>
+     * </ul>
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Uses character-by-character comparison rather than multiple parsers</li>
+     *   <li>Returns the original string rather than rebuilding it from characters</li>
+     *   <li>Provides context in error messages showing partial matches</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Match specific keywords
+     * Parser<Character, String> ifKeyword = string("if");
+     * Parser<Character, String> elseKeyword = string("else");
      *
-     * @param predicate the predicate that the character must satisfy
-     * @return a parser that parses a single character satisfying the predicate
-     */
-    public static Parser<Character, Character> chr(Predicate<Character> predicate) {
-        return satisfy("<character>", predicate);
-    }
-
-    /**
-     * Parses a specific character.
+     * // Match operators
+     * Parser<Character, String> plusOperator = string("+");
+     * Parser<Character, String> minusOperator = string("-");
      *
-     * @param c the character to parse
-     * @return a parser that parses the specified character
-     */
-    public static Parser<Character, Character> chr(char c) {
-        return is(c);
-    }
-
-    /**
-     * Parses a specific string.
+     * // Match multi-character tokens
+     * Parser<Character, String> arrow = string("->");
+     * Parser<Character, String> equality = string("==");
      *
-     * @param str the string to parse
-     * @return a parser that parses the specified string
+     * // Combine with other parsers
+     * Parser<Character, String> helloWorld = string("Hello").thenSkip(string(" ")).then(string("World"))
+     *     .map((hello, world) -> hello + " " + world);
+     * }</pre>
+     *
+     * @param str the exact string to match
+     * @return a parser that matches the specified string
+     * @see #regex(String) for flexible pattern matching
+     * @see #chr(char) for single character matching
      */
     public static Parser<Character, String> string(String str) {
-        return Combinators.sequence(str.chars()
-                        .mapToObj(c -> chr((char) c))
-                        .toList())
-                .map(chars -> chars.stream()
-                        .map(String::valueOf)
-                        .collect(Collectors.joining()));
+        return new NoCheckParser<>(in -> {
+            Input<Character> currentInput = in;
+
+            // Handle empty string case
+            if (str.isEmpty()) {
+                return Result.success(currentInput, "");
+            }
+
+            // Check if we have enough characters left in the input
+            for (int i = 0; i < str.length(); i++) {
+                if (currentInput.isEof()) {
+                    return Result.failure(in, "\"" + str + "\"", "eof");
+                }
+
+                char expected = str.charAt(i);
+                char actual = currentInput.current();
+
+                if (expected != actual) {
+                    // Return failure with context about the mismatch
+                    String found = i == 0 ? String.valueOf(actual) :
+                            str.substring(0, i) + actual + "...";
+                    return Result.failure(in, "\"" + str + "\"", found);
+                }
+
+                currentInput = currentInput.next();
+            }
+
+            return Result.success(currentInput, str);
+        });
     }
 
 
     /**
-     * Parses a single character from a set of characters.
+     * Creates a parser that accepts any character that appears in the provided string.
+     * <p>
+     * The {@code oneOf(String)} method creates a parser that succeeds when the current input
+     * character matches any character in the provided string. This parser is useful for defining
+     * character classes or sets of acceptable characters. The parsing process works as follows:
+     * <ol>
+     *   <li>Checks if the input is not at EOF</li>
+     *   <li>Tests if the current character appears in the provided string</li>
+     *   <li>If the character is found in the string, consumes it and returns it</li>
+     *   <li>If the character is not in the string or at EOF, fails with an error message</li>
+     * </ol>
+     * <p>
+     * Performance considerations:
+     * <ul>
+     *   <li>For small strings (less than 10 characters), uses {@link String#indexOf(int)} for lookup</li>
+     *   <li>For larger strings, creates a {@link HashSet} of characters for O(1) lookup performance</li>
+     *   <li>This optimization makes character class matching efficient even with large character sets</li>
+     * </ul>
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Delegates to {@link #satisfy(String, Predicate)} with appropriate predicates</li>
+     *   <li>Uses different implementation strategies based on input string length</li>
+     *   <li>Consumes exactly one character when successful</li>
+     *   <li>Returns the matched character as the result</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse any digit
+     * Parser<Character, Character> digit = oneOf("0123456789");
      *
-     * @param str the set of characters to parse
-     * @return a parser that parses a single character from the specified set
+     * // Parse any hexadecimal digit
+     * Parser<Character, Character> hexDigit = oneOf("0123456789ABCDEFabcdef");
+     *
+     * // Parse any vowel
+     * Parser<Character, Character> vowel = oneOf("aeiouAEIOU");
+     *
+     * // Parse any operator
+     * Parser<Character, Character> operator = oneOf("+-*\/");
+     *
+     * // Using with other parsers
+     * Parser<Character, String> identifier =
+     *     oneOf("_$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+     *     .then(oneOf("_$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789").many())
+     *     .map((first, rest) -> first + rest.stream()
+     *         .map(String::valueOf)
+     *         .collect(Collectors.joining()));
+     * }</pre>
+     *
+     * @param str the string containing all acceptable characters
+     * @return a parser that accepts any character that appears in the provided string
+     * @see #chr(Predicate) for matching characters with arbitrary predicates
+     * @see #chr(char) for matching a specific character
+     * @see #oneOf(Object...) for the generic version of this parser
      */
     public static Parser<Character, Character> oneOf(String str) {
-        return satisfy("<oneOf> " + str, c -> str.indexOf(c) != -1);
+        // For small strings (under 10 chars), this approach is efficient
+        if (str.length() < 10) {
+            return satisfy("<oneOf> " + str, c -> str.indexOf(c) != -1);
+        }
+
+        // For larger character sets, use a Set for O(1) lookups
+        Set<Character> charSet = new HashSet<>();
+        for (int i = 0; i < str.length(); i++) {
+            charSet.add(str.charAt(i));
+        }
+
+        return satisfy("<oneOf> " + str, charSet::contains);
     }
 
     /**
      * Creates a parser that matches input against a regular expression pattern.
      * <p>
-     * The {@code regex()} method creates a parser that matches characters from the input stream
-     * against the provided regular expression pattern. The parser works progressively, attempting
-     * to match the pattern as characters are consumed one by one. The parsing process works as follows:
-     * <ol>
-     *   <li>Reads input characters incrementally, building a buffer</li>
-     *   <li>Tries to match the regex pattern against the buffer after each character</li>
-     *   <li>Returns successfully as soon as a complete match is found</li>
-     *   <li>Fails if no match is possible with the current input</li>
-     * </ol>
+     * The {@code regex()} method creates a parser that incrementally matches characters from the input
+     * stream against the provided regular expression pattern. This parser handles both start (^) and
+     * end ($) anchors appropriately in the context of streaming input.
      * <p>
-     * This parser is designed to be efficient with streaming input by validating progressively
-     * rather than reading the entire input at once, allowing for early success or failure.
+     * Key features:
+     * <ul>
+     *   <li>Progressively reads characters one by one, building a buffer</li>
+     *   <li>Attempts matching after each character to support early success/failure</li>
+     *   <li>Properly respects start anchors (^) by only matching from the beginning</li>
+     *   <li>Properly respects end anchors ($) by only accepting matches at the end of input</li>
+     *   <li>For non-anchored patterns, returns the longest valid match</li>
+     *   <li>Efficiently handles streaming input by using {@link Matcher#hitEnd()} for optimization</li>
+     *   <li>Special case handling for empty input</li>
+     * </ul>
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>Automatically anchors the pattern to the start of input (adds ^ if not present)</li>
-     *   <li>Uses a maximum look-ahead limit (1000 characters) to prevent excessive processing</li>
-     *   <li>Returns the first match found as a String</li>
-     *   <li>Only consumes the portion of input that matches the pattern</li>
-     *   <li>Uses {@link Matcher#hitEnd()} to optimize early determination of match failure</li>
+     *   <li>Uses {@link Matcher#lookingAt()} to ensure matches start at the beginning of the buffer</li>
+     *   <li>Uses a maximum look-ahead limit (1000 characters) for safety</li>
+     *   <li>Compiled with {@link Pattern#DOTALL} and {@link Pattern#UNICODE_CHARACTER_CLASS} flags</li>
      * </ul>
      * <p>
      * Example usage:
      * <pre>{@code
-     * // Email pattern parser
-     * Parser<Character, String> emailParser = regex("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
+     * // Basic word parser
+     * Parser<Character, String> word = regex("[a-zA-Z]+");
+     * word.parse("Hello").get();  // Returns "Hello"
+     * word.parse("Hello123").get();  // Returns "Hello"
      *
-     * // Parse a valid email
-     * Result<Character, String> result = emailParser.parse("user@example.com");
-     * // result.isSuccess() == true, result.get() == "user@example.com"
+     * // Pattern with end anchor - only matches at end of input
+     * Parser<Character, String> complete = regex("\\d+$");
+     * complete.parse("123").isSuccess();  // true
+     * complete.parse("123abc").isSuccess();  // false, digits not at end
      *
-     * // Parse an email with trailing content
-     * Result<Character, String> partialResult = emailParser.parse("user@example.com and more text");
-     * // partialResult.isSuccess() == true, partialResult.get() == "user@example.com"
-     *
-     * // Number parser with explicit anchor
-     * Parser<Character, String> phoneParser = regex("^\\d{3}-\\d{3}-\\d{4}");
-     * phoneParser.parse("555-123-4567"); // Succeeds with "555-123-4567"
+     * // Email address parser
+     * Parser<Character, String> email = regex("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
+     * email.parse("user@example.com").get();  // Returns "user@example.com"
      * }</pre>
      *
      * @param regex the regular expression pattern to match against
      * @return a parser that matches the input against the given regular expression
+     * @see Pattern for information about Java regular expression syntax
      * @see #string(String) for exact string matching
-     * @see #satisfy(String, Predicate) for character-by-character validation
-     * @see Pattern for more information about regular expression syntax
      */
     public static Parser<Character, String> regex(String regex) {
+        boolean hasEndAnchor = regex.endsWith("$") && !regex.endsWith("\\$");
         Pattern pattern = Pattern.compile(regex, Pattern.DOTALL | Pattern.UNICODE_CHARACTER_CLASS);
+
         return new Parser<>(in -> {
             // Special case for empty input
             if (in.isEof()) {
                 Matcher emptyMatcher = pattern.matcher("");
-                if (emptyMatcher.find() && emptyMatcher.start() == 0) {
+                if (emptyMatcher.lookingAt()) {
                     return Result.success(in, emptyMatcher.group());
                 }
                 return Result.failure(in, regex, "eof");
@@ -561,34 +776,42 @@ public class Combinators {
             int maxLookAhead = 1000; // Safety limit
             int position = 0;
 
-            // Track last successful match
-            String lastMatch = null;
-            int lastMatchPos = 0;
+            // Track best match found so far
+            String bestMatch = null;
 
             // Progressive matching loop
-            while (!current.isEof() && position < maxLookAhead) {
+            while (!current.isEof() && position++ < maxLookAhead) {
                 char c = current.current();
                 buffer.append(c);
-                position++;
+
+                // Get next position to check for EOF
+                Input<Character> next = current.next();
+                boolean isAtEnd = next.isEof();
 
                 // Try matching at each step
                 Matcher matcher = pattern.matcher(buffer);
-                if (matcher.find() && matcher.start() == 0) {
-                    // Store successful match
-                    lastMatch = matcher.group();
+
+                if (matcher.lookingAt()) {
+                    String match = matcher.group();
+
+                    // For end-anchored patterns, only accept matches at end of input
+                    if (!hasEndAnchor || isAtEnd) {
+                        bestMatch = match;
+                    }
                 }
+
+                // If the matcher doesn't benefit from more input, we can stop
                 if (!matcher.hitEnd()) {
-                    // No more matches possible, break and return last match
                     break;
                 }
 
                 // Continue reading next character
-                current = current.next();
+                current = next;
             }
 
-            // Return the last successful match if found
-            if (lastMatch != null) {
-                return Result.success(in.skip(lastMatch.length()), lastMatch);
+            // Return the best match found if any
+            if (bestMatch != null) {
+                return Result.success(in.skip(bestMatch.length()), bestMatch);
             }
 
             // No match found

@@ -178,9 +178,7 @@ public class ApplyBuilderTest {
         // Parse "x = 42;"
         Parser<Character, Assignment> assignmentParser = identifier.trim().then(equals)
             .then(number.trim()).then(semicolon)
-            .map((name, eq, value, semi) -> {
-                return new Assignment(name, value);
-            });
+            .map((name, eq, value, semi) -> new Assignment(name, value));
         
         Result<Character, Assignment> result = assignmentParser.parseAll("myVar = 42;");
         assertTrue(result.isSuccess());

@@ -79,7 +79,7 @@ public class RegexParserTest {
         result = parser.parse("abcdef");
         // Should fail as "abc" is not at the end
         // however it won't as regex does not enforce end of string
-        assertFalse(result.isError());
+        assertTrue(result.isError());
     }
     
     @Test
