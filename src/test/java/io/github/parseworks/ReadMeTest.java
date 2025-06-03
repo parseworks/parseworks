@@ -32,7 +32,7 @@ public class ReadMeTest {
         // Handle success or failure
         var response = result.handle(
                 Result::get,
-                failure -> "Error: " + failure.fullErrorMessage()
+                failure -> "Error: " + failure.error()
         );
 
         assertTrue(response.contains("Error: Position 0: Expected equivalence but found A"), "Message was " + response);
@@ -49,7 +49,7 @@ public class ReadMeTest {
 
         var response2 = sum.parse(Input.of("1+z")).handle(
                 success -> "Success: no way!",
-                failure -> "Error: " + failure.fullErrorMessage()
+                failure -> "Error: " + failure.error()
         );
         assertTrue(response2.contains("Error: Position 2: Expected <number> but found z"));
     }

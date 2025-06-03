@@ -21,48 +21,41 @@ public class Combinators {
     }
 
     /**
-     * Creates a parser that accepts any single input element.
+     * Creates a parser that accepts any single input element of the specified type.
      * <p>
-     * The {@code any()} method creates a parser that consumes and returns a single input element
-     * regardless of its value. This parser succeeds for any non-empty input,
-     * failing only when the input is empty. The parsing process works as follows:
-     * <ol>
-     *   <li>Checks if there is at least one element remaining in the input</li>
-     *   <li>If input is not empty, consumes and returns the next element</li>
-     *   <li>If input is empty, the parser fails with a "not end of file" message</li>
-     * </ol>
+     * The {@code any(Class<I> type)} method creates a parser that consumes and returns a single input element,
+     * regardless of its value, as long as it matches the specified class type. This parser succeeds for any
+     * non-empty input, failing only when the input is empty. Passing the {@code Class<I>} argument is necessary
+     * to retain type information at runtime, which is otherwise lost due to Java's type erasure. This enables
+     * safe chaining and composition of generic parsers, as the type can be checked or inferred where needed.
      * <p>
-     * This parser is a fundamental building block for more complex parsers, serving as the simplest
-     * form of element consumption. It can be combined with other parsers using methods like
-     * or {@link Parser#not} to create more specific parsers.
-     * <p>
-     * Implementation details:
+     * <b>Why pass the class type?</b>
      * <ul>
-     *   <li>Consumes exactly one element from the input when successful</li>
-     *   <li>Returns the consumed element as the parse result</li>
-     *   <li>Works with any input element type {@code I}</li>
+     *   <li>Java's type erasure removes generic type information at runtime, making it impossible to determine
+     *       the actual type parameter {@code I} in generic code.</li>
+     *   <li>By explicitly passing {@code Class<I> type}, the parser can retain and use this type information
+     *       for runtime checks, casting, or chaining with other parsers that require type safety.</li>
+     *   <li>This is especially important when building parser combinators that need to work with generic types
+     *       in a type-safe manner.</li>
      * </ul>
      * <p>
      * Example usage:
      * <pre>{@code
      * // Create a parser that accepts any character
-     * Parser<Character, Character> anyChar = Combinators.any();
+     * Parser<Character, Character> anyChar = Combinators.any(Character.class);
      *
-     * // Succeeds with 'a' for input "abc" (consuming only 'a')
-     * // Succeeds with '1' for input "123" (consuming only '1')
-     * // Fails for empty input ""
-     *
-     * // Create a digit parser by combining any() with filter()
-     * Parser<Character, Character> digit = any().filter(Character::isDigit);
+     * // Chaining so that we accept any character that is not a digit
+     * Parser<Character, Character> nondigit = any(Character.class).not(Character::isDigit);
      * }</pre>
      *
-     * @param <I> the type of the input elements
-     * @return a parser that accepts any single input element
+     * @param type the class of the input elements (required for type safety due to type erasure)
+     * @param <I>  the type of the input elements
+     * @return a parser that accepts any single input element of the specified type
      */
-    public static <I> Parser<I, I> any() {
+    public static <I> Parser<I, I> any(Class<I> type) {
         return new NoCheckParser<>(input -> {
             if (input.isEof()) {
-                return Result.failure(input, "not end of file", "eof");
+                return Result.failure(input, "end of file").cast();
             } else {
                 return Result.success(input.next(), input.current());
             }
@@ -132,7 +125,7 @@ public class Combinators {
     public static <I> Parser<I, I> oneOf(I... items) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, "one of", "eof");
+                return Result.failure(in, "one of");
             }
             I current = in.current();
             for (I item : items) {
@@ -140,7 +133,7 @@ public class Combinators {
                     return Result.success(in.next(), current);
                 }
             }
-            return Result.failure(in, "one of", String.valueOf(current));
+            return Result.failure(in, "one of items to match");
         });
     }
 
@@ -183,7 +176,7 @@ public class Combinators {
      *
      * @param <I> the type of the input elements
      * @return a parser that succeeds if the input is at EOF
-     * @see #any() for a parser that consumes any single input element
+     * @see #any(Class) for a parser that consumes any single input element
      * @see Parser#thenSkip(Parser) for combining with other parsers while discarding the EOF result
      */
     public static <I> Parser<I, Void> eof() {
@@ -191,7 +184,7 @@ public class Combinators {
             if (input.isEof()) {
                 return Result.success(input, null);
             } else {
-                return Result.failure(input, "eof", String.valueOf(input.current()));
+                return Result.failure(input, "eof");
             }
         });
     }
@@ -271,7 +264,7 @@ public class Combinators {
         return new Parser<>(in -> {
             Result<I, A> result = parser.apply(in);
             if (result.isSuccess()) {
-                return Result.failure(in, "not", String.valueOf(result.get()));
+                return Result.failure(in, "not");
             } else {
                 return Result.success(in, null);
             }
@@ -295,11 +288,11 @@ public class Combinators {
     public static <I> Parser<I, I> isNot(I value) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, "inequality", "eof");
+                return Result.failure(in, "inequality");
             }
             I item = in.current();
             if (Objects.equals(item, value)) {
-                return Result.failure(in, "inequality", String.valueOf(item));
+                return Result.failure(in, "inequality");
             } else {
                 return Result.success(in.next(), item);
             }
@@ -553,13 +546,13 @@ public class Combinators {
     public static <I> Parser<I, I> satisfy(String expectedType, Predicate<I> predicate) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, expectedType, "eof");
+                return Result.failure(in, expectedType);
             }
             I item = in.current();
             if (predicate.test(item)) {
                 return Result.success(in.next(), item);
             } else {
-                return Result.failure(in, expectedType, String.valueOf(in.current()));
+                return Result.failure(in, expectedType);
             }
         });
     }
@@ -633,13 +626,13 @@ public class Combinators {
     public static <I> Parser<I, I> is(I equivalence) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, "equivalence", "eof");
+                return Result.failure(in, "equivalence");
             }
             I item = in.current();
             if (Objects.equals(item, equivalence)) {
                 return Result.success(in.next(), item);
             } else {
-                return Result.failure(in, "equivalence", String.valueOf(item));
+                return Result.failure(in, "equivalence");
             }
         });
     }
@@ -708,17 +701,14 @@ public class Combinators {
             // Check if we have enough characters left in the input
             for (int i = 0; i < str.length(); i++) {
                 if (currentInput.isEof()) {
-                    return Result.failure(in, "\"" + str + "\"", "eof");
+                    return Result.failure(in, str);
                 }
 
                 char expected = str.charAt(i);
                 char actual = currentInput.current();
 
                 if (expected != actual) {
-                    // Return failure with context about the mismatch
-                    String found = i == 0 ? String.valueOf(actual) :
-                            str.substring(0, i) + actual + "...";
-                    return Result.failure(in, "\"" + str + "\"", found);
+                    return Result.failure(in, str);
                 }
 
                 currentInput = currentInput.next();
@@ -798,7 +788,7 @@ public class Combinators {
             charSet.add(str.charAt(i));
         }
 
-        return satisfy("<oneOf> " + str, charSet::contains);
+        return satisfy("character in set [" + str + "]", charSet::contains);
     }
 
     /**
@@ -864,7 +854,7 @@ public class Combinators {
                 if (emptyMatcher.lookingAt()) {
                     return Result.success(in, emptyMatcher.group());
                 }
-                return Result.failure(in, regex, "eof");
+                return Result.failure(in, regex);
             }
 
             StringBuilder buffer = new StringBuilder();
@@ -911,8 +901,8 @@ public class Combinators {
             }
 
             // No match found
-            String preview = buffer.length() > 10 ? buffer.substring(0, 10) + "..." : buffer.toString();
-            return Result.failure(in, regex, preview);
+            //String preview = buffer.length() > 10 ? buffer.substring(0, 10) + "..." : buffer.toString();
+            return Result.failure(in, regex);
         });
     }
 

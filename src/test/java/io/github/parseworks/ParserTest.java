@@ -607,7 +607,7 @@ public class ParserTest {
 
         // Verify the result
         assertTrue(result.isError());
-        assertEquals("Position 0: Expected <number> but reached end of input", result.fullErrorMessage());
+        assertEquals("Position 0: Expected <number> but reached end of input", result.error());
     }
 
     @Test

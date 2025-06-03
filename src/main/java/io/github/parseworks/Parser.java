@@ -721,7 +721,7 @@ public class Parser<I, A> {
         return new Parser<>(in -> {
             Result<I, B> result = parser.apply(in);
             if (result.isSuccess()) {
-                return Result.failure(in, "Parser to fail", String.valueOf(result.get()));
+                return Result.failure(in, "Parser to fail");
             }
             return this.apply(in);
         });

@@ -14,7 +14,9 @@ public class CombinatorsTest {
 
     @Test
     public void testAny() {
-        Parser<Character, Character> parser = any();
+        Parser<Character, Character> parser = any(Character.class);
+
+        Parser<Character,String> notQuote = any(Character.class).not(chr('"')).map(String::valueOf);
 
         // Success case
         Result<Character, Character> result = parser.parse("a");
@@ -219,9 +221,11 @@ public class CombinatorsTest {
     public void testString() {
         Parser<Character, String> parser = string("hello");
 
+        var result = parser.parse("hello world");
+        var result2 = parser.parse("hello");
         // Success case
-        assertTrue(parser.parse("hello").isSuccess());
-        assertEquals("hello", parser.parse("hello").get());
+        assertTrue(result.isSuccess());
+        assertEquals("hello", result2.get());
 
         // Failure cases
         assertFalse(parser.parse("hell").isSuccess());   // prefix only

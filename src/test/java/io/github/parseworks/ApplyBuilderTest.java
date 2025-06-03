@@ -202,8 +202,7 @@ public class ApplyBuilderTest {
     private Parser<Character, Character> charParser(char expected) {
         return new Parser<>(input -> {
             if (input.isEof() || input.current() != expected) {
-                return Result.failure(input, String.valueOf(expected), 
-                    input.isEof() ? "EOF" : String.valueOf(input.current()));
+                return Result.failure(input, String.valueOf(expected));
             }
             return Result.success(input.next(), expected);
         });

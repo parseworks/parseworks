@@ -3,7 +3,6 @@ package io.github.parseworks;
 import io.github.parseworks.impl.Failure;
 import io.github.parseworks.impl.Success;
 
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -18,6 +17,8 @@ import java.util.function.Function;
  * @version $Id: $Id
  */
 public interface Result<I, A> {
+
+    ThreadLocal<Failure> failureProvider = ThreadLocal.withInitial(() -> new Failure<>(null, "", null));
 
     /**
      * Creates a successful result with the given value and remaining input.
@@ -41,37 +42,15 @@ public interface Result<I, A> {
      * @param <A>     the type of the parsed value
      * @return a failure result
      */
-    static <I, A> Result<I, A> failure(Input<I> input, String expected) {
-        String message = "Expected " + expected;
-        if (input.hasMore()) {
-            message += " but found " + input.current();
-        } else {
-            message += " but reached end of input";
-        }
-        return new Failure<>(input, message);
-    }
-
-    /**
-     * Creates a failure result due to an unexpected end of input.
-     *
-     * @param input   the input at which the failure occurred
-     * @param expected type of the expected input
-     * @param found    the actual input
-     * @param <I>     the type of the input symbols
-     * @param <A>     the type of the parsed value
-     * @return a failure result
-     */
+    @SuppressWarnings("unchecked")
     static <I, A> Result<I, A> failure(Input<I> input, String expected, String found) {
-        String message = "Position " + input.position() + ": Expected ";
-        message += Objects.requireNonNullElse(expected, "correct input");
-        if (input.hasMore()) {
-            message += " but found " + found;
-        } else {
-            message += " but reached end of input";
-        }
-        return new Failure<>(input, message);
+        return new Failure<>(input, expected, found);
     }
 
+    @SuppressWarnings("unchecked")
+    static <I, A> Result<I, A> failure(Input<I> input, String expected) {
+        return new Failure<>(input, expected, null);
+    }
 
     /**
      * Returns true if this result is a success.
@@ -126,20 +105,6 @@ public interface Result<I, A> {
      * @return the error message, or an empty string if this result is a success
      */
      String error();
-
-    /**
-     * Returns the full error message if this result is a failure.
-     *
-     * @return the full error message, or an empty string if this result is a success
-     */
-     String fullErrorMessage();
-
-    /**
-     * Returns the input at which the failure occurred.
-     *
-     * @return a {@link io.github.parseworks.Result} object
-     */
-     Result<?, ?> cause();
 
     /**
      * Returns an Optional containing the parsed value if this result is a success.
