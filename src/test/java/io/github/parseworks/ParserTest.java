@@ -7,7 +7,7 @@ import java.util.Optional;
 import java.util.function.BinaryOperator;
 
 import static io.github.parseworks.Combinators.chr;
-import static io.github.parseworks.TextUtils.numeric;
+import static io.github.parseworks.NumericParsers.numeric;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ParserTest {
@@ -136,7 +136,7 @@ public class ParserTest {
 
     @Test
     public void testChainr1() {
-        Parser<Character, Integer> number = TextUtils.number;
+        Parser<Character, Integer> number = NumericParsers.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('+').map(op -> Integer::sum);
         Parser<Character, Integer> parser = number.chainRightMany(plus);
         Input<Character> input = Input.of("1+2+3");
@@ -165,16 +165,15 @@ public class ParserTest {
 
     @Test
     public void testDigit() {
-        Parser<Character, Character> parser = TextUtils.numeric;
         Input<Character> input = Input.of("5");
-        Result<Character, Character> result = parser.parse(input);
+        Result<Character, Character> result = numeric.parse(input);
         assertTrue(result.isSuccess());
         assertEquals('5', result.get());
     }
 
     @Test
     public void testNumber() {
-        Parser<Character, Integer> parser = TextUtils.number;
+        Parser<Character, Integer> parser = NumericParsers.number;
         Input<Character> input = Input.of("12345");
         Result<Character, Integer> result = parser.parse(input);
         assertTrue(result.isSuccess());
@@ -200,7 +199,7 @@ public class ParserTest {
 
     @Test
     public void testChainl1() {
-        Parser<Character, Integer> number = TextUtils.number;
+        Parser<Character, Integer> number = NumericParsers.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('+').map(op -> Integer::sum);
         Parser<Character, Integer> parser = number.chainLeftMany(plus);
         Input<Character> input = Input.of("1+2+3");
@@ -211,7 +210,7 @@ public class ParserTest {
 
     @Test
     public void testChainl() {
-        Parser<Character, Integer> number = TextUtils.number;
+        Parser<Character, Integer> number = NumericParsers.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('-').map(op -> (a, b) -> a - b);
         Parser<Character, Integer> parser = number.chainLeftMany(plus);
         Input<Character> input = Input.of("1-2-3");
@@ -222,7 +221,7 @@ public class ParserTest {
 
     @Test
     public void testChainr() {
-        Parser<Character, Integer> number = TextUtils.number;
+        Parser<Character, Integer> number = NumericParsers.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('-').map(op -> (a, b) -> a - b);
         Parser<Character, Integer> parser = number.chainRightMany(plus);
         Input<Character> input = Input.of("1-2-3");
@@ -233,7 +232,7 @@ public class ParserTest {
 
     @Test
     public void testChainr2() {
-        Parser<Character, Integer> number = TextUtils.number;
+        Parser<Character, Integer> number = NumericParsers.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('-').as((a, b) -> a - b);
         Parser<Character, Integer> parser = number.chainRightMany(plus);
         Input<Character> input = Input.of("1-2-3");
@@ -243,8 +242,8 @@ public class ParserTest {
     }
 
     @Test
-    public void testSeparatedByZeroOrMany() {
-        Parser<Character, FList<Character>> parser = chr(Character::isLetter).separatedByZeroOrMany(chr(','));
+    public void testSeparatedBy() {
+        Parser<Character, FList<Character>> parser = chr(Character::isLetter).separatedBy(chr(','));
         Input<Character> input = Input.of("a,b,c");
         Result<Character, FList<Character>> result = parser.parse(input);
         assertTrue(result.isSuccess());
@@ -373,8 +372,8 @@ public class ParserTest {
     }
 
     @Test
-    public void testZeroOrManyUntil() {
-        Parser<Character, FList<Character>> parser = chr('a').zeroOrManyUntil(chr(';'));
+    public void testUntil() {
+        Parser<Character, FList<Character>> parser = chr('a').until(chr(';'));
 
         // Test case 1: Zero matches with terminator
         Result<Character, FList<Character>> result1 = parser.parse(";");
@@ -481,17 +480,17 @@ public class ParserTest {
 
     @Test
     public void testChainZeroOrMany() {
-        Parser<Character, Integer> number = TextUtils.number;
+        Parser<Character, Integer> number = NumericParsers.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('+').map(op -> Integer::sum);
 
         // Test chainLeftZeroOrMany
-        Parser<Character, Integer> leftParser = number.chainLeftZeroOrMany(plus, 0);
+        Parser<Character, Integer> leftParser = number.chainLeft(plus, 0);
         Result<Character, Integer> leftResult = leftParser.parse("");
         assertTrue(leftResult.isSuccess());
         assertEquals(0, leftResult.get());  // Should return default value for empty input
 
         // Test chainRightZeroOrMany
-        Parser<Character, Integer> rightParser = number.chainRightZeroOrMany(plus, 0);
+        Parser<Character, Integer> rightParser = number.chainRight(plus, 0);
         Result<Character, Integer> rightResult = rightParser.parse("");
         assertTrue(rightResult.isSuccess());
         assertEquals(0, rightResult.get());  // Should return default value for empty input

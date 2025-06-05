@@ -6,60 +6,7 @@ import java.util.function.Function;
 import static io.github.parseworks.Combinators.*;
 import static io.github.parseworks.Parser.pure;
 
-/**
- * The {@code TextUtils} class provides a comprehensive set of parsers for common text parsing tasks.
- * <p>
- * This utility class contains static parser definitions and methods for parsing:
- * <ul>
- *   <li>Numeric values (digits, integers, longs, doubles)</li>
- *   <li>Alphabetic and alphanumeric characters</li>
- *   <li>Whitespace</li>
- *   <li>Words and textual content</li>
- *   <li>Signs and special characters</li>
- * </ul>
- * <p>
- * The parsers in this class are designed to be composable building blocks for creating
- * more complex parsers. They follow functional programming principles, allowing them to
- * be combined using methods like {@code then()}, {@code or()}, {@code many()}, etc.
- * <p>
- * Key parsers include:
- * <ul>
- *   <li>{@link #numeric} - Parses any digit character (0-9)</li>
- *   <li>{@link #nonZeroDigit} - Parses any non-zero digit character (1-9)</li>
- *   <li>{@link #alpha} - Parses any letter character</li>
- *   <li>{@link #alphaNum} - Parses any alphanumeric character</li>
- *   <li>{@link #whitespace} - Parses any whitespace character</li>
- *   <li>{@link #uintr} - Parses an unsigned integer</li>
- *   <li>{@link #intr} - Parses a signed integer</li>
- *   <li>{@link #dble} - Parses a floating-point number</li>
- *   <li>{@link #word} - Parses a sequence of letters</li>
- * </ul>
- * <p>
- * Example usage:
- * <pre>{@code
- * // Parse an integer
- * Parser<Character, Integer> parser = TextUtils.intr;
- * Result<Character, Integer> result = parser.parse("-123");
- * int value = result.get();  // -123
- *
- * // Parse a word
- * Parser<Character, String> wordParser = TextUtils.word;
- * String word = wordParser.parse("Hello123").get();  // "Hello"
- *
- * // Combine parsers
- * Parser<Character, Pair<String, Integer>> nameAndAge =
- *     TextUtils.word.skip(whitespace).then(integer);
- * }</pre>
- *
- * This class works closely with {@link Combinators} which provides the fundamental
- * parser combinators used to build these text parsing utilities.
- *
- * @author jason bailey
- * @version $Id: $Id
- * @see Combinators
- * @see Parser
- */
-public class TextUtils {
+public class NumericParsers {
 
     /**
      * Creates a parser that matches any digit character except '0'.
@@ -108,68 +55,10 @@ public class TextUtils {
      *
      * @see #numeric for parsing any digit (0-9)
      * @see #number for parsing multi-digit numbers
-     * @see #uintr for parsing unsigned integers
+     * @see #unsignedInteger for parsing unsigned integers
      */
     public static final Parser<Character, Character> nonZeroDigit = satisfy( "<nonZeroDigit>", c -> c != '0' && Character.isDigit(c));
 
-    /**
-     * Creates a parser that recognizes an optional sign character (+ or -).
-     * <p>
-     * The {@code sign} parser attempts to match a sign character from the input and
-     * returns a boolean value representing the sign:
-     * <ul>
-     *   <li>{@code true} for a '+' character</li>
-     *   <li>{@code false} for a '-' character</li>
-     *   <li>{@code true} if no sign character is present (default)</li>
-     * </ul>
-     * <p>
-     * The parsing process works as follows:
-     * <ol>
-     *   <li>Attempts to match a '+' character, returning {@code true} if successful</li>
-     *   <li>If that fails, attempts to match a '-' character, returning {@code false} if successful</li>
-     *   <li>If both attempts fail, succeeds without consuming any input and returns {@code true}</li>
-     * </ol>
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses {@link Combinators#oneOf(List)} to try multiple parser alternatives in order</li>
-     *   <li>Consumes exactly one character when a sign is present</li>
-     *   <li>Consumes no characters when no sign is present</li>
-     *   <li>Always succeeds since the default case is included</li>
-     * </ul>
-     * <p>
-     * This parser is particularly useful when parsing numeric values where a sign is optional,
-     * such as integers and floating-point numbers.
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse a sign followed by a number
-     * Parser<Character, Integer> signedNumber = sign.then(uintr)
-     *     .map((signValue, number) -> signValue ? number : -number);
-     *
-     * signedNumber.parse("+123").get();  // Returns 123
-     * signedNumber.parse("-123").get();  // Returns -123
-     * signedNumber.parse("123").get();   // Returns 123 (default positive)
-     * }</pre>
-     *
-     * @see #intr for parsing signed integers
-     * @see #dble for parsing floating-point numbers that use this sign parser
-     */
-    public static final Parser<Character, Boolean> sign = Combinators.oneOf(List.of(
-            chr('+').as(true),
-            chr('-').as(false),
-            pure(true)
-    ));
-
-    /**
-     * A parser that parses the character '0' and returns the integer 0.
-     */
-    private static final Parser<Character, Integer> uintrZero = chr('0').as(0);
-
-    /**
-     * A parser that parses the character '0' and returns the long 0.
-     */
-    private static final Parser<Character, Long> ulngZero = chr('0').as( 0L);
 
     /**
      * Creates a parser that matches any digit character (0-9).
@@ -211,18 +100,83 @@ public class TextUtils {
      *
      * @see #nonZeroDigit for parsing digits 1-9
      * @see #number for parsing multi-digit numbers
-     * @see #uintr for parsing unsigned integers
+     * @see #unsignedInteger for parsing unsigned integers
      */
-    public static Parser<Character, Character> numeric = satisfy("<number>", Character::isDigit);
+    public static final Parser<Character, Character> numeric = satisfy("<number>", Character::isDigit);
 
 
     /**
-     * A parser that parses a non-zero unsigned integer.
-     * This parser will succeed if the next input symbols form a non-zero unsigned integer,
-     * and will return the parsed integer value.
+     * Creates a parser that recognizes an optional sign character (+ or -).
+     * <p>
+     * The {@code sign} parser attempts to match a sign character from the input and
+     * returns a boolean value representing the sign:
+     * <ul>
+     *   <li>{@code true} for a '+' character</li>
+     *   <li>{@code false} for a '-' character</li>
+     *   <li>{@code true} if no sign character is present (default)</li>
+     * </ul>
+     * <p>
+     * The parsing process works as follows:
+     * <ol>
+     *   <li>Attempts to match a '+' character, returning {@code true} if successful</li>
+     *   <li>If that fails, attempts to match a '-' character, returning {@code false} if successful</li>
+     *   <li>If both attempts fail, succeeds without consuming any input and returns {@code true}</li>
+     * </ol>
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Uses {@link Combinators#oneOf(List)} to try multiple parser alternatives in order</li>
+     *   <li>Consumes exactly one character when a sign is present</li>
+     *   <li>Consumes no characters when no sign is present</li>
+     *   <li>Always succeeds since the default case is included</li>
+     * </ul>
+     * <p>
+     * This parser is particularly useful when parsing numeric values where a sign is optional,
+     * such as integers and floating-point numbers.
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse a sign followed by a number
+     * Parser<Character, Integer> signedNumber = sign.then(uintr)
+     *     .map((signValue, number) -> signValue ? number : -number);
+     *
+     * signedNumber.parse("+123").get();  // Returns 123
+     * signedNumber.parse("-123").get();  // Returns -123
+     * signedNumber.parse("123").get();   // Returns 123 (default positive)
+     * }</pre>
+     *
+     * @see #integer for parsing signed integers
+     * @see #doubleValue for parsing floating-point numbers that use this sign parser
      */
-    private static final Parser<Character, Integer> uintrNotZero = nonZeroDigitParser(
+    public static final Parser<Character, Boolean> sign = Combinators.oneOf(
+            chr('+').as(true),
+            chr('-').as(false),
+            pure(true)
+    );
+
+    /**
+     * A parser that matches a single '0' character and returns 0.
+     * <p>
+     * This parser is used to handle the case where an unsigned integer is simply '0'.
+     * It is a fundamental building block for parsing unsigned integers.
+     */
+    private static final Parser<Character, Integer> unsignedIntegerZero = chr('0').as(0);
+
+    /**
+     * A parser that matches a single '0' character and returns 0L.
+     * <p>
+     * This parser is used to handle the case where an unsigned long integer is simply '0'.
+     * It is a fundamental building block for parsing unsigned long integers.
+     */
+    private static final Parser<Character, Long> unsignedLongZero = chr('0').as( 0L);
+
+
+    private static final Parser<Character, Integer> unSignedIntegerNotZero = nonZeroDigitParser(
             ds -> ds.foldLeft(0, (acc, x) -> acc * 10 + x)
+    );
+
+    private static final Parser<Character, Long> unsignedLongNotZero = nonZeroDigitParser(
+            ds -> ds.foldLeft(0L, (acc, x) -> acc * 10L + x)
     );
 
     /**
@@ -234,9 +188,9 @@ public class TextUtils {
      * <p>
      * The parsing process works as follows:
      * <ol>
-     *   <li>First attempts to match a single '0' character (using {@link #uintrZero})</li>
+     *   <li>First attempts to match a single '0' character (using {@link #unsignedIntegerZero})</li>
      *   <li>If that fails, attempts to match a non-zero digit followed by additional digits
-     *       (using {@link #uintrNotZero})</li>
+     *       (using {@link #unSignedIntegerNotZero})</li>
      *   <li>Converts the matched sequence into an integer value</li>
      * </ol>
      * <p>
@@ -269,11 +223,11 @@ public class TextUtils {
      * parser.parse("abc").isSuccess(); // false, doesn't start with a digit
      * }</pre>
      *
-     * @see #intr for parsing signed integers
-     * @see #uintrZero for parsing just the '0' digit
-     * @see #uintrNotZero for parsing non-zero integers
+     * @see #integer for parsing signed integers
+     * @see #unsignedIntegerZero for parsing just the '0' digit
+     * @see #unSignedIntegerNotZero for parsing non-zero integers
      */
-    public static final Parser<Character, Integer> uintr = uintrZero.or(uintrNotZero);
+    public static final Parser<Character, Integer> unsignedInteger = unsignedIntegerZero.or(unSignedIntegerNotZero);
 
     /**
      * A parser that recognizes and parses a signed integer.
@@ -285,13 +239,13 @@ public class TextUtils {
      * The parsing process works as follows:
      * <ol>
      *   <li>First parses an optional sign using the {@link #sign} parser</li>
-     *   <li>Then parses an unsigned integer using the {@link #uintr} parser</li>
+     *   <li>Then parses an unsigned integer using the {@link #unsignedInteger} parser</li>
      *   <li>Combines the results, applying the sign to the unsigned integer value</li>
      * </ol>
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>Combines the {@link #sign} and {@link #uintr} parsers using {@link Parser#then(Parser)}</li>
+     *   <li>Combines the {@link #sign} and {@link #unsignedInteger} parsers using {@link Parser#then(Parser)}</li>
      *   <li>Maps the result to apply the sign: positive if {@code true}, negative if {@code false}</li>
      *   <li>Returns the resulting signed integer value</li>
      * </ul>
@@ -316,22 +270,15 @@ public class TextUtils {
      * }</pre>
      *
      * @see #sign for parsing optional sign characters
-     * @see #uintr for parsing unsigned integers
-     * @see #dble for parsing floating-point numbers
+     * @see #unsignedInteger for parsing unsigned integers
+     * @see #doubleValue for parsing floating-point numbers
      */
-    public static final Parser<Character, Integer> intr = sign.then(uintr)
+    public static final Parser<Character, Integer> integer = sign.then(unsignedInteger)
             .map((sign, i) -> sign ? i : -i);
 
-    /**
-     * A parser that parses an exponent part of a floating-point number.
-     * This parser will succeed if the next input symbol is 'e' or 'E', followed by an integer.
-     */
-    private static final Parser<Character, Integer> expnt = (chr('e').or(chr('E')))
-            .skipThen(intr);
 
-    private static final Parser<Character, Long> ulngNotZero = nonZeroDigitParser(
-            ds -> ds.foldLeft(0L, (acc, x) -> acc * 10L + x)
-    );
+    private static final Parser<Character, Integer> exponent = (chr('e').or(chr('E')))
+            .skipThen(integer);
 
     /**
      * A parser that recognizes and parses an unsigned long integer.
@@ -342,9 +289,9 @@ public class TextUtils {
      * <p>
      * The parsing process works as follows:
      * <ol>
-     *   <li>First attempts to match a single '0' character (using {@link #ulngZero})</li>
+     *   <li>First attempts to match a single '0' character (using {@link #unsignedLongZero})</li>
      *   <li>If that fails, attempts to match a non-zero digit followed by additional digits
-     *       (using {@link #ulngNotZero})</li>
+     *       (using {@link #unsignedLongNotZero})</li>
      *   <li>Converts the matched sequence into a long value</li>
      * </ol>
      * <p>
@@ -356,7 +303,7 @@ public class TextUtils {
      *   <li>Always returns a non-negative long value</li>
      * </ul>
      * <p>
-     * This parser is similar to {@link #uintr} but operates on the larger range of values supported by
+     * This parser is similar to {@link #unsignedInteger} but operates on the larger range of values supported by
      * the long data type, making it suitable for parsing larger numeric values.
      * <p>
      * Example usage:
@@ -372,11 +319,11 @@ public class TextUtils {
      * parser.parse("abc").isSuccess();            // false, doesn't start with a digit
      * }</pre>
      *
-     * @see #lng for parsing signed long integers
-     * @see #uintr for parsing unsigned integers (with smaller range)
-     * @see #dble for parsing floating-point numbers
+     * @see #longValue for parsing signed long integers
+     * @see #unsignedInteger for parsing unsigned integers (with smaller range)
+     * @see #doubleValue for parsing floating-point numbers
      */
-    public static final Parser<Character, Long> ulng = ulngZero.or(ulngNotZero);
+    public static final Parser<Character, Long> unsignedLong = unsignedLongZero.or(unsignedLongNotZero);
 
     /**
      * A parser that recognizes and parses a signed long integer.
@@ -388,13 +335,13 @@ public class TextUtils {
      * The parsing process works as follows:
      * <ol>
      *   <li>First parses an optional sign using the {@link #sign} parser</li>
-     *   <li>Then parses an unsigned long using the {@link #ulng} parser</li>
+     *   <li>Then parses an unsigned long using the {@link #unsignedLong} parser</li>
      *   <li>Combines the results, applying the sign to the unsigned long value</li>
      * </ol>
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>Combines the {@link #sign} and {@link #ulng} parsers using {@link Parser#then(Parser)}</li>
+     *   <li>Combines the {@link #sign} and {@link #unsignedLong} parsers using {@link Parser#then(Parser)}</li>
      *   <li>Maps the result to apply the sign: positive if {@code true}, negative if {@code false}</li>
      *   <li>Returns the resulting signed long value</li>
      * </ul>
@@ -419,11 +366,11 @@ public class TextUtils {
      * }</pre>
      *
      * @see #sign for parsing optional sign characters
-     * @see #ulng for parsing unsigned long integers
-     * @see #intr for parsing integers with smaller range
-     * @see #dble for parsing floating-point numbers
+     * @see #unsignedLong for parsing unsigned long integers
+     * @see #integer for parsing integers with smaller range
+     * @see #doubleValue for parsing floating-point numbers
      */
-    public static final Parser<Character, Long> lng = sign.then(ulng)
+    public static final Parser<Character, Long> longValue = sign.then(unsignedLong)
             .map((sign, i) -> sign ? i : -i);
 
     private static final Parser<Character, Double> floating = numeric.zeroOrMany()
@@ -436,7 +383,6 @@ public class TextUtils {
                 }
                 return result;
             });
-
     /**
      * A parser that parses a double-precision floating point number from character input.
      * <p>
@@ -464,11 +410,11 @@ public class TextUtils {
      * }</pre>
      *
      * @see #sign for the parser that handles the optional sign character
-     * @see #ulng for the parser that handles the numeric portion
+     * @see #unsignedLong for the parser that handles the numeric portion
      */
-    public static final Parser<Character, Double> dble = sign.then(ulng)
+    public static final Parser<Character, Double> doubleValue = sign.then(unsignedLong)
             .then((chr('.').skipThen(floating)).optional())
-            .then(expnt.optional())
+            .then(exponent.optional())
             .map((sn, i, f, exp) -> {
                 double r = i.doubleValue();
                 if (f.isPresent()) {
@@ -480,9 +426,6 @@ public class TextUtils {
                 return sn ? r : -r;
             });
 
-    /**
-     * Parses a number.
-     */
     public static final Parser<Character, Integer> number = numeric.many().map(chars -> {
         int result = 0;
         for (Character c : chars) {
@@ -490,58 +433,6 @@ public class TextUtils {
         }
         return result;
     });
-
-    /**
-     * Parses a single letter character.
-     */
-    public static final Parser<Character, Character> alpha = satisfy("<alphabet>", Character::isLetter);
-
-    /**
-     * Parses a single alphanumeric character.
-     * This parser will succeed if the next input symbol is a letter or digit.
-     */
-    public static final Parser<Character, Character> alphaNum = satisfy( "<alphanumeric>", Character::isLetterOrDigit);
-
-
-    /**
-     * Parses a sequence of letters and returns them as a string.
-     * <p>
-     * The {@code word} parser accepts one or more consecutive letter characters
-     * (as defined by {@link Character#isLetter(char)}) and concatenates them into a
-     * string result. If no letters are found, it returns an empty string.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses {@link #alpha} parser with {@code many()} to collect letter characters</li>
-     *   <li>Efficiently converts the character sequence to a string using StringBuilder</li>
-     *   <li>Returns the concatenated string of all matched letters</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse a word
-     * Parser<Character, String> parser = word;
-     * parser.parse("Hello123").get();  // Returns "Hello"
-     * parser.parse("").get();          // Returns "" (empty string)
-     *
-     * // Use with other parsers
-     * Parser<Character, String> identifier = word.then(alphaNum.many())
-     *     .map((w, rest) -> w + rest.stream()
-     *         .map(String::valueOf)
-     *         .collect(Collectors.joining()));
-     * }</pre>
-     *
-     * @see #alpha for parsing single letter characters
-     * @see #alphaNum for parsing alphanumeric characters
-     */
-    public static final Parser<Character, String> word = alpha.many().map(chars -> {
-        StringBuilder sb = new StringBuilder(chars.size());
-        for (Character c : chars) {
-            sb.append(c);
-        }
-        return sb.toString();
-    });
-
 
     /**
      * A parser that recognizes and parses a hexadecimal integer.
@@ -554,11 +445,6 @@ public class TextUtils {
     public static final Parser<Character, Integer> hex = string("0x").or(string("0X"))
             .skipThen(regex("[0-9a-fA-F]+")
                     .map(hexStr -> Integer.parseInt(hexStr, 16)));
-
-    public static final Parser<Character,Character> whitespace = satisfy("<whitespace>", Character::isWhitespace);
-
-    //public static final Parser<Character, Void> spaces = whitespace.skipMany();
-
 
     /**
      * A parser that parses a non-zero digit followed by zero or more digits.

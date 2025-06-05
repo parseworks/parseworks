@@ -353,10 +353,10 @@ public class Parser<I, A> {
      * @return a parser that handles left-associative expressions or returns the default value
      * @throws IllegalArgumentException if the operator parser is null
      * @see #chainLeftMany(Parser) for the version that requires at least one operand
-     * @see #chainRightZeroOrMany(Parser, Object) for the right-associative equivalent
+     * @see #chainRight(Parser, Object) for the right-associative equivalent
      * @see Associativity for associativity options
      */
-    public Parser<I, A> chainLeftZeroOrMany(Parser<I, BinaryOperator<A>> op, A a) {
+    public Parser<I, A> chainLeft(Parser<I, BinaryOperator<A>> op, A a) {
         return this.chainLeftMany(op).or(pure(a));
     }
 
@@ -401,7 +401,7 @@ public class Parser<I, A> {
      * @return a parser that handles left-associative expressions with at least one operand
      * @throws IllegalArgumentException if the operator parser is null
      * @see #chain(Parser, Associativity) for the more general method with explicit associativity
-     * @see #chainLeftZeroOrMany(Parser, Object) for a version that provides a default value
+     * @see #chainLeft(Parser, Object) for a version that provides a default value
      * @see #chainRightMany(Parser) for the right-associative equivalent
      */
     public Parser<I, A> chainLeftMany(Parser<I, BinaryOperator<A>> op) {
@@ -450,10 +450,10 @@ public class Parser<I, A> {
      * @return a parser that handles right-associative expressions or returns the default value
      * @throws IllegalArgumentException if the operator parser is null
      * @see #chainRightMany(Parser) for the version that requires at least one operand
-     * @see #chainLeftZeroOrMany(Parser, Object) for the left-associative equivalent
+     * @see #chainLeft(Parser, Object) for the left-associative equivalent
      * @see Associativity for associativity options
      */
-    public Parser<I, A> chainRightZeroOrMany(Parser<I, BinaryOperator<A>> op, A a) {
+    public Parser<I, A> chainRight(Parser<I, BinaryOperator<A>> op, A a) {
         return this.chainRightMany(op).or(pure(a));
     }
 
@@ -546,7 +546,7 @@ public class Parser<I, A> {
      * @return a parser that handles right-associative expressions with at least one operand
      * @throws IllegalArgumentException if the operator parser is null
      * @see #chain(Parser, Associativity) for the more general method with explicit associativity
-     * @see #chainRightZeroOrMany(Parser, Object) for a version that provides a default value
+     * @see #chainRight(Parser, Object) for a version that provides a default value
      * @see #chainLeftMany(Parser) for the left-associative equivalent
      */
     public Parser<I, A> chainRightMany(Parser<I, BinaryOperator<A>> op) {
@@ -688,34 +688,45 @@ public class Parser<I, A> {
     }
 
     /**
-     * Creates a negative lookahead parser that succeeds only if this parser succeeds and the provided parser fails.
+     * Creates a parser that implements negative lookahead, succeeding only when the provided parser fails.
      * <p>
-     * This method implements negative lookahead, which is a powerful parsing technique where we verify
-     * that a certain pattern does NOT appear at the current position before proceeding. The negative
-     * lookahead operates as follows:
+     * The {@code not} method provides a way to create parsers that succeed based on what is NOT
+     * present at the current position. The parsing process works as follows:
      * <ol>
-     *   <li>First tries the provided parser at the current position</li>
-     *   <li>If that parser succeeds, this composite parser fails</li>
-     *   <li>If that parser fails, this parser is applied and its result is returned</li>
+     *   <li>First applies the provided parser to the current input</li>
+     *   <li>If that parser succeeds, returns a failure (negative lookahead failed)</li>
+     *   <li>If that parser fails, applies this parser to the input</li>
      * </ol>
      * <p>
-     * Important: The lookahead parser never consumes any input. It only checks if a pattern matches
-     * without advancing the parser position.
+     * This method is useful for expressing grammar rules with exclusions or exceptions, allowing
+     * you to specify patterns that should NOT be present for this parser to succeed. The lookahead
+     * operation does not consume any input when checking for the excluded pattern.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>The provided parser is only used for checking, and its result is discarded</li>
+     *   <li>No input is consumed during the lookahead check</li>
+     *   <li>If the negative lookahead succeeds (provided parser fails), this parser is applied normally</li>
+     *   <li>If the negative lookahead fails (provided parser succeeds), the entire parser fails</li>
+     * </ul>
      * <p>
      * Example usage:
      * <pre>{@code
-     * // Parse a letter that is not followed by a digit
-     * Parser<Character, Character> letter = chr(Character::isLetter);
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, Character> letterNotFollowedByDigit = letter.not(digit);
+     * // Parse any character except a semicolon
+     * Parser<Character, Character> notSemicolon = anyChar.not(chr(';'));
      *
-     * // Succeeds for "a" or "aX", fails for "a1"
+     * // Parse any word that isn't a reserved keyword
+     * Parser<Character, String> identifier = word.not(keyword("if").or(keyword("else")));
+     *
+     * // Succeeds for any input not matching the excluded pattern
+     * // Fails if the input starts with the excluded pattern
      * }</pre>
      *
-     * @param parser the parser to use as negative lookahead
-     * @param <B>    the result type of the lookahead parser (not used in the result)
-     * @return a parser that succeeds only if this parser succeeds and the lookahead parser fails
+     * @param parser the parser representing the pattern that should NOT be present
+     * @param <B> the type of the excluded parser's result (not used in the output)
+     * @return a parser that succeeds only when the provided parser fails
      * @throws IllegalArgumentException if the parser parameter is null
+     * @see #isNot(Object) for a simpler version that checks against a specific value
      */
     public <B> Parser<I, A> not(Parser<I, B> parser) {
         return new Parser<>(in -> {
@@ -817,7 +828,7 @@ public class Parser<I, A> {
      * @param until the parser that signals when to stop collecting elements
      * @return a parser that applies this parser one or more times until the terminator succeeds
      * @throws IllegalArgumentException if the until parameter is null
-     * @see #zeroOrManyUntil(Parser) for a version that succeeds even with zero matches
+     * @see #until(Parser) for a version that succeeds even with zero matches
      * @see #many() for a version that collects until this parser fails
      * @see #repeatInternal(int, int, Parser) for the underlying implementation
      */
@@ -1039,9 +1050,9 @@ public class Parser<I, A> {
         // Use a more efficient data structure than Map
         IntObjectMap<Object> config = this.contextLocal.get();
 
-        // Use containsKey+put instead of get+put to reduce lookup
+
         if (config.get(lastPosition) == this) {
-            return Result.failure(in, null, INFINITE_LOOP_ERROR);
+            return Result.failure(in, "progress", INFINITE_LOOP_ERROR);
         }
 
         config.put(lastPosition, this);
@@ -1361,7 +1372,7 @@ public class Parser<I, A> {
      * @see #zeroOrMany() for collecting repeated elements without separators
      * @see #repeat(int, int) for collecting a specific range of elements
      */
-    public <SEP> Parser<I, FList<A>> separatedByZeroOrMany(Parser<I, SEP> sep) {
+    public <SEP> Parser<I, FList<A>> separatedBy(Parser<I, SEP> sep) {
         return this.separatedByMany(sep).map(l -> l).or(pure(new FList<>()));
     }
 
@@ -1445,7 +1456,7 @@ public class Parser<I, A> {
      * @param <SEP> the type of the separator parse result (which is discarded)
      * @return a parser that parses one or more elements separated by the given separator
      * @throws IllegalArgumentException if the separator parser is null
-     * @see #separatedByZeroOrMany(Parser) for a version that allows empty sequences
+     * @see #separatedBy(Parser) for a version that allows empty sequences
      * @see #many() for collecting repeated elements without separators
      * @see #repeat(int, int) for collecting a specific range of elements
      */
@@ -1781,7 +1792,7 @@ public class Parser<I, A> {
      * @see #manyUntil(Parser) for a version that requires at least one match
      * @see #zeroOrMany() for a version that collects until this parser fails
      */
-    public Parser<I, FList<A>> zeroOrManyUntil(Parser<I, ?> terminator) {
+    public Parser<I, FList<A>> until(Parser<I, ?> terminator) {
         return repeatInternal(0, Integer.MAX_VALUE, terminator);
     }
 

@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.function.BinaryOperator;
 
 import static io.github.parseworks.Combinators.chr;
-import static io.github.parseworks.TextUtils.dble;
+import static io.github.parseworks.NumericParsers.doubleValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -31,7 +31,7 @@ public class ArithmeticParserTest {
      * A parser for factors in arithmetic expressions, supporting nested expressions and double values.
      */
     public static Parser<Character, Double> factor = Combinators.oneOf(
-            dble,
+            doubleValue,
             expression.between('(', ')')
     ).trim();
 

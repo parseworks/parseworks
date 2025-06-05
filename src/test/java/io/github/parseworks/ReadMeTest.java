@@ -6,8 +6,10 @@ import java.io.CharArrayReader;
 import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
 
-import static io.github.parseworks.Combinators.*;
-import static io.github.parseworks.TextUtils.*;
+import static io.github.parseworks.Combinators.chr;
+import static io.github.parseworks.Combinators.oneOf;
+import static io.github.parseworks.NumericParsers.integer;
+import static io.github.parseworks.NumericParsers.number;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ReadMeTest {
@@ -67,7 +69,7 @@ public class ReadMeTest {
         Parser<Character, UnaryOperator<Integer>> expr = Parser.ref();
 
         Parser<Character, UnaryOperator<Integer>> var = chr('x').map(x -> v -> v);
-        Parser<Character, UnaryOperator<Integer>> num = intr.map(i -> v -> i);
+        Parser<Character, UnaryOperator<Integer>> num = integer.map(i -> v -> i);
         Parser<Character, BinOp> binOp = oneOf(
                 chr('+').as(BinOp.ADD),
                 chr('-').as(BinOp.SUB),

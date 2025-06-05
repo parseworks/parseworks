@@ -6,7 +6,8 @@ import java.util.List;
 import java.util.function.BinaryOperator;
 
 import static io.github.parseworks.Combinators.chr;
-import static io.github.parseworks.TextUtils.*;
+import static io.github.parseworks.NumericParsers.doubleValue;
+import static io.github.parseworks.NumericParsers.number;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class AssociativityTest {
@@ -29,8 +30,8 @@ public class AssociativityTest {
         Parser<Character, Double> term = Parser.ref();
 
         Parser<Character, Double> addition = term.then(chr('+')).then(expression).map((left, op, right) -> Double.sum(left, right));
-        Parser<Character, Double> multiplication = dble.then(chr('*')).then(term).map((left, op, right) -> left * right);
-        term.set(multiplication.or(dble));
+        Parser<Character, Double> multiplication = doubleValue.then(chr('*')).then(term).map((left, op, right) -> left * right);
+        term.set(multiplication.or(doubleValue));
         expression.set(Combinators.oneOf(List.of(
                 addition,
                 term
@@ -48,8 +49,8 @@ public class AssociativityTest {
         Parser<Character, Double> term = Parser.ref();
 
         Parser<Character, Double> addition = term.then(chr('+')).then(expression).map((left, op, right) -> Double.sum(left, right));
-        Parser<Character, Double> multiplication = dble.then(chr('*')).then(term).map((left, op, right) -> left * right);
-        term.set(multiplication.or(dble));
+        Parser<Character, Double> multiplication = doubleValue.then(chr('*')).then(term).map((left, op, right) -> left * right);
+        term.set(multiplication.or(doubleValue));
         expression.set(Combinators.oneOf(List.of(
                 addition,
                 term
@@ -64,7 +65,7 @@ public class AssociativityTest {
     @Test
     public void testLeftAssociative() {
         BinaryOperator<Integer> add = Integer::sum;
-        Parser<Character, Integer> leftAssocParser = number.chainLeftZeroOrMany(chr('+').as(add), 0);
+        Parser<Character, Integer> leftAssocParser = number.chainLeft(chr('+').as(add), 0);
 
         String input = "1+2+3";
         Result<Character, Integer> result = leftAssocParser.parse(Input.of(input));

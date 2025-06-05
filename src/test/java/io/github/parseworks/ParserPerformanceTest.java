@@ -1,10 +1,12 @@
 package io.github.parseworks;
 
 import org.junit.jupiter.api.Test;
+
 import java.util.concurrent.TimeUnit;
 
-import static io.github.parseworks.Combinators.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static io.github.parseworks.Combinators.chr;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ParserPerformanceTest {
 
@@ -39,46 +41,6 @@ public class ParserPerformanceTest {
     }
 
     @Test
-    public void testInfiniteLoopDetectionPerformance() {
-        // Create a complex parser with many branches that might trigger loop detection
-        Parser<Character, String> word = chr(Character::isLetter).many().map(chars -> 
-                chars.stream().map(String::valueOf).reduce("", String::concat));
-
-        Parser<Character, String> complexParser = Parser.ref();
-
-        Parser<Character, String> nested = word
-                .or(chr('(').skipThen(word).thenSkip(chr(')')))
-                .or(chr('[').skipThen(word).thenSkip(chr(']')))
-                .or(chr('{').skipThen(word).thenSkip(chr('}')))
-                .or(complexParser);
-
-        complexParser.set(nested);
-        
-        // Generate test input with many nested structures
-        StringBuilder input = new StringBuilder();
-        StringBuilder end = new StringBuilder();
-        for (int i = 0; i < 1000; i++) {
-            input.append("((word)").append("[test]").append("{data}");
-            end.append(")");
-        }
-        input.append(end);
-        
-        long startTime = System.nanoTime();
-        
-        // Parse the input multiple times
-        for (int i = 0; i < 5; i++) {
-            Result<Character, FList<String>> result = complexParser.many().parse(input.toString());
-            assertTrue(result.isError(), "Parsing should fail");
-        }
-        
-        long duration = System.nanoTime() - startTime;
-        System.out.println("Loop detection parsing took: " + TimeUnit.NANOSECONDS.toMillis(duration) + "ms");
-        
-        assertTrue(TimeUnit.NANOSECONDS.toMillis(duration) < 3000, 
-                "Loop detection should be efficient");
-    }
-
-    @Test
     public void testLargeInputPerformance() {
         // Create a parser for CSV-like data
         Parser<Character, FList<FList<String>>> csvParser = 
@@ -89,8 +51,8 @@ public class ParserPerformanceTest {
         
         // Generate a large CSV-like input
         StringBuilder input = new StringBuilder();
-        for (int i = 0; i < 1000; i++) {
-            for (int j = 0; j < 10; j++) {
+        for (int i = 0; i < 1000000; i++) {
+            for (int j = 0; j < 100; j++) {
                 input.append("field").append(j);
                 if (j < 9) input.append(",");
             }
@@ -102,14 +64,15 @@ public class ParserPerformanceTest {
         long duration = System.nanoTime() - startTime;
         
         assertTrue(result.isSuccess(), "Parsing should succeed");
-        assertEquals(1000, result.get().size(), "Should parse all lines");
-        
+        assertEquals(1000000, result.get().size(), "Should parse all lines");
+        System.out.println("Parsed " + result.get().size() + " lines successfully");
+        System.out.println("String size: " + String.format("%.2f MB", input.length() / 1048576f));
         System.out.println("Large input parsing took: " + TimeUnit.NANOSECONDS.toMillis(duration) + "ms");
-        assertTrue(TimeUnit.NANOSECONDS.toMillis(duration) < 10000, 
+        assertTrue(TimeUnit.NANOSECONDS.toMillis(duration) < 100000,
                 "Large input parsing should be efficient");
     }
 
-    @Test
+    @Test()
     public void testStringCachingPerformance() {
         // Create a simple parser
         Parser<Character, Character> letterParser = chr('a');

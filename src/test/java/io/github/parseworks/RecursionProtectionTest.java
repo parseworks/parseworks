@@ -24,7 +24,7 @@ public class RecursionProtectionTest {
     ));
 
     public static Parser<Character, Integer> number() {
-        return TextUtils.numeric.map(Character::getNumericValue);
+        return NumericParsers.numeric.map(Character::getNumericValue);
     }
 
     public static Parser<Character, BinaryOperator<Integer>> operator() {

@@ -1,7 +1,10 @@
 package io.github.parseworks;
 
 import java.util.*;
-import java.util.function.*;
+import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * An immutable functional list implementation that extends LinkedList.

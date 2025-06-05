@@ -3,6 +3,7 @@
 
 **parseWorks** is a Java parser combinator framework for constructing [LLR(*) parsers](http://en.wikipedia.org/wiki/LL_parser). This library draws inspiration from Jon Hanson's [ParsecJ](https://github.com/jon-hanson/parsecj) and [FuncJ](https://github.com/typemeta/funcj) libraries.
 
+The design philosophy of `parseWorks` is to provide a lightweight, composable, and expressive way to build parsers directly in Java, using a style that aligns with Java naming conventions and idioms rather than academic parser terminology.
 ### Key Features
 
 - **Composable Parser Combinators**: Offers a DSL for constructing parsers.
@@ -136,10 +137,6 @@ The `skipThen` combinator is useful when you want to chain parsers but ignore th
 
 The `between` combinator is used to parse expressions with enclosing symbols. It validates the open symbol, the appended parser, and finally the close symbol. If all three succeed, the result of the parser is returned.
 
-### The `fail` Combinator
-
-The `fail` combinator creates a parser that always fails with a generic error message.
-
 ### The `many` Combinator
 
 The `many` combinator expects the parser to be applied one or more times and collects the results into a List.
@@ -168,17 +165,17 @@ The `not` combinator wraps the parser to only call it if the provided parser ret
 
 The `chain` combinator is used to parse expressions with binary operators. It takes a parser for the operator and an associativity parameter (left or right) to determine how to combine the results of the parsers.
 
-### The `chainRightZeroOrMany` Combinator
+### The `chainRight` Combinator
 
-The `chainRightZeroOrMany` combinator is a parser for an operand, followed by zero or more operands that are separated by operators. The operators are right-associative.
+The `chainRight` combinator is a parser for an operand, followed by zero or more operands that are separated by operators. The operators are right-associative.
 
 ### The `chainRightMany` Combinator
 
 The `chainRightMany` combinator is a parser for an operand, followed by one or more operands that are separated by operators. The operators are right-associative.
 
-### The `chainLeftZeroOrMany` Combinator
+### The `chainLeft` Combinator
 
-The `chainLeftZeroOrMany` combinator is a parser for an operand, followed by zero or more operands that are separated by operators. The operators are left-associative.
+The `chainLeft` combinator is a parser for an operand, followed by zero or more operands that are separated by operators. The operators are left-associative.
 
 ### The `chainLeftMany` Combinator
 
@@ -196,9 +193,9 @@ The `repeatAtLeast` combinator applies the parser the specified number of times.
 
 The `repeat` combinator with min and max applies the parser between the specified minimum and maximum number of times. If the parser fails before reaching the minimum number of repetitions, the parser fails.
 
-### The `separatedByZeroOrMany` Combinator
+### The `separatedBy` Combinator
 
-The `separatedByZeroOrMany` combinator applies the parser zero or more times, separated by a separator parser. The results are collected in a list and returned.
+The `separatedBy` combinator applies the parser zero or more times, separated by a separator parser. The results are collected in a list and returned.
 
 ### The `separatedByMany` Combinator
 

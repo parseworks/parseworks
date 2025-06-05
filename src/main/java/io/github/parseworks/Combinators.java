@@ -55,7 +55,7 @@ public class Combinators {
     public static <I> Parser<I, I> any(Class<I> type) {
         return new NoCheckParser<>(input -> {
             if (input.isEof()) {
-                return Result.failure(input, "end of file").cast();
+                return Result.failure(input, type.descriptorString(), "end of input").cast();
             } else {
                 return Result.success(input.next(), input.current());
             }
@@ -125,7 +125,7 @@ public class Combinators {
     public static <I> Parser<I, I> oneOf(I... items) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, "one of");
+                return Result.failure(in, "one of", "end of input");
             }
             I current = in.current();
             for (I item : items) {
@@ -249,7 +249,7 @@ public class Combinators {
      * @see Parser#or(Parser) for providing alternatives when a parser fails
      */
     public static <I, A> Parser<I, A> fail() {
-        return new NoCheckParser<>(in -> Result.failure(in, "to fail"));
+        return new NoCheckParser<>(in -> Result.failure(in, "fail event", "fail"));
     }
 
     /**
@@ -288,7 +288,7 @@ public class Combinators {
     public static <I> Parser<I, I> isNot(I value) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, "inequality");
+                return Result.failure(in, "inequality", "end of input");
             }
             I item = in.current();
             if (Objects.equals(item, value)) {

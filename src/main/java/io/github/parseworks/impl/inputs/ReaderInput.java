@@ -79,14 +79,13 @@ public record ReaderInput(Reader reader, int position, int chr, boolean isEof) i
         if (isEof) {
             throw new IllegalStateException("End of input");
         }
-        int nextChar = chr;
-        for (int i = 0; i < offset; i++) {
-            nextChar = readChar(reader);
-            if (nextChar == -1) {
-                return new ReaderInput(reader, position + i, nextChar, true);
-            }
+        try {
+            reader.skip(offset);
+        } catch (IOException e) {
+            return new ReaderInput(reader, position + offset, '\0', true);
         }
-        return new ReaderInput(reader, position + offset, nextChar, false);
+
+        return new ReaderInput(reader, position + offset, readChar(reader), false);
     }
 
     /**
