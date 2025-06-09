@@ -27,6 +27,9 @@ import static io.github.parseworks.Combinators.is;
  */
 public class Parser<I, A> {
 
+    protected static final String INFINITE_LOOP_ERROR = "Infinite loop detected";
+    private final ThreadLocal<IntObjectMap<Object>> contextLocal = ThreadLocal.withInitial(IntObjectMap::new);
+
     /**
      * Transforms the result of this parser to a constant value, regardless of the actual parsed result.
      * <p>
@@ -1886,8 +1889,14 @@ public class Parser<I, A> {
             }
         });
     }
-    protected static final String INFINITE_LOOP_ERROR = "Infinite loop detected";
-    private final ThreadLocal<IntObjectMap<Object>> contextLocal = ThreadLocal.withInitial(IntObjectMap::new);
+
+    /**
+     * A function that defines how this parser applies to an input.
+     * <p>
+     * This function is the core of the parser, defining how it processes input and produces results.
+     * It takes an {@link Input} object representing the current parsing state and returns a {@link Result}
+     * object containing either a successful parse result or an error.
+     */
     protected Function<Input<I>, Result<I, A>> applyHandler;
     /**
      * A default apply handler that throws an exception if the parser is not initialized.
