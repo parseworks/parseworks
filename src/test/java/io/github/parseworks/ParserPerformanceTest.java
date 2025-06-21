@@ -45,7 +45,7 @@ public class ParserPerformanceTest {
         // Create a parser for CSV-like data
         Parser<Character, FList<FList<String>>> csvParser = 
                 chr(Character::isLetterOrDigit).many()
-                .map(chars -> chars.stream().map(String::valueOf).reduce("", String::concat))
+                .map(FList::joinChars)
                 .separatedByMany(chr(','))
                 .separatedByMany(chr('\n'));
         
