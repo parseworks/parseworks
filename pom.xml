@@ -4,7 +4,7 @@
 
     <groupId>io.github.parseworks</groupId>
     <artifactId>parseworks</artifactId>
-    <version>3.0.0</version>
+    <version>3.0.1-SNAPSHOT</version>
 
     <name>${project.groupId}:${project.artifactId}</name>
     <description>
