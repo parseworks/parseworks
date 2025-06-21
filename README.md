@@ -70,7 +70,9 @@ Traditionally, parsers are implemented using tools like Yacc/Bison or ANTLR, whi
 ### `Parser` Type
 
 `Parser<I, A>` defines the core interface for parsers. Use the `Parser.parse` method to apply a parser to an `Input`, returning a `Result`.
-
+```java
+Parser<Character, String> parser = chr('A').then(chr('B')).map(a -> b -> a + b);
+```
 #### Recursive Parsers with `Parser.ref()`
 
 Handling recursive grammar definitions presents a challenge in Java since you cannot reference variables that haven't been initialized yet. This creates a circular dependency problem when defining parsers that refer to themselves. ParseWorks solves this issue with the `Parser.ref()` method, which creates a reference to a parser before its actual implementation exists. You can use this reference in your parser compositions, and then later assign the complete implementation to it using the `set()` method.

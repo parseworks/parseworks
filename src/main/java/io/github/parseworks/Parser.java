@@ -4,8 +4,6 @@ import io.github.parseworks.impl.IntObjectMap;
 import io.github.parseworks.impl.Pair;
 import io.github.parseworks.impl.parser.NoCheckParser;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
@@ -15,7 +13,7 @@ import static io.github.parseworks.Combinators.is;
 
 /**
  * <p>
- * The `Parser` class represents a parser that can parse input of type `I` and produce a result of type `A`.
+ * The `Parser` class represents a parser that consumes input of type `I` and transforms the input to a result of type `A`.
  * </p>
  * This class provides various methods for creating parsers, applying them to input, and combining them with other parsers.
  * This is a thread-safe class that can be used to create parsers for different types of input.
@@ -256,8 +254,8 @@ public class Parser<I, A> {
      * The {@code then} method is a fundamental parser combinator that enables sequential
      * parsing operations. When parsers are chained using this method:
      * <ol>
-     *   <li>First, this parser is applied to the input</li>
-     *   <li>If this parser succeeds, the next parser is applied to the remaining input</li>
+     *   <li>First, `this` parser is applied to the input</li>
+     *   <li>If `this` parser succeeds, the provided next parser is applied to the remaining input</li>
      *   <li>The result is an {@code ApplyBuilder} that allows further parser composition
      *       and eventually mapping the results to a final value</li>
      * </ol>
@@ -1850,7 +1848,7 @@ public class Parser<I, A> {
             throw new IllegalArgumentException("The minimum number of repetitions cannot be greater than the maximum");
         }
         return new Parser<>(in -> {
-            List<A> buffer = new ArrayList<>();
+            FList<A> buffer = new FList<>();
             Input<I> current = in;
             int count = 0;
 
@@ -1862,13 +1860,13 @@ public class Parser<I, A> {
                         if (count < min) {
                             return Result.failure(current, "Expected at least " + min + " items");
                         }
-                        return Result.success(termRes.next(), new FList<>(buffer));
+                        return Result.success(termRes.next(), buffer);
                     }
                 }
                 // End-of-input or max reached
                 if (current.isEof() || count >= max) {
                     if (count >= min && until == null) {
-                        return Result.success(current, new FList<>(buffer));
+                        return Result.success(current, buffer);
                     }
                     return Result.failure(current, min + " repetitions");
                 }
@@ -1876,7 +1874,7 @@ public class Parser<I, A> {
                 Result<I, A> res = this.apply(current);
                 if (!res.isSuccess()) {
                     if (count >= min) {
-                        return Result.success(current, new FList<>(buffer));
+                        return Result.success(current, buffer);
                     }
                     return res.cast();
                 }
