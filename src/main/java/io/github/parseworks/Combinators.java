@@ -326,13 +326,13 @@ public class Combinators {
      * // Parse one of three different types of token
      * Parser<Character, String> keyword = string("if").or(string("else")).or(string("while"));
      * Parser<Character, String> identifier = regex("[a-zA-Z][a-zA-Z0-9]*");
-     * Parser<Character, Integer> number = intr;
+     * Parser<Character, String> number = NumericParsers.numeric.many().map(FList::joinChars);
      *
      * // Combine into a single token parser using oneOf
-     * Parser<Character, Object> token = oneOf(Arrays.asList(
-     *     keyword.cast(),
-     *     identifier.cast(),
-     *     number.cast()
+     * Parser<Character, String> token = oneOf(Arrays.asList(
+     *     keyword,
+     *     identifier,
+     *     number
      * ));
      *
      * // Succeeds with "if" for input "if"

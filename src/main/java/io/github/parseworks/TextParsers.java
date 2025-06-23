@@ -101,6 +101,41 @@ public class TextParsers {
      */
     public static final Parser<Character, Character> alphaNumeric = satisfy( "<alphanumeric>", Character::isLetterOrDigit);
 
+    /**
+     * Creates a parser that trims whitespace from the input before and after parsing.
+     * <p>
+     * The {@code trim} parser applies the given parser to the input after skipping any leading
+     * whitespace, and then skips any trailing whitespace from the result. This is useful for
+     * ensuring that whitespace does not interfere with the parsing of the main content.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Uses {@link #skipWhitespace(Input)} to remove leading and trailing whitespace</li>
+     *   <li>Returns a new parser that applies the original parser to the trimmed input</li>
+     * </ul>
+     *
+     * @param parser the parser to apply after trimming whitespace
+     * @param <A>    the type of the parsed value
+     * @return a new parser that trims whitespace around the original parser
+     */
+    public static <A> Parser<Character,A>  trim(Parser<Character, A> parser) {
+        return new Parser<>(in -> {
+            Input<Character> trimmedInput = skipWhitespace(in);
+            Result<Character, A> result = parser.apply(trimmedInput);
+            if (result.isSuccess()) {
+                trimmedInput = skipWhitespace(result.next());
+                return Result.success(trimmedInput, result.get());
+            }
+            return result;
+        });
+    }
+
+    private static Input<Character> skipWhitespace(Input<Character> in) {
+        while (!in.isEof() && Character.isWhitespace(in.current())) {
+            in = in.next();
+        }
+        return in;
+    }
 
     /**
      * Parses a sequence of letters and returns them as a string.

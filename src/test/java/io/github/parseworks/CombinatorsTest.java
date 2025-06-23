@@ -213,6 +213,16 @@ public class CombinatorsTest {
         assertTrue(parser.parse("!").isSuccess());
         assertEquals('!', parser.parse("!").get());
 
+        Parser<Character, String> keyword = string("if").or(string("else")).or(string("while"));
+        Parser<Character, String> identifier = regex("[a-zA-Z][a-zA-Z0-9]*");
+        Parser<Character, String> number = NumericParsers.numeric.many().map(FList::joinChars);
+
+       Parser<Character, String> token = oneOf(Arrays.asList(
+         keyword,
+       identifier,
+         number
+         ));
+
         // Failure case
         assertFalse(parser.parse("?").isSuccess());
     }

@@ -8,6 +8,7 @@ import java.util.function.BinaryOperator;
 
 import static io.github.parseworks.Combinators.chr;
 import static io.github.parseworks.NumericParsers.numeric;
+import static io.github.parseworks.TextParsers.trim;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ParserTest {
@@ -242,8 +243,8 @@ public class ParserTest {
     }
 
     @Test
-    public void testSeparatedBy() {
-        Parser<Character, FList<Character>> parser = chr(Character::isLetter).separatedBy(chr(','));
+    public void testZeroOrManySeparatedBy() {
+        Parser<Character, FList<Character>> parser = chr(Character::isLetter).zeroOrManySeparatedBy(chr(','));
         Input<Character> input = Input.of("a,b,c");
         Result<Character, FList<Character>> result = parser.parse(input);
         assertTrue(result.isSuccess());
@@ -450,7 +451,7 @@ public class ParserTest {
 
     @Test
     public void testTrim() {
-        Parser<Character, Character> parser = chr('a').trim();
+        Parser<Character, Character> parser = trim(chr('a'));
 
         // Test with whitespace before and after
         Result<Character, Character> result = parser.parse("  a  ");
@@ -460,8 +461,8 @@ public class ParserTest {
     }
 
     @Test
-    public void testSeparatedByMany() {
-        Parser<Character, FList<Character>> parser = chr('a').separatedByMany(chr(','));
+    public void testManySeparatedBy() {
+        Parser<Character, FList<Character>> parser = chr('a').manySeparatedBy(chr(','));
 
         // Test with multiple separated elements
         Result<Character, FList<Character>> result1 = parser.parse("a,a,a");
@@ -594,10 +595,10 @@ public class ParserTest {
 
 
     @Test
-    public void testSeparatedByManyEmptyInput() {
+    public void testManySeparatedByEmptyInput() {
         // Define a parser for comma-separated integers
         Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
-        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.separatedByMany(chr(','));
+        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.manySeparatedBy(chr(','));
 
         // Test input
         String input = "";
@@ -610,10 +611,10 @@ public class ParserTest {
     }
 
     @Test
-    public void testSeparatedByManySingleElement() {
+    public void testManySeparatedBySingleElement() {
         // Define a parser for comma-separated integers
         Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
-        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.separatedByMany(chr(','));
+        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.manySeparatedBy(chr(','));
 
         // Test input
         String input = "7";
@@ -624,10 +625,10 @@ public class ParserTest {
     }
 
     @Test
-    public void testSeparatedByManyTrailingSeparator() {
+    public void testManySeparatedByTrailingSeparator() {
         // Define a parser for comma-separated integers
         Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
-        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.separatedByMany(chr(','));
+        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.manySeparatedBy(chr(','));
 
         // Test input
         String input = "1,2,3,";
@@ -638,10 +639,10 @@ public class ParserTest {
     }
 
     @Test
-    public void testSeparatedByManyMultipleSeparators() {
+    public void testManySeparatedByMultipleSeparators() {
         // Define a parser for comma-separated integers
         Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
-        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.separatedByMany(chr(','));
+        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.manySeparatedBy(chr(','));
 
         // Test input
         String input = "1,,2,3";
@@ -652,10 +653,10 @@ public class ParserTest {
     }
 
     @Test
-    public void testSeparatedByManyNonNumericInput() {
+    public void testManySeparatedByNonNumericInput() {
         // Define a parser for comma-separated integers
         Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
-        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.separatedByMany(chr(','));
+        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.manySeparatedBy(chr(','));
 
         // Test input
         String input = "a,b,c";

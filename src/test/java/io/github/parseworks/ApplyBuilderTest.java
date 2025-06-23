@@ -3,6 +3,7 @@ package io.github.parseworks;
 import org.junit.jupiter.api.Test;
 
 import static io.github.parseworks.Combinators.regex;
+import static io.github.parseworks.TextParsers.trim;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -177,8 +178,8 @@ public class ApplyBuilderTest {
         Parser<Character, Character> semicolon = charParser(';');
         
         // Parse "x = 42;"
-        Parser<Character, Assignment> assignmentParser = identifier.trim().then(equals)
-            .then(number.trim()).then(semicolon)
+        Parser<Character, Assignment> assignmentParser = trim(identifier).then(equals)
+            .then(trim(number)).then(semicolon)
             .map((name, eq, value, semi) -> new Assignment(name, value));
         
         Result<Character, Assignment> result = assignmentParser.parseAll("myVar = 42;");

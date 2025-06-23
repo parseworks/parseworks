@@ -346,7 +346,7 @@ public class Parser<I, A> {
      *     number.chainLeftZeroOrMany(subtract, 0);
      *
      * // Parses "5-3-2" as (5-3)-2 = 0
-     * // Returns 0 for empty input
+     * // Returns 0
      * }</pre>
      *
      * @param op the parser that recognizes and returns binary operators
@@ -817,7 +817,7 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse all characters until a semicolon
-     * Parser<Character, Character> anyChar = any();
+     * Parser<Character, Character> anyChar = any(Character.class);
      * Parser<Character, Character> semicolon = chr(';');
      * Parser<Character, FList<Character>> content = anyChar.manyUntil(semicolon);
      *
@@ -1337,7 +1337,7 @@ public class Parser<I, A> {
      *   <li>Attempts to parse a first element using this parser</li>
      *   <li>If the first element is found, then repeatedly tries to parse a separator followed by another element</li>
      *   <li>Collects all parsed elements (ignoring separators) into an {@code FList}</li>
-     *   <li>Returns an empty list if no elements are found (unlike {@link #separatedByMany(Parser)} which requires at least one element)</li>
+     *   <li>Returns an empty list if no elements are found (unlike {@link #manySeparatedBy(Parser)} which requires at least one element)</li>
      * </ol>
      * <p>
      * This method is particularly useful for parsing common data formats like comma-separated lists,
@@ -1346,7 +1346,7 @@ public class Parser<I, A> {
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>Builds on {@link #separatedByMany(Parser)} but succeeds even when no elements are found</li>
+     *   <li>Builds on {@link #manySeparatedBy(Parser)} but succeeds even when no elements are found</li>
      *   <li>Only the elements are collected; separator values are discarded</li>
      *   <li>Always succeeds, returning an empty list if no elements match</li>
      *   <li>The input position remains unchanged if no elements are found</li>
@@ -1369,12 +1369,12 @@ public class Parser<I, A> {
      * @param <SEP> the type of the separator parse result (which is discarded)
      * @return a parser that parses zero or more elements separated by the given separator
      * @throws IllegalArgumentException if the separator parser is null
-     * @see #separatedByMany(Parser) for a version that requires at least one element
+     * @see #manySeparatedBy(Parser) for a version that requires at least one element
      * @see #zeroOrMany() for collecting repeated elements without separators
      * @see #repeat(int, int) for collecting a specific range of elements
      */
-    public <SEP> Parser<I, FList<A>> separatedBy(Parser<I, SEP> sep) {
-        return this.separatedByMany(sep).map(l -> l).or(pure(new FList<>()));
+    public <SEP> Parser<I, FList<A>> zeroOrManySeparatedBy(Parser<I, SEP> sep) {
+        return this.manySeparatedBy(sep).map(l -> l).or(pure(new FList<>()));
     }
 
     /**
@@ -1417,7 +1417,7 @@ public class Parser<I, A> {
     /**
      * Creates a parser that parses a non-empty sequence of elements separated by a delimiter.
      * <p>
-     * The {@code separatedByMany} method creates a parser that matches elements using this parser,
+     * The {@code manySeparatedBy} method creates a parser that matches elements using this parser,
      * with each element separated by the specified separator parser. The parsing process works as follows:
      * <ol>
      *   <li>First parses an initial element using this parser (required)</li>
@@ -1457,11 +1457,11 @@ public class Parser<I, A> {
      * @param <SEP> the type of the separator parse result (which is discarded)
      * @return a parser that parses one or more elements separated by the given separator
      * @throws IllegalArgumentException if the separator parser is null
-     * @see #separatedBy(Parser) for a version that allows empty sequences
+     * @see #zeroOrManySeparatedBy(Parser) for a version that allows empty sequences
      * @see #many() for collecting repeated elements without separators
      * @see #repeat(int, int) for collecting a specific range of elements
      */
-    public <SEP> Parser<I, FList<A>> separatedByMany(Parser<I, SEP> sep) {
+    public <SEP> Parser<I, FList<A>> manySeparatedBy(Parser<I, SEP> sep) {
         return this.then(sep.skipThen(this).zeroOrMany()).map(a -> l -> l.prepend(a));
     }
 
@@ -1694,59 +1694,6 @@ public class Parser<I, A> {
             // Reached end of input
             return Result.success(currentInput, results);
         });
-    }
-
-    /**
-     * Creates a parser that skips whitespace characters before and after applying this parser.
-     * <p>
-     * The {@code trim} method provides a convenient way to handle whitespace in parsers,
-     * especially useful when parsing formats where whitespace is insignificant. The parsing
-     * process works as follows:
-     * <ol>
-     *   <li>Skips all leading whitespace characters from the current input position</li>
-     *   <li>Applies this parser to the whitespace-trimmed input</li>
-     *   <li>If this parser succeeds, skips all trailing whitespace characters after the result</li>
-     *   <li>Returns the original parser's result with the input position advanced past any trailing whitespace</li>
-     * </ol>
-     * <p>
-     * Important implementation details:
-     * <ul>
-     *   <li>Whitespace is determined using Java's {@link Character#isWhitespace(char)} method</li>
-     *   <li>Trimming only occurs when the input elements are of type {@code Character}</li>
-     *   <li>If the original parser fails, the failure is returned without attempting to skip trailing whitespace</li>
-     *   <li>The parser result value remains unchanged; only the input position is affected</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse an integer, ignoring surrounding whitespace
-     * Parser<Character, Integer> parser = intr.trim();
-     *
-     * // Succeeds with 42 for input "42"
-     * // Succeeds with 42 for input "  42  "
-     * // Succeeds with 42 for input "\t42\n"
-     * }</pre>
-     *
-     * @return a new parser that skips whitespace before and after applying this parser
-     * @see Character#isWhitespace(char) for the definition of whitespace characters
-     */
-    public Parser<I, A> trim() {
-        return new Parser<>(in -> {
-            Input<I> trimmedInput = skipWhitespace(in);
-            Result<I, A> result = this.apply(trimmedInput);
-            if (result.isSuccess()) {
-                trimmedInput = skipWhitespace(result.next());
-                return Result.success(trimmedInput, result.get());
-            }
-            return result;
-        });
-    }
-
-    private Input<I> skipWhitespace(Input<I> in) {
-        while (!in.isEof() && in.current() instanceof Character ch && Character.isWhitespace(ch)) {
-            in = in.next();
-        }
-        return in;
     }
 
     /**

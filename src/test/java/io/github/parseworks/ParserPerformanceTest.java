@@ -46,8 +46,8 @@ public class ParserPerformanceTest {
         Parser<Character, FList<FList<String>>> csvParser = 
                 chr(Character::isLetterOrDigit).many()
                 .map(FList::joinChars)
-                .separatedByMany(chr(','))
-                .separatedByMany(chr('\n'));
+                .manySeparatedBy(chr(','))
+                .manySeparatedBy(chr('\n'));
         
         // Generate a large CSV-like input
         StringBuilder input = new StringBuilder();
