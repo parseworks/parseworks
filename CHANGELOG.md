@@ -10,4 +10,4 @@
 - Improved overall parsing performance
 
 **New Features**
-
+- Plugin feature to provide specific implementations of a Parser
