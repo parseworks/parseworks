@@ -986,7 +986,11 @@ public class Parser<I, A> {
     public Result<I, A> parse(Input<I> in, boolean consumeAll) {
         Result<I, A> result = this.apply(in);
         if (consumeAll && result.isSuccess()) {
-            result = result.next().isEof() ? result : Result.failure(result.next(), "eof");
+            if (!result.next().isEof()) {
+                // Provide more context about what was found after parsing should have completed
+                String found = result.next().hasMore() ? String.valueOf(result.next().current()) : "unknown";
+                result = Result.failure(result.next(), "complete input consumption (no trailing content)", found);
+            }
         }
         return result;
     }
@@ -1051,14 +1055,31 @@ public class Parser<I, A> {
         // Use a more efficient data structure than Map
         IntObjectMap<Object> config = this.contextLocal.get();
 
-
+        // Check for infinite recursion
         if (config.get(lastPosition) == this) {
-            return Result.failure(in, "progress", INFINITE_LOOP_ERROR);
+            // Provide a more descriptive error message for infinite recursion
+            String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
+            return Result.failure(
+                in, 
+                "parser to make progress (infinite recursion detected at position " + lastPosition + ")", 
+                found + " " + INFINITE_LOOP_ERROR
+            );
         }
 
         config.put(lastPosition, this);
         try {
             return applyHandler.apply(in);
+        } catch (RuntimeException e) {
+            // Only catch RuntimeExceptions, let checked exceptions propagate
+            // This allows throwError to work as expected
+            if (e.getCause() instanceof Exception && !(e.getCause() instanceof RuntimeException)) {
+                // If it's a wrapped checked exception (like from throwError), rethrow it
+                throw e;
+            }
+
+            // Catch and wrap unexpected runtime exceptions with context
+            String errorMsg = "Unexpected error during parsing: " + e.getMessage();
+            return Result.failure(in, "successful parsing without exceptions", errorMsg);
         } finally {
             // Remove the parser from the context after parsing
             config.remove(lastPosition);
@@ -1805,7 +1826,13 @@ public class Parser<I, A> {
                     Result<I, ?> termRes = until.apply(current);
                     if (termRes.isSuccess()) {
                         if (count < min) {
-                            return Result.failure(current, "Expected at least " + min + " items");
+                            // Provide more context about the error
+                            String found = current.hasMore() ? String.valueOf(current.current()) : "end of input";
+                            return Result.failure(
+                                current, 
+                                "at least " + min + " items (found only " + count + " before terminator)", 
+                                found
+                            );
                         }
                         return Result.success(termRes.next(), buffer);
                     }
@@ -1815,7 +1842,13 @@ public class Parser<I, A> {
                     if (count >= min && until == null) {
                         return Result.success(current, buffer);
                     }
-                    return Result.failure(current, min + " repetitions");
+                    // Provide more context about the error
+                    String reason = current.isEof() ? "end of input reached" : "maximum repetitions (" + max + ") reached";
+                    return Result.failure(
+                        current, 
+                        min + " repetitions (found only " + count + ", " + reason + ")", 
+                        current.isEof() ? "end of input" : (current.hasMore() ? String.valueOf(current.current()) : "unknown")
+                    );
                 }
                 // Parse an item
                 Result<I, A> res = this.apply(current);
@@ -1823,10 +1856,20 @@ public class Parser<I, A> {
                     if (count >= min) {
                         return Result.success(current, buffer);
                     }
-                    return res.cast();
+                    // Pass through the original error with more context
+                    return Result.failure(
+                        current, 
+                        "at least " + min + " repetitions (found only " + count + ")", 
+                        res.error()
+                    );
                 }
                 if (current.position() == res.next().position()) {
-                    return Result.failure(current, "Parser consumed no input");
+                    // Provide more context about the error when parser doesn't consume input
+                    return Result.failure(
+                        current, 
+                        "parser to consume input during repetition", 
+                        "parser made no progress at position " + current.position()
+                    );
                 }
                 buffer.add(res.get());
                 current = res.next();

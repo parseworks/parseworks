@@ -125,7 +125,7 @@ public class Combinators {
     public static <I> Parser<I, I> oneOf(I... items) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, "one of", "end of input");
+                return Result.failure(in, "one of the expected values", "end of input");
             }
             I current = in.current();
             for (I item : items) {
@@ -133,7 +133,22 @@ public class Combinators {
                     return Result.success(in.next(), current);
                 }
             }
-            return Result.failure(in, "one of items to match");
+
+            // Create a readable list of expected items
+            StringBuilder expectedItems = new StringBuilder();
+            if (items.length > 0) {
+                expectedItems.append(items[0]);
+                for (int i = 1; i < items.length; i++) {
+                    if (i == items.length - 1) {
+                        expectedItems.append(" or ");
+                    } else {
+                        expectedItems.append(", ");
+                    }
+                    expectedItems.append(items[i]);
+                }
+            }
+
+            return Result.failure(in, "one of [" + expectedItems + "]", String.valueOf(current));
         });
     }
 
@@ -184,7 +199,9 @@ public class Combinators {
             if (input.isEof()) {
                 return Result.success(input, null);
             } else {
-                return Result.failure(input, "eof");
+                // Provide more context about what was found instead of EOF
+                String found = input.hasMore() ? String.valueOf(input.current()) : "unknown";
+                return Result.failure(input, "end of input", found);
             }
         });
     }
@@ -249,7 +266,11 @@ public class Combinators {
      * @see Parser#or(Parser) for providing alternatives when a parser fails
      */
     public static <I, A> Parser<I, A> fail() {
-        return new NoCheckParser<>(in -> Result.failure(in, "fail event", "fail"));
+        return new NoCheckParser<>(in -> {
+            // Provide a more descriptive error message
+            String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
+            return Result.failure(in, "parser explicitly set to fail", found);
+        });
     }
 
     /**
@@ -264,7 +285,9 @@ public class Combinators {
         return new Parser<>(in -> {
             Result<I, A> result = parser.apply(in);
             if (result.isSuccess()) {
-                return Result.failure(in, "not");
+                // Provide more context about what was found that shouldn't have matched
+                String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
+                return Result.failure(in, "input that does NOT match the given pattern", found);
             } else {
                 return Result.success(in, null);
             }
@@ -288,11 +311,11 @@ public class Combinators {
     public static <I> Parser<I, I> isNot(I value) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, "inequality", "end of input");
+                return Result.failure(in, "any value except " + value, "end of input");
             }
             I item = in.current();
             if (Objects.equals(item, value)) {
-                return Result.failure(in, "inequality");
+                return Result.failure(in, "any value except " + value, String.valueOf(item));
             } else {
                 return Result.success(in.next(), item);
             }

@@ -37,7 +37,7 @@ public class ReadMeTest {
                 failure -> "Error: " + failure.error()
         );
 
-        assertTrue(response.contains("Error: Position 0: Expected equivalence but found A"), "Message was " + response);
+        assertTrue(response.contains("Error: Position 0: Expected an equivalent value but found A"), "Message was " + response);
 
         // This is a test class for the README.md file.
         // It is used to validate the code snippets in the README.md file.
@@ -53,7 +53,7 @@ public class ReadMeTest {
                 success -> "Success: no way!",
                 failure -> "Error: " + failure.error()
         );
-        assertTrue(response2.contains("Error: Position 2: Expected <number> but found z"));
+        assertTrue(response2.contains("Error: Position 2: Expected at least 1 repetitions (found only 0) but found Position 2: Expected <number> but found z"));
     }
 
     @Test

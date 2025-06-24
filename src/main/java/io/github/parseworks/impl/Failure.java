@@ -5,7 +5,6 @@ import io.github.parseworks.Result;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Function;
 
 /**
@@ -60,15 +59,39 @@ public record Failure<I, A>(
     @Override
     public String error() {
         String foundInstead = this.found != null ? this.found : input.hasMore() ? String.valueOf(input.current()) : "end of input";
-        String message = "Position " + input.position() + ": Expected ";
+        StringBuilder message = new StringBuilder();
 
-        message += Objects.requireNonNullElse(expected, "correct input");
-        if (input.hasMore()) {
-            message += " but found " + foundInstead;
+        // Add position information
+        message.append("Position ").append(input.position()).append(": ");
+
+        // Add parser context if available
+        if (expected != null && !expected.isEmpty()) {
+            // Make the expected message more descriptive
+            if (expected.equals("eof")) {
+                message.append("Expected end of input");
+            } else if (expected.equals("one of")) {
+                message.append("Expected one of the specified options");
+            } else if (expected.equals("inequality")) {
+                message.append("Expected a different value");
+            } else if (expected.equals("equivalence")) {
+                message.append("Expected an equivalent value");
+            } else if (expected.equals("progress")) {
+                message.append("Parser failed to make progress");
+            } else {
+                message.append("Expected ").append(expected);
+            }
         } else {
-            message += " but reached end of input";
+            message.append("Expected correct input");
         }
-        return message;
+
+        // Add what was found
+        if (input.hasMore()) {
+            message.append(" but found ").append(foundInstead);
+        } else {
+            message.append(" but reached end of input");
+        }
+
+        return message.toString();
     }
 
     public String fullErrorMessage() {
