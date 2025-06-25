@@ -51,4 +51,8 @@ public record Success<I, A>(
     public <B> B handle(Function<Result<I, A>, B> success, Function<Result<I, A>, B> failure) {
         return success.apply(this);
     }
+
+    public String toString() {
+        return "Success(" + value + ")";
+    }
 }
