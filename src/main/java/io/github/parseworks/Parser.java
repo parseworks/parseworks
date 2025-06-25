@@ -732,7 +732,9 @@ public class Parser<I, A> {
         return new Parser<>(in -> {
             Result<I, B> result = parser.apply(in);
             if (result.isSuccess()) {
-                return Result.failure(in, "Parser to fail");
+                // Provide more context about what was found that shouldn't have matched
+                String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
+                return Result.validationError(in, "Parser to fail", found);
             }
             return this.apply(in);
         });
