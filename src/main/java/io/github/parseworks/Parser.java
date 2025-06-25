@@ -25,7 +25,6 @@ import static io.github.parseworks.Combinators.is;
  */
 public class Parser<I, A> {
 
-    protected static final String INFINITE_LOOP_ERROR = "Infinite loop detected";
     private final ThreadLocal<IntObjectMap<Object>> contextLocal = ThreadLocal.withInitial(IntObjectMap::new);
 
     /**
@@ -989,7 +988,7 @@ public class Parser<I, A> {
             if (!result.next().isEof()) {
                 // Provide more context about what was found after parsing should have completed
                 String found = result.next().hasMore() ? String.valueOf(result.next().current()) : "unknown";
-                result = Result.failure(result.next(), "complete input consumption (no trailing content)", found);
+                result = Result.expectedEofError(result.next(), found);
             }
         }
         return result;
@@ -1052,18 +1051,11 @@ public class Parser<I, A> {
         // Fast path - avoid ThreadLocal lookup if position is different
         int lastPosition = in.position();
 
-        // Use a more efficient data structure than Map
         IntObjectMap<Object> config = this.contextLocal.get();
 
         // Check for infinite recursion
         if (config.get(lastPosition) == this) {
-            // Provide a more descriptive error message for infinite recursion
-            String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
-            return Result.failure(
-                in, 
-                "parser to make progress (infinite recursion detected at position " + lastPosition + ")", 
-                found + " " + INFINITE_LOOP_ERROR
-            );
+            return Result.recursionError(in);
         }
 
         config.put(lastPosition, this);
@@ -1079,7 +1071,7 @@ public class Parser<I, A> {
 
             // Catch and wrap unexpected runtime exceptions with context
             String errorMsg = "Unexpected error during parsing: " + e.getMessage();
-            return Result.failure(in, "successful parsing without exceptions", errorMsg);
+            return Result.internalError(in, errorMsg);
         } finally {
             // Remove the parser from the context after parsing
             config.remove(lastPosition);
@@ -1827,12 +1819,9 @@ public class Parser<I, A> {
                     if (termRes.isSuccess()) {
                         if (count < min) {
                             // Provide more context about the error
-                            String found = current.hasMore() ? String.valueOf(current.current()) : "end of input";
                             return Result.failure(
                                 current, 
-                                "at least " + min + " items (found only " + count + " before terminator)", 
-                                found
-                            );
+                                "expected at least " + min + " items (found only " + count + " before terminator)");
                         }
                         return Result.success(termRes.next(), buffer);
                     }

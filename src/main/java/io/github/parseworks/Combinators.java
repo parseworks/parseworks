@@ -1,5 +1,6 @@
 package io.github.parseworks;
 
+import io.github.parseworks.impl.Failure.ErrorType;
 import io.github.parseworks.impl.parser.NoCheckParser;
 
 import java.util.*;
@@ -201,7 +202,7 @@ public class Combinators {
             } else {
                 // Provide more context about what was found instead of EOF
                 String found = input.hasMore() ? String.valueOf(input.current()) : "unknown";
-                return Result.failure(input, "end of input", found);
+                return Result.expectedEofError(input, found);
             }
         });
     }
@@ -267,10 +268,55 @@ public class Combinators {
      */
     public static <I, A> Parser<I, A> fail() {
         return new NoCheckParser<>(in -> {
-            // Provide a more descriptive error message
             String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
-            return Result.failure(in, "parser explicitly set to fail", found);
+            return Result.failure(in, "parser explicitly set to fail", found, ErrorType.GENERIC);
         });
+    }
+
+    /**
+     * Creates a parser that always fails with a specific error message and type.
+     * <p>
+     * This allows creating custom failure parsers with specific error types.
+     *
+     * @param expected  the expected input description
+     * @param errorType the type of error to report
+     * @param <I>       the type of the input symbols
+     * @param <A>       the type of the parsed value
+     * @return a parser that always fails with the specified error type
+     */
+    public static <I, A> Parser<I, A> fail(String expected, ErrorType errorType) {
+        return new NoCheckParser<>(in -> {
+            String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
+            return Result.failure(in, expected, found, errorType);
+        });
+    }
+
+    /**
+     * Creates a parser that always fails with a syntax error.
+     * <p>
+     * Use this for errors where the input doesn't match the expected syntax.
+     *
+     * @param expected the expected syntax description
+     * @param <I>      the type of the input symbols
+     * @param <A>      the type of the parsed value
+     * @return a parser that always fails with a SYNTAX error type
+     */
+    public static <I, A> Parser<I, A> failSyntax(String expected) {
+        return fail(expected, ErrorType.SYNTAX);
+    }
+
+    /**
+     * Creates a parser that always fails with a validation error.
+     * <p>
+     * Use this for errors where the input parsed but failed validation.
+     *
+     * @param constraint the validation constraint description
+     * @param <I>        the type of the input symbols
+     * @param <A>        the type of the parsed value
+     * @return a parser that always fails with a VALIDATION error type
+     */
+    public static <I, A> Parser<I, A> failValidation(String constraint) {
+        return fail(constraint, ErrorType.VALIDATION);
     }
 
     /**
@@ -287,7 +333,7 @@ public class Combinators {
             if (result.isSuccess()) {
                 // Provide more context about what was found that shouldn't have matched
                 String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
-                return Result.failure(in, "input that does NOT match the given pattern", found);
+                return Result.validationError(in, "input that does NOT match the given pattern", found);
             } else {
                 return Result.success(in, null);
             }
@@ -311,11 +357,11 @@ public class Combinators {
     public static <I> Parser<I, I> isNot(I value) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, "any value except " + value, "end of input");
+                return Result.unexpectedEofError(in, "any value except " + value);
             }
             I item = in.current();
             if (Objects.equals(item, value)) {
-                return Result.failure(in, "any value except " + value, String.valueOf(item));
+                return Result.validationError(in, "any value except " + value, String.valueOf(item));
             } else {
                 return Result.success(in.next(), item);
             }
@@ -374,7 +420,7 @@ public class Combinators {
     public static <I, A> Parser<I, A> oneOf(List<Parser<I, A>> parsers) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, "one of");
+                return Result.unexpectedEofError(in, "one of the expected patterns");
             }
             for (Parser<I, A> parser : parsers) {
                 Result<I, A> result = parser.apply(in);
@@ -382,7 +428,8 @@ public class Combinators {
                     return result;
                 }
             }
-            return Result.failure(in, "one of");
+            String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
+            return Result.syntaxError(in, "one of the expected patterns", found);
         }
         );
     }
@@ -431,7 +478,7 @@ public class Combinators {
     public static <I, A> Parser<I, A> oneOf(Parser<I, A>... parsers) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, "one of");
+                return Result.unexpectedEofError(in, "one of the expected patterns");
             }
             for (Parser<I, A> parser : parsers) {
                 Result<I, A> result = parser.apply(in);
@@ -439,7 +486,8 @@ public class Combinators {
                     return result;
                 }
             }
-            return Result.failure(in, "one of");
+            String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
+            return Result.syntaxError(in, "one of the expected patterns", found);
         }
         );
     }
