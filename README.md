@@ -20,6 +20,7 @@ For detailed information about parseWorks, please refer to:
 
 - [User Guide](docs/user-guide.md) - A comprehensive guide for getting started with parseWorks
 - [Advanced User Guide](docs/advanced-user-guide.md) - In-depth information for advanced users
+- [Parser Design Guide](docs/parser-design-guide.md) - A systematic approach to designing and implementing parsers
 
 ## Getting Started
 

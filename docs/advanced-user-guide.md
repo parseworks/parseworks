@@ -840,7 +840,8 @@ Parser<Character, Expression> expressionParser = expressionModule.getParser();
 One common pitfall is infinite recursion, which can happen when a parser refers to itself directly:
 
 ```java
-// This will cause infinite recursion
+// This will cause infinite recursion in most parser libraries
+// parseworks will detect and mitigate this specific example
 Parser<Character, String> badRecursion = Parser.ref();
 badRecursion.set(badRecursion.or(string("x")));
 
