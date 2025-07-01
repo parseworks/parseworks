@@ -122,6 +122,41 @@ public class Combinators {
     }
 
 
+    /**
+     * Creates a parser that accepts any input element that equals one of the provided items.
+     * <p>
+     * The {@code oneOf(I... items)} method creates a parser that matches the current input element
+     * against a set of possible values using {@link Objects#equals(Object, Object)}. This parser
+     * succeeds if the current input element equals any of the provided items. The parsing process
+     * works as follows:
+     * <ol>
+     *   <li>Checks if the input is not at EOF</li>
+     *   <li>Compares the current input element with each of the provided items</li>
+     *   <li>If a match is found, consumes the element and returns it</li>
+     *   <li>If no match is found or at EOF, fails with an error message</li>
+     * </ol>
+     * <p>
+     * This method is useful for creating parsers that match against a fixed set of possible values,
+     * such as keywords, operators, or specific tokens.
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse one of the digits 1, 2, or 3
+     * Parser<Character, Character> digit123 = oneOf('1', '2', '3');
+     * 
+     * // Parse one of the boolean literals
+     * Parser<String, String> boolLiteral = oneOf("true", "false");
+     * 
+     * // Parse one of several arithmetic operators
+     * Parser<Character, Character> operator = oneOf('+', '-', '*', '/');
+     * }</pre>
+     *
+     * @param items the items to match against
+     * @param <I>   the type of the input elements
+     * @return a parser that accepts any input element that equals one of the provided items
+     * @see #oneOf(Parser...) for choosing between multiple parsers
+     * @see #is(Object) for matching a single specific value
+     */
     @SafeVarargs
     public static <I> Parser<I, I> oneOf(I... items) {
         return new NoCheckParser<>(in -> {
@@ -208,63 +243,40 @@ public class Combinators {
     }
 
     /**
-     * Creates a parser that always fails with a generic error message.
+     * Creates a parser that unconditionally fails, consuming no input.
      * <p>
-     * The {@code fail()} method creates a parser that unconditionally fails regardless of the input.
-     * This parser is useful as a base case in recursive parsers, for indicating impossible branches
-     * in parser combinators, or as a placeholder during development. The parsing process is simple:
-     * <ol>
-     *   <li>The parser immediately returns a failure result</li>
-     *   <li>The failure contains a generic "to fail" error message</li>
-     *   <li>The input position remains unchanged (no input is consumed)</li>
-     * </ol>
-     * <p>
-     * Key features:
+     * This parser is useful for:
      * <ul>
-     *   <li>Always fails without examining the input</li>
-     *   <li>Never consumes any input elements</li>
-     *   <li>Returns the original input position in the failure result</li>
-     *   <li>Provides a generic failure message</li>
+     *   <li>Providing a base case in recursive parsers</li>
+     *   <li>Creating explicit failure points in parsing logic</li>
+     *   <li>Implementing temporary placeholders during development</li>
+     *   <li>Building fallback branches in parser combinators</li>
      * </ul>
      * <p>
-     * Implementation details:
+     * When applied, this parser will:
      * <ul>
-     *   <li>Creates a {@link NoCheckParser} that always returns a failure result</li>
-     *   <li>Preserves the input state, allowing for recovery with {@link Parser#or}</li>
-     *   <li>Uses the simple message "to fail" as the expected value in the error</li>
+     *   <li>Always return a failure result</li>
+     *   <li>Not consume any input</li>
+     *   <li>Include a generic "fail" message in the error result</li>
      * </ul>
      * <p>
      * Example usage:
      * <pre>{@code
-     * // Create a parser with a fallback
-     * Parser<Character, String> fallbackParser = fail().or(string("default"));
-     * fallbackParser.parse("default").get();  // Returns "default"
+     * // Using fail as a base case
+     * Parser<Character, Integer> number = digit.many1().map(Integer::parseInt)
+     *     .orElse(fail());
      *
-     * // Use in conditional parsing
-     * Parser<Character, String> conditional = input -> {
-     *     if (someCondition) {
-     *         return actualParser.apply(input);
-     *     } else {
-     *         return fail().apply(input);
-     *     }
-     * };
-     *
-     * // As a base case in recursive descent
-     * Parser<Character, Integer> expr = Parser.lazy(() ->
-     *     number.or(parens).or(fail()));
-     *
-     * // As a placeholder during development
-     * Parser<Character, User> parseUser = regex("[a-zA-Z]+").map(name -> {
-     *     // Not yet implemented
-     *     return fail().apply(input).cast();
-     * });
+     * // Using fail for unimplemented features
+     * Parser<Character, User> parseUser =
+     *     string("user:").skipThen(fail());  // Not yet implemented
      * }</pre>
      *
-     * @param <I> the type of the input symbols
-     * @param <A> the type of the parsed value
+     * @param <I> the type of input symbols
+     * @param <A> the type of the parser result
      * @return a parser that always fails
-     * @see #throwError(Supplier) for throwing exceptions instead of returning failure
-     * @see Parser#or(Parser) for providing alternatives when a parser fails
+     * @see #failSyntax(String) for syntax-specific failures
+     * @see #failValidation(String) for validation-specific failures
+     * @see Parser#or(Parser) for providing alternatives when failure occurs
      */
     public static <I, A> Parser<I, A> fail() {
         return new NoCheckParser<>(in -> {
@@ -276,13 +288,60 @@ public class Combinators {
     /**
      * Creates a parser that always fails with a specific error message and type.
      * <p>
-     * This allows creating custom failure parsers with specific error types.
+     * The {@code fail(String, ErrorType)} method extends the basic {@link #fail()} method by allowing
+     * you to specify both the expected input description and the type of error to report. This gives
+     * you more control over the error message and categorization, which can be useful for:
+     * <ol>
+     *   <li>Creating domain-specific error messages that are more meaningful to users</li>
+     *   <li>Categorizing errors for different handling strategies</li>
+     *   <li>Providing more context about why parsing failed</li>
+     * </ol>
+     * <p>
+     * The parsing process is simple:
+     * <ol>
+     *   <li>The parser immediately returns a failure result</li>
+     *   <li>The failure contains the specified expected description</li>
+     *   <li>The failure is categorized with the specified error type</li>
+     *   <li>The input position remains unchanged (no input is consumed)</li>
+     * </ol>
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Always fails without examining the input</li>
+     *   <li>Never consumes any input elements</li>
+     *   <li>Returns the original input position in the failure result</li>
+     *   <li>Uses the specified error type for categorization</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Create a parser that fails with a syntax error
+     * Parser<Character, String> syntaxError = 
+     *     fail("properly formatted JSON object", ErrorType.SYNTAX);
+     *     
+     * // Create a parser that fails with a validation error
+     * Parser<Character, Integer> validationError = 
+     *     fail("positive integer", ErrorType.VALIDATION);
+     *     
+     * // Use in conditional parsing with specific error types
+     * Parser<Character, User> parseUser = input -> {
+     *     if (isAuthenticated) {
+     *         return userParser.apply(input);
+     *     } else {
+     *         return fail("authentication", ErrorType.AUTHORIZATION).apply(input);
+     *     }
+     * };
+     * }</pre>
      *
      * @param expected  the expected input description
      * @param errorType the type of error to report
      * @param <I>       the type of the input symbols
      * @param <A>       the type of the parsed value
      * @return a parser that always fails with the specified error type
+     * @see #fail() for a generic failure parser
+     * @see #failSyntax(String) for a syntax-specific failure parser
+     * @see #failValidation(String) for a validation-specific failure parser
+     * @see ErrorType for available error type categories
      */
     public static <I, A> Parser<I, A> fail(String expected, ErrorType errorType) {
         return new NoCheckParser<>(in -> {
@@ -294,12 +353,58 @@ public class Combinators {
     /**
      * Creates a parser that always fails with a syntax error.
      * <p>
-     * Use this for errors where the input doesn't match the expected syntax.
+     * The {@code failSyntax} method is a specialized version of {@link #fail(String, ErrorType)} that
+     * specifically creates a parser that fails with a {@link ErrorType#SYNTAX} error type. This is
+     * useful for reporting errors related to the structure or grammar of the input, rather than
+     * its semantic meaning.
+     * <p>
+     * Syntax errors typically indicate that the input doesn't conform to the expected grammar or
+     * format rules. Common examples include:
+     * <ul>
+     *   <li>Missing delimiters or terminators (e.g., missing closing bracket)</li>
+     *   <li>Incorrect token order (e.g., operator in wrong position)</li>
+     *   <li>Invalid character sequences (e.g., malformed number literal)</li>
+     *   <li>Unexpected tokens (e.g., keyword where an identifier was expected)</li>
+     * </ul>
+     * <p>
+     * The parsing process is simple:
+     * <ol>
+     *   <li>The parser immediately returns a failure result</li>
+     *   <li>The failure contains the specified expected syntax description</li>
+     *   <li>The failure is categorized with the SYNTAX error type</li>
+     *   <li>The input position remains unchanged (no input is consumed)</li>
+     * </ol>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Create a parser that reports a missing closing parenthesis
+     * Parser<Character, String> missingParen = 
+     *     failSyntax("closing parenthesis ')'");
+     *     
+     * // Use in conditional parsing for syntax validation
+     * Parser<Character, Expression> parseExpr = input -> {
+     *     if (hasOpenBracket && !hasCloseBracket) {
+     *         return failSyntax("matching closing bracket").apply(input);
+     *     } else {
+     *         return actualParser.apply(input);
+     *     }
+     * };
+     * 
+     * // Combine with or() for better error messages
+     * Parser<Character, String> quotedString =
+     *     chr('"')
+     *         .skipThen(regex("[^\"]*"))
+     *         .thenSkip(chr('"'))
+     *         .or(failSyntax("properly quoted string"));
+     * }</pre>
      *
      * @param expected the expected syntax description
      * @param <I>      the type of the input symbols
      * @param <A>      the type of the parsed value
      * @return a parser that always fails with a SYNTAX error type
+     * @see #fail(String, ErrorType) for creating failures with custom error types
+     * @see #failValidation(String) for creating validation-specific failures
+     * @see ErrorType#SYNTAX for the error type used
      */
     public static <I, A> Parser<I, A> failSyntax(String expected) {
         return fail(expected, ErrorType.SYNTAX);
@@ -308,51 +413,174 @@ public class Combinators {
     /**
      * Creates a parser that always fails with a validation error.
      * <p>
-     * Use this for errors where the input parsed but failed validation.
+     * The {@code failValidation} method is a specialized version of {@link #fail(String, ErrorType)} that
+     * specifically creates a parser that fails with a {@link ErrorType#VALIDATION} error type. This is
+     * useful for reporting errors related to the semantic validity of the input, rather than
+     * its syntactic structure.
+     * <p>
+     * Validation errors typically indicate that the input has correct syntax but violates some
+     * semantic constraint or business rule. Common examples include:
+     * <ul>
+     *   <li>Value range violations (e.g., negative number where positive is required)</li>
+     *   <li>Type mismatches (e.g., string where a number is expected)</li>
+     *   <li>Constraint violations (e.g., duplicate key in a map)</li>
+     *   <li>Semantic inconsistencies (e.g., end date before start date)</li>
+     * </ul>
+     * <p>
+     * The parsing process is simple:
+     * <ol>
+     *   <li>The parser immediately returns a failure result</li>
+     *   <li>The failure contains the specified validation constraint description</li>
+     *   <li>The failure is categorized with the VALIDATION error type</li>
+     *   <li>The input position remains unchanged (no input is consumed)</li>
+     * </ol>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Create a parser that reports an invalid age
+     * Parser<Character, Integer> invalidAge = 
+     *     failValidation("age must be between 0 and 120");
+     *     
+     * // Use in conditional parsing for semantic validation
+     * Parser<Character, Integer> age = intr.flatMap(value -> {
+     *     if (value >= 0 && value <= 120) {
+     *         return Parser.pure(value);
+     *     } else {
+     *         return failValidation("age must be between 0 and 120");
+     *     }
+     * });
+     * 
+     * // Validate a date format
+     * Parser<Character, Date> dateParser = 
+     *     dateStringParser.flatMap(dateStr -> {
+     *         try {
+     *             return Parser.pure(new SimpleDateFormat("yyyy-MM-dd").parse(dateStr));
+     *         } catch (ParseException e) {
+     *             return failValidation("date in format yyyy-MM-dd");
+     *         }
+     *     });
+     * }</pre>
      *
      * @param constraint the validation constraint description
      * @param <I>        the type of the input symbols
      * @param <A>        the type of the parsed value
      * @return a parser that always fails with a VALIDATION error type
+     * @see #fail(String, ErrorType) for creating failures with custom error types
+     * @see #failSyntax(String) for creating syntax-specific failures
+     * @see ErrorType#VALIDATION for the error type used
      */
     public static <I, A> Parser<I, A> failValidation(String constraint) {
         return fail(constraint, ErrorType.VALIDATION);
     }
 
     /**
-     * Creates a parser that succeeds if the provided parser fails.
+     * Creates a parser that succeeds if the provided parser fails, returning the current input element.
+     * <p>
+     * The {@code not} method creates a negation parser that inverts the success/failure behavior of another parser.
+     * This is useful for creating parsers that match anything except a specific pattern. The parsing process
+     * works as follows:
+     * <ol>
+     *   <li>Applies the provided parser to the input without consuming any input</li>
+     *   <li>If the provided parser fails, this parser succeeds and returns the current input element</li>
+     *   <li>If the provided parser succeeds, this parser fails with a validation error</li>
+     *   <li>If the input is at EOF, this parser fails</li>
+     * </ol>
+     * <p>
+     * This method is particularly useful for creating parsers that exclude certain patterns or for
+     * implementing "not followed by" lookahead assertions in parsing grammars.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>The parser does not consume any input when checking the negation condition</li>
+     *   <li>When successful, returns the current input element and advances the input position</li>
+     *   <li>When the negated parser succeeds, fails with a validation error</li>
+     *   <li>Cannot succeed at EOF since there's no current element to return</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse any character that is not a digit
+     * Parser<Character, Character> notDigit = not(chr(Character::isDigit));
+     * 
+     * // Parse an identifier that doesn't start with a reserved word
+     * Parser<Character, String> keyword = oneOf(
+     *     string("if"), string("else"), string("while")
+     * );
+     * Parser<Character, String> identifier = not(keyword).skipThen(
+     *     regex("[a-zA-Z][a-zA-Z0-9]*")
+     * );
+     * 
+     * // Succeeds with 'a' for input "a"
+     * // Fails for input "1" (matches the negated parser)
+     * // Fails for empty input (no current element)
+     * }</pre>
      *
      * @param parser the parser to negate
      * @param <I>    the type of the input symbols
      * @param <A>    the type of the parsed value
-     * @return a parser that succeeds if the provided parser fails
+     * @return a parser that succeeds if the provided parser fails, returning the current input element
+     * @see #isNot(Object) for negating equality with a specific value
+     * @throws IllegalArgumentException if the parser parameter is null
      */
-    public static <I, A> Parser<I, A> not(Parser<I, A> parser) {
+    public static <I, A> Parser<I, I> not(Parser<I, A> parser) {
         return new Parser<>(in -> {
             Result<I, A> result = parser.apply(in);
-            if (result.isSuccess()) {
+            if (result.isSuccess() || !result.input().hasMore()) {
                 // Provide more context about what was found that shouldn't have matched
-                String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
-                return Result.validationError(in, "input that does NOT match the given pattern", found);
-            } else {
-                return Result.success(in, null);
+                String found = result.input().hasMore() ? String.valueOf(in.current()) : "end of input";
+                return Result.validationError(in, "parser succeeded when we wanted it to fail", found);
             }
+            return Result.success(in, in.current());
+
         });
     }
 
     /**
-     * Creates a parser that succeeds if the current input item is not equal to the provided value.
+     * Creates a parser that succeeds if the current input element is not equal to the provided value.
      * <p>
-     * This parser attempts to match the current input item against the specified value using
-     * {@link Objects#equals(Object, Object)}. If the input is at the end of the file (EOF), it returns a
-     * failure result with an "inequality" expected type and "eof" as the found value. If the current item
-     * equals the provided value, it returns a failure result indicating what was found instead.
+     * The {@code isNot} method creates a parser that checks if the current input element is different
+     * from a specific value. This is useful for creating parsers that exclude specific tokens or
+     * characters. The parsing process works as follows:
+     * <ol>
+     *   <li>Checks if the input is not at EOF</li>
+     *   <li>Compares the current input element with the provided value using {@link Objects#equals(Object, Object)}</li>
+     *   <li>If they are not equal, consumes the element and returns it</li>
+     *   <li>If they are equal or at EOF, fails with an appropriate error message</li>
+     * </ol>
      * <p>
-     * This method is useful for creating parsers that match specific input values.
+     * This method is particularly useful for creating parsers that need to match any input except
+     * specific values, such as parsing until a delimiter or excluding certain characters.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Uses {@link Objects#equals(Object, Object)} for comparison, handling null values correctly</li>
+     *   <li>When successful, consumes one input element</li>
+     *   <li>When the input matches the excluded value, fails with a validation error</li>
+     *   <li>When at EOF, fails with an unexpected EOF error</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse any character that is not a semicolon
+     * Parser<Character, Character> notSemicolon = isNot(';');
+     * 
+     * // Parse any token except "end"
+     * Parser<String, String> notEnd = isNot("end");
+     * 
+     * // Parse content until a closing bracket
+     * Parser<Character, String> content = isNot(']').many().map(chars -> 
+     *     chars.stream().map(String::valueOf).collect(Collectors.joining()));
+     * 
+     * // Succeeds with 'a' for input "a"
+     * // Fails for input ";" (matches the excluded value)
+     * // Fails for empty input (no current element)
+     * }</pre>
      *
-     * @param value the value to compare against
+     * @param value the value to exclude (the parser fails if the current input equals this)
      * @param <I>   the type of the input symbols
-     * @return a parser that succeeds if the current input item is not equal to the provided value
+     * @return a parser that succeeds if the current input element is not equal to the provided value
+     * @see #not(Parser) for negating a parser rather than a specific value
+     * @see #is(Object) for the opposite operation (matching a specific value)
      */
     public static <I> Parser<I, I> isNot(I value) {
         return new NoCheckParser<>(in -> {
@@ -493,12 +721,55 @@ public class Combinators {
     }
 
     /**
-     * Sequence combinator: applies each parser in sequence and collects the results in a `List`.
+     * Creates a parser that applies multiple parsers in sequence and collects their results in a list.
+     * <p>
+     * The {@code sequence} method is a fundamental combinator for parsing ordered sequences of elements.
+     * It applies each parser in the provided list in order, collecting their results into a single list.
+     * The parsing process works as follows:
+     * <ol>
+     *   <li>Applies the first parser to the input</li>
+     *   <li>If successful, applies the second parser to the remaining input</li>
+     *   <li>Continues applying parsers in order until all succeed or one fails</li>
+     *   <li>If all parsers succeed, returns a list containing all parsed values</li>
+     *   <li>If any parser fails, the entire sequence fails</li>
+     * </ol>
+     * <p>
+     * This method is useful for parsing fixed-format data where multiple elements appear in a specific order,
+     * such as record structures, command sequences, or multi-part tokens.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>Each parser is applied to the input remaining after the previous parser</li>
+     *   <li>Results are collected in order in an {@link ArrayList}</li>
+     *   <li>The sequence fails if any parser fails</li>
+     *   <li>An empty list of parsers will always succeed with an empty result list</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse a date in "YYYY-MM-DD" format
+     * Parser<Character, Integer> year = regex("\\d{4}").map(Integer::parseInt);
+     * Parser<Character, Integer> month = regex("\\d{2}").map(Integer::parseInt);
+     * Parser<Character, Integer> day = regex("\\d{2}").map(Integer::parseInt);
+     * 
+     * Parser<Character, List<Integer>> dateComponents = sequence(Arrays.asList(
+     *     year,
+     *     string("-").skipThen(month),
+     *     string("-").skipThen(day)
+     * ));
+     * 
+     * // Succeeds with [2023, 4, 15] for input "2023-04-15"
+     * // Fails for input "2023/04/15" (wrong separator)
+     * // Fails for input "2023-4-15" (month needs two digits)
+     * }</pre>
      *
      * @param parsers the list of parsers to apply in sequence
      * @param <I>     the type of the input symbols
      * @param <A>     the type of the parsed value
-     * @return a parser that applies each parser in sequence and collects the results in a `List`
+     * @return a parser that applies each parser in sequence and collects the results in a list
+     * @see #sequence(Parser, Parser) for a specialized version with two parsers
+     * @see #sequence(Parser, Parser, Parser) for a specialized version with three parsers
+     * @see Parser#then(Parser) for combining just two parsers
      */
     public static <I, A> Parser<I, List<A>> sequence(List<Parser<I, A>> parsers) {
         return new Parser<>(in -> {
@@ -510,34 +781,98 @@ public class Combinators {
                     return result.cast();
                 }
                 results.add(result.get());
-                currentInput = result.next();
+                currentInput = result.input();
             }
             return Result.success(currentInput, results);
         });
     }
 
     /**
-     * Sequence combinator: applies each parser in sequence and collects the results.
+     * Creates a parser that applies two parsers in sequence and returns an ApplyBuilder for further composition.
+     * <p>
+     * This specialized version of the {@code sequence} method applies two parsers in sequence and returns
+     * an {@link ApplyBuilder} that allows for further composition and transformation of the results.
+     * The parsing process works as follows:
+     * <ol>
+     *   <li>Applies the first parser to the input</li>
+     *   <li>If successful, applies the second parser to the remaining input</li>
+     *   <li>If both parsers succeed, returns an ApplyBuilder containing both results</li>
+     *   <li>If either parser fails, the entire sequence fails</li>
+     * </ol>
+     * <p>
+     * The returned ApplyBuilder allows for mapping the two results to a combined value using the
+     * {@link ApplyBuilder#map(java.util.function.BiFunction)} method.
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse a key-value pair separated by a colon
+     * Parser<Character, String> key = regex("[a-zA-Z]+");
+     * Parser<Character, String> value = regex("[0-9]+");
+     * Parser<Character, Pair<String, String>> keyValue = 
+     *     sequence(key, string(":").skipThen(value))
+     *         .map((k, v) -> new Pair<>(k, v));
+     * 
+     * // Succeeds with Pair("age", "30") for input "age:30"
+     * // Fails for input "age=30" (wrong separator)
+     * }</pre>
      *
      * @param parserA the first parser to apply in sequence
      * @param parserB the second parser to apply in sequence
      * @param <I>     the type of the input symbols
      * @param <A>     the type of the parsed value
-     * @return a parser that applies each parser in sequence and collects the results
+     * @return an ApplyBuilder that allows for further composition of the two parser results
+     * @see #sequence(List) for a version that works with a list of parsers
+     * @see #sequence(Parser, Parser, Parser) for a version that works with three parsers
+     * @see Parser#then(Parser) for the underlying implementation
      */
     public static <I, A> ApplyBuilder<I, A, A> sequence(Parser<I, A> parserA, Parser<I, A> parserB) {
         return parserA.then(parserB);
     }
 
     /**
-     * Sequence combinator: applies each parser in sequence and collects the results.
+     * Creates a parser that applies three parsers in sequence and returns an ApplyBuilder3 for further composition.
+     * <p>
+     * This specialized version of the {@code sequence} method applies three parsers in sequence and returns
+     * an {@link ApplyBuilder.ApplyBuilder3} that allows for further composition and transformation of the results.
+     * The parsing process works as follows:
+     * <ol>
+     *   <li>Applies the first parser to the input</li>
+     *   <li>If successful, applies the second parser to the remaining input</li>
+     *   <li>If successful, applies the third parser to the remaining input</li>
+     *   <li>If all three parsers succeed, returns an ApplyBuilder3 containing all three results</li>
+     *   <li>If any parser fails, the entire sequence fails</li>
+     * </ol>
+     * <p>
+     * The returned ApplyBuilder3 allows for mapping the three results to a combined value using the
+     * {@link ApplyBuilder.ApplyBuilder3#map} method with a three-argument function.
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse a date in "YYYY-MM-DD" format
+     * Parser<Character, Integer> year = regex("\\d{4}").map(Integer::parseInt);
+     * Parser<Character, Integer> month = regex("\\d{2}").map(Integer::parseInt);
+     * Parser<Character, Integer> day = regex("\\d{2}").map(Integer::parseInt);
+     * 
+     * Parser<Character, Date> dateParser = 
+     *     sequence(
+     *         year, 
+     *         string("-").skipThen(month), 
+     *         string("-").skipThen(day)
+     *     ).map((y, m, d) -> new Date(y - 1900, m - 1, d));
+     * 
+     * // Succeeds with Date object for input "2023-04-15"
+     * // Fails for input with incorrect format
+     * }</pre>
      *
      * @param parserA the first parser to apply in sequence
      * @param parserB the second parser to apply in sequence
-     * @param parserC the second parser to apply in sequence
+     * @param parserC the third parser to apply in sequence
      * @param <I>     the type of the input symbols
      * @param <A>     the type of the parsed value
-     * @return a parser that applies each parser in sequence and collects the results
+     * @return an ApplyBuilder3 that allows for further composition of the three parser results
+     * @see #sequence(List) for a version that works with a list of parsers
+     * @see #sequence(Parser, Parser) for a version that works with two parsers
+     * @see Parser#then(Parser) for the underlying implementation
      */
     public static <I, A> ApplyBuilder<I, A, A>.ApplyBuilder3<A> sequence(Parser<I, A> parserA, Parser<I, A> parserB, Parser<I, A> parserC) {
         return parserA.then(parserB).then(parserC);

@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.Combinators.chr;
+import static io.github.parseworks.Combinators.*;
 import static io.github.parseworks.NumericParsers.numeric;
 import static io.github.parseworks.TextParsers.trim;
 import static org.junit.jupiter.api.Assertions.*;
@@ -373,8 +373,8 @@ public class ParserTest {
     }
 
     @Test
-    public void testUntil() {
-        Parser<Character, FList<Character>> parser = chr('a').until(chr(';'));
+    public void testZeroOrManyUntil() {
+        Parser<Character, FList<Character>> parser = chr('a').zeroOrManyUntil(chr(';'));
 
         // Test case 1: Zero matches with terminator
         Result<Character, FList<Character>> result1 = parser.parse(";");
@@ -392,7 +392,7 @@ public class ParserTest {
     }
 
     @Test
-    public void testManyUntil() {
+    public void testManyZeroOrManyUntil() {
         Parser<Character, FList<Character>> parser = chr('a').manyUntil(chr(';'));
 
         // Test case 1: Multiple matches with terminator
@@ -437,7 +437,7 @@ public class ParserTest {
 
     @Test
     public void testIsNot() {
-        Parser<Character, Character> parser = chr(Character::isLetter).isNot('b');
+        Parser<Character, Character> parser = chr(Character::isLetter).onlyIf(isNot('b'));
 
         // Should succeed when current character is 'a'
         Result<Character, Character> result1 = parser.parse("a");
@@ -457,7 +457,7 @@ public class ParserTest {
         Result<Character, Character> result = parser.parse("  a  ");
         assertTrue(result.isSuccess());
         assertEquals('a', result.get());
-        assertTrue(result.next().isEof());
+        assertTrue(result.input().isEof());
     }
 
     @Test
@@ -505,27 +505,25 @@ public class ParserTest {
         // Create a parser that recognizes digits
         Parser<Character, Character> digitParser = chr(Character::isDigit);
 
-        // Create a parser that recognizes 'a' but only if there's no digit
-        Parser<Character, Character> aNotDigitParser = aParser.not(digitParser);
+        // Create a parser that recognizes 'a' followed by a non-digit
+        Parser<Character, Character> aNotDigitParser = aParser.ifThen(not(digitParser));
 
-        // Test case 1: Input 'a' - should succeed because there's no digit
+        // Test case 1: Input 'a' - should fail because there's no character after 'a' for not(digitParser) to check
         Result<Character, Character> result1 = aNotDigitParser.parse("a");
-        assertTrue(result1.isSuccess());
-        assertEquals('a', result1.get());
+        assertFalse(result1.isSuccess());
 
-        // Test case 2: Input '5' - should fail because there's a digit
+        // Test case 2: Input '5' - should fail because it doesn't start with 'a'
         Result<Character, Character> result2 = aNotDigitParser.parse("5");
         assertTrue(result2.isError());
         //assertEquals("Parser to fail", result2.fullErrorMessage());
 
-        // Test case 3: Input 'a5' - should succeed because digit is after 'a'
+        // Test case 3: Input 'a5' - should fail because '5' is a digit
         Result<Character, Character> result3 = aNotDigitParser.parse("a5");
-        assertTrue(result3.isSuccess());
-        assertEquals('a', result3.get());
+        assertFalse(result3.isSuccess());
 
         // Test case 4: Multiple negations - parser that matches 'a' but not 'a' followed by 'b'
         Parser<Character, Character> abParser = chr('a').then(chr('b')).map((a, b) -> a);
-        Parser<Character, Character> aNotAbParser = aParser.not(abParser);
+        Parser<Character, Character> aNotAbParser = aParser.onlyIf(not(abParser));
 
         // Should fail on "ab" because abParser succeeds
         Result<Character, Character> result4 = aNotAbParser.parse("ab");

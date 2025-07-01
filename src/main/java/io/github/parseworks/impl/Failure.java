@@ -40,7 +40,6 @@ public record Failure<I, A>(
         /** Recursion error - infinite recursion detected */
         RECURSION("Recursion error"),
 
-
         /** Validation error - input parsed but failed validation */
         VALIDATION("Validation error"),
 
@@ -86,11 +85,6 @@ public record Failure<I, A>(
     @Override
     public A get() {
         throw new RuntimeException(fullErrorMessage());
-    }
-
-    @Override
-    public Input<I> next() {
-        return input;
     }
 
     @Override

@@ -63,7 +63,7 @@ public class ApplyBuilder<I, A, B> {
                 return functionResult.cast();
             }
             Function<A, B> func = functionResult.get();
-            Input<I> in2 = functionResult.next();
+            Input<I> in2 = functionResult.input();
             Result<I, A> valueResult = valueParser.apply(in2);
             if (valueResult.isError()) {
                 return valueResult.cast();
@@ -206,11 +206,11 @@ public class ApplyBuilder<I, A, B> {
             if (ra.isError()) {
                 return ra.cast();
             }
-            Result<I, B> rb = pb.apply(ra.next());
+            Result<I, B> rb = pb.apply(ra.input());
             if (rb.isError()) {
                 return rb.cast();
             }
-            return Result.success(rb.next(), f.apply(ra.get(), rb.get()));
+            return Result.success(rb.input(), f.apply(ra.get(), rb.get()));
         });
     }
 

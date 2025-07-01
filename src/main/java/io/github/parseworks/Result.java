@@ -206,7 +206,7 @@ public interface Result<I, A> {
      *
      * @return the remaining input
      */
-     Input<I> next();
+     Input<I> input();
 
     /**
      * Casts this result to a result of a different type.

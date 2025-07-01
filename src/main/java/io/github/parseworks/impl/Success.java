@@ -13,7 +13,7 @@ import java.util.function.Function;
  */
 public record Success<I, A>(
         A value,
-        Input<I> next
+        Input<I> input
 ) implements Result<I, A> {
 
     @Override
@@ -39,7 +39,7 @@ public record Success<I, A>(
 
     @Override
     public <B> Result<I, B> map(Function<A, B> mapper) {
-        return new Success<>(mapper.apply(value), next);
+        return new Success<>(mapper.apply(value), input);
     }
 
     @Override

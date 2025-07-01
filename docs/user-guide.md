@@ -13,7 +13,6 @@
 5. [Advanced Usage](#advanced-usage)
    1. [Recursive Parsers](#recursive-parsers)
    2. [Performance Optimization](#performance-optimization)
-   3. [Using the Plugin System](#using-the-plugin-system)
 6. [API Reference](#api-reference)
 7. [Troubleshooting](#troubleshooting)
 8. [Best Practices](#best-practices)
@@ -584,70 +583,6 @@ Here are some tips for optimizing parser performance:
 
 5. **Consider using memoization**: For complex parsers that are called repeatedly, consider implementing memoization to cache results.
 
-### Using the Plugin System
-
-parseWorks includes a plugin system that allows you to extend the library with custom parsers. Here's how to use it:
-
-#### Step 1: Create a parser provider
-
-```java
-public class MyParserProvider extends AbstractParserProvider {
-    @Override
-    public String getId() {
-        return "com.example.my-parsers";
-    }
-
-    @Override
-    public String getName() {
-        return "My Custom Parsers";
-    }
-
-    @Override
-    public String getVersion() {
-        return "1.0.0";
-    }
-
-    @Override
-    public void initialize() {
-        // Create and register your parsers
-        Parser<Character, MyData> myParser = createMyParser();
-        registerParser("myParser", myParser);
-    }
-
-    private Parser<Character, MyData> createMyParser() {
-        // Implement your parser here
-        // ...
-    }
-}
-```
-
-#### Step 2: Register your parser provider
-
-```java
-// Get the registry instance
-ParserPluginRegistry registry = ParserPluginRegistry.getInstance();
-
-// Register your parser provider
-registry.registerPlugin(new MyParserProvider());
-```
-
-#### Step 3: Use the parser from your provider
-
-```java
-// Get the parser from your provider
-Optional<ParserPlugin> plugin = registry.getPlugin("com.example.my-parsers");
-if (plugin.isPresent() && plugin.get() instanceof ParserProvider) {
-    ParserProvider provider = (ParserProvider) plugin.get();
-    Parser<Character, MyData> myParser = (Parser<Character, MyData>) provider.getParser("myParser");
-
-    // Use the parser
-    Result<Character, MyData> result = myParser.parse(Input.of("some input"));
-    // ...
-}
-```
-
-For more details on the plugin system, see the [plugin documentation](plugins.md).
-
 ## API Reference
 
 ### Core Classes
@@ -769,7 +704,3 @@ If you're experiencing performance issues with complex parsers, try:
 7. **Avoid excessive backtracking**
 
    Excessive backtracking can lead to performance issues. Try to make your parsers more deterministic to reduce backtracking.
-
-8. **Use the plugin system for extensibility**
-
-   If you want to allow others to extend your parsers, consider using the plugin system to make your code more modular and extensible.

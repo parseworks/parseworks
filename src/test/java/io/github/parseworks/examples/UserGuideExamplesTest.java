@@ -32,7 +32,7 @@ public class UserGuideExamplesTest {
         // Check if parsing succeeded
         assertTrue(result.isSuccess());
         assertEquals("hello", result.get());
-        assertEquals(' ', result.next().current()); // Check the current character of the remaining input
+        assertEquals(' ', result.input().current()); // Check the current character of the remaining input
 
         // Test the handle method
         String message = result.handle(

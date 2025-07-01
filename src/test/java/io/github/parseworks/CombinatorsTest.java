@@ -16,7 +16,7 @@ public class CombinatorsTest {
     public void testAny() {
         Parser<Character, Character> parser = any(Character.class);
 
-        Parser<Character,String> notQuote = any(Character.class).not(chr('"')).map(String::valueOf);
+        Parser<Character,String> notQuote = not(chr('"')).map(String::valueOf);
 
         // Success case
         Result<Character, Character> result = parser.parse("a");
@@ -336,15 +336,15 @@ public class CombinatorsTest {
         Parser<Character, Character> notDigit = not(chr(Character::isDigit));
         Parser<Character, Character> letter = chr(Character::isLetter);
 
-        // Parser that accepts a letter that's not followed by a digit
-        Parser<Character, Character> letterNotFollowedByNotDigit = letter.not(letter.thenSkip(notDigit));
+        // Parser that accepts a letter that's followed by a non-digit
+        Parser<Character, Character> letterFollowedByNonDigit = letter.ifThen(notDigit);
 
-        var firstResult = letterNotFollowedByNotDigit.parse("a");
-        var secondResult = letterNotFollowedByNotDigit.parse("a1");
-        var thirdResult = letterNotFollowedByNotDigit.parse("aX");
+        var firstResult = letterFollowedByNonDigit.parse("a");
+        var secondResult = letterFollowedByNonDigit.parse("a1");
+        var thirdResult = letterFollowedByNonDigit.parse("aX");
 
         assertTrue(firstResult.isError());
-        assertTrue(secondResult.isSuccess());
-        assertTrue(thirdResult.isError());
+        assertTrue(secondResult.isError());
+        assertTrue(thirdResult.isSuccess());
     }
 }

@@ -123,7 +123,7 @@ public class TextParsers {
             Input<Character> trimmedInput = skipWhitespace(in);
             Result<Character, A> result = parser.apply(trimmedInput);
             if (result.isSuccess()) {
-                trimmedInput = skipWhitespace(result.next());
+                trimmedInput = skipWhitespace(result.input());
                 return Result.success(trimmedInput, result.get());
             }
             return result;

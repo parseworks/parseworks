@@ -190,8 +190,9 @@ public class Parser<I, A> {
      * @see #then(Parser) for keeping both parser results
      */
     public <B> Parser<I, A> thenSkip(Parser<I, B> pb) {
-        return this.then(pb).map((a, b) -> a);
+        return then(pb).map((a, b) -> a);
     }
+
 
     /**
      * Chains this parser with another parser, applying them in sequence and returning only the result of the second parser.
@@ -237,14 +238,9 @@ public class Parser<I, A> {
      * @see #then(Parser) for keeping both parser results
      */
     public <B> Parser<I, B> skipThen(Parser<I, B> pb) {
-        return new Parser<>(in -> {
-            Result<I, A> left = this.apply(in);
-            if (left.isError()) {
-                return left.cast();
-            }
-            return pb.apply(left.next());
-        });
+        return then(pb).map((a, b) -> b);
     }
+
 
     /**
      * Chains this parser with another parser, applying them in sequence and allowing for
@@ -554,7 +550,7 @@ public class Parser<I, A> {
     }
 
     /**
-     * Creates a parser that handles operator expressions with specified associativity.
+     * Creates a repeating parser that handles operator expressions with specified associativity.
      * <p>
      * The {@code chain} method is a powerful parser combinator for parsing sequences of
      * operands separated by operators, commonly used for expression parsing. It processes
@@ -611,7 +607,7 @@ public class Parser<I, A> {
     }
 
     /**
-     * Creates a parser that applies this parser zero or more times until it fails,
+     * Creates a repeating parser that applies this parser zero or more times until it fails,
      * collecting all successful results into a list.
      * <p>
      * This method implements the Kleene star (*) operation from formal language theory,
@@ -652,92 +648,6 @@ public class Parser<I, A> {
      */
     public Parser<I, FList<A>> zeroOrMany() {
         return repeatInternal(0, Integer.MAX_VALUE, null);
-    }
-
-    /**
-     * Creates a parser that verifies the current input element is not equal to a specific value.
-     * <p>
-     * The {@code isNot} method provides a convenient way to exclude specific tokens from being
-     * accepted. It operates as follows:
-     * <ol>
-     *   <li>First checks if the current input element matches the specified value</li>
-     *   <li>If the value matches, the parser fails</li>
-     *   <li>If the value does not match, this parser is applied and its result is returned</li>
-     * </ol>
-     * <p>
-     * This method is implemented as a combination of {@link #not(Parser)} and {@link Combinators#is(Object)},
-     * providing a more readable way to express "match anything except this specific value".
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse any character that is not a semicolon
-     * Parser<Character, Character> notSemicolon = chr().isNot(';');
-     *
-     * // Succeeds with 'a' for input "a"
-     * // Succeeds with '5' for input "5"
-     * // Fails for input ";"
-     * }</pre>
-     *
-     * @param value the value that should not be matched
-     * @return a parser that succeeds only when the input element is not equal to the specified value
-     * @see #not(Parser) for the more general negative lookahead mechanism
-     * @see Combinators#is(Object) for the complementary parser that matches a specific value
-     */
-    public Parser<I, A> isNot(I value) {
-        return this.not(is(value));
-    }
-
-    /**
-     * Creates a parser that implements negative lookahead, succeeding only when the provided parser fails.
-     * <p>
-     * The {@code not} method provides a way to create parsers that succeed based on what is NOT
-     * present at the current position. The parsing process works as follows:
-     * <ol>
-     *   <li>First applies the provided parser to the current input</li>
-     *   <li>If that parser succeeds, returns a failure (negative lookahead failed)</li>
-     *   <li>If that parser fails, applies this parser to the input</li>
-     * </ol>
-     * <p>
-     * This method is useful for expressing grammar rules with exclusions or exceptions, allowing
-     * you to specify patterns that should NOT be present for this parser to succeed. The lookahead
-     * operation does not consume any input when checking for the excluded pattern.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>The provided parser is only used for checking, and its result is discarded</li>
-     *   <li>No input is consumed during the lookahead check</li>
-     *   <li>If the negative lookahead succeeds (provided parser fails), this parser is applied normally</li>
-     *   <li>If the negative lookahead fails (provided parser succeeds), the entire parser fails</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse any character except a semicolon
-     * Parser<Character, Character> notSemicolon = anyChar.not(chr(';'));
-     *
-     * // Parse any word that isn't a reserved keyword
-     * Parser<Character, String> identifier = word.not(keyword("if").or(keyword("else")));
-     *
-     * // Succeeds for any input not matching the excluded pattern
-     * // Fails if the input starts with the excluded pattern
-     * }</pre>
-     *
-     * @param parser the parser representing the pattern that should NOT be present
-     * @param <B> the type of the excluded parser's result (not used in the output)
-     * @return a parser that succeeds only when the provided parser fails
-     * @throws IllegalArgumentException if the parser parameter is null
-     * @see #isNot(Object) for a simpler version that checks against a specific value
-     */
-    public <B> Parser<I, A> not(Parser<I, B> parser) {
-        return new Parser<>(in -> {
-            Result<I, B> result = parser.apply(in);
-            if (result.isSuccess()) {
-                // Provide more context about what was found that shouldn't have matched
-                String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
-                return Result.validationError(in, "Parser to fail", found);
-            }
-            return this.apply(in);
-        });
     }
 
     /**
@@ -787,7 +697,7 @@ public class Parser<I, A> {
     }
 
     /**
-     * Creates a parser that applies this parser one or more times until a terminator parser succeeds,
+     * Creates a repeating parser that applies this parser one or more times until a terminator parser succeeds,
      * collecting all results into a list.
      * <p>
      * The {@code manyUntil} method combines the behavior of {@link #many()} with a termination condition.
@@ -809,7 +719,7 @@ public class Parser<I, A> {
      * Implementation details:
      * <ul>
      *   <li>At each position, first checks if the terminator succeeds</li>
-     *   <li>If the terminator succeeds, stops collection and returns results so far</li>
+     *   <li>If the terminator succeeds, stops collecting and returns results so far</li>
      *   <li>Requires at least one successful match to succeed (min=1)</li>
      *   <li>The terminator parser is consumed when found (its input position advances)</li>
      *   <li>Internally implemented using {@link #repeatInternal(int, int, Parser)}</li>
@@ -830,13 +740,117 @@ public class Parser<I, A> {
      * @param until the parser that signals when to stop collecting elements
      * @return a parser that applies this parser one or more times until the terminator succeeds
      * @throws IllegalArgumentException if the until parameter is null
-     * @see #until(Parser) for a version that succeeds even with zero matches
+     * @see #zeroOrManyUntil(Parser) for a version that succeeds even with zero matches
      * @see #many() for a version that collects until this parser fails
      * @see #repeatInternal(int, int, Parser) for the underlying implementation
      */
     public Parser<I, FList<A>> manyUntil(Parser<I, ?> until) {
         return repeatInternal(1, Integer.MAX_VALUE, until);
     }
+
+
+    /**
+     * Creates a parser that succeeds only if the validation parser succeeds at the current position,
+     * without consuming any input from the validation.
+     * <p>
+     * The {@code onlyIf} method creates a conditional parser that first checks if the validation
+     * parser would succeed at the current position, and if so, proceeds with this parser. The
+     * validation parser's result is discarded and no input is consumed by it. This is useful for
+     * implementing lookahead validation or parsing with preconditions.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>First applies the validation parser without consuming input</li>
+     *   <li>If validation succeeds, applies this parser</li>
+     *   <li>If validation fails, returns the validation failure</li>
+     *   <li>The validation parser's result is not used</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse a number only if it's preceded by a plus sign
+     * Parser<Character, Integer> positiveNumber = number.onlyIf(chr('+'));
+     *
+     * // Parse an identifier only if it's not a keyword
+     * Parser<Character, String> identifier = word.onlyIf(
+     *     string("if").or(string("else")).not()
+     * );
+     * }</pre>
+     *
+     * @param validation the parser to use for validation
+     * @param <B> the type of the validation parser's result (not used)
+     * @return a new parser that succeeds only if both the validation and this parser succeed
+     */
+    public <B> Parser<I, A> onlyIf(Parser<I, B> validation) {
+        return new Parser<>(input -> {
+            Result<I, B> validationResult = validation.apply(input);
+            if (validationResult.isError()) {
+                return validationResult.cast();
+            }
+            return this.apply(input);
+        });
+    }
+
+    /**
+     * Creates a parser that succeeds with this parser's result only if followed by what the lookahead parser matches,
+     * without consuming the lookahead input.
+     * <p>
+     * The {@code ifThen} method creates a conditional parser that first applies this parser, and if successful,
+     * checks if the lookahead parser would succeed at the resulting position. The lookahead parser's result
+     * is discarded and no input is consumed by it. This is useful for implementing forward-looking validation
+     * or context-sensitive parsing.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>First, applies this parser to consume input and get a result</li>
+     *   <li>Then checks if the lookahead parser succeeds at the new position</li>
+     *   <li>If both succeed, returns this parser's result</li>
+     *   <li>If either fails, returns the failure</li>
+     *   <li>The lookahead parser's result is never used</li>
+     *   <li>No input is consumed by the lookahead parser</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Parse a number only if it's followed by a plus sign
+     * Parser<Character, Integer> numberBeforePlus = number.ifThen(chr('+'));
+     *
+     * // Parse an identifier only if followed by an equals sign (assignment)
+     * Parser<Character, String> assignmentTarget = identifier.ifThen(chr('='));
+     * }</pre>
+     *
+     * @param lookahead the parser to use for lookahead validation
+     * @param <B> the type of the lookahead parser's result (not used)
+     * @return a new parser that succeeds only if this parser succeeds and is followed by what the lookahead parser matches
+     */
+    public <B> Parser<I, A> ifThen(Parser<I, B> lookahead) {
+        return new Parser<>(input -> {
+            Result<I, A> result = this.apply(input);
+            if (result.isError()) {
+                return result;
+            }
+            Result<I, B> peek = lookahead.apply(result.input());
+            if (peek.isError()) {
+                return peek.cast();
+            }
+            return result;
+        });
+    }
+
+    public <B> Parser<I, A> withDetailedLog() {
+        return new Parser<>(input -> {
+            System.out.print("Parser starting at position: " + input.position());
+            Result<I, A> result = this.apply(input);
+            if (result.isSuccess()) {
+                System.out.println(" succeeded with value: " + result.get());
+            } else {
+                System.out.println(" failed: " + result.error());
+            }
+            return result;
+        });
+    }
+
+
 
     /**
      * Creates a parser that always succeeds, optionally containing this parser's result.
@@ -987,10 +1001,10 @@ public class Parser<I, A> {
     public Result<I, A> parse(Input<I> in, boolean consumeAll) {
         Result<I, A> result = this.apply(in);
         if (consumeAll && result.isSuccess()) {
-            if (!result.next().isEof()) {
+            if (!result.input().isEof()) {
                 // Provide more context about what was found after parsing should have completed
-                String found = result.next().hasMore() ? String.valueOf(result.next().current()) : "unknown";
-                result = Result.expectedEofError(result.next(), found);
+                String found = result.input().hasMore() ? String.valueOf(result.input().current()) : "unknown";
+                result = Result.expectedEofError(result.input(), found);
             }
         }
         return result;
@@ -1698,7 +1712,7 @@ public class Parser<I, A> {
 
                 // Add parsed element to results
                 results = results.append(elementResult.get());
-                currentInput = elementResult.next();
+                currentInput = elementResult.input();
 
                 // Check if we've advanced the position - if not, break to avoid infinite loop
                 if (currentInput.position() == currentPosition) {
@@ -1712,7 +1726,7 @@ public class Parser<I, A> {
     }
 
     /**
-     * Creates a parser that applies this parser zero or more times until a terminator parser succeeds,
+     * Creates a repeating parser that applies this parser zero or more times until a terminator parser succeeds,
      * collecting all successful results into a list.
      * <p>
      * This method is a variant of {@link #zeroOrMany()} that stops collection when a specific
@@ -1755,12 +1769,12 @@ public class Parser<I, A> {
      * @see #manyUntil(Parser) for a version that requires at least one match
      * @see #zeroOrMany() for a version that collects until this parser fails
      */
-    public Parser<I, FList<A>> until(Parser<I, ?> terminator) {
+    public Parser<I, FList<A>> zeroOrManyUntil(Parser<I, ?> terminator) {
         return repeatInternal(0, Integer.MAX_VALUE, terminator);
     }
 
     /**
-     * Creates a parser that applies this parser a specified number of times, collecting results into a list.
+     * Creates a repeating parser that applies this parser a specified number of times, collecting results into a list.
      * <p>
      * The {@code repeatInternal} method is a utility for implementing parsers that match a pattern
      * a minimum and/or maximum number of times. It processes the input as follows:
@@ -1825,7 +1839,7 @@ public class Parser<I, A> {
                                 current, 
                                 "expected at least " + min + " items (found only " + count + " before terminator)");
                         }
-                        return Result.success(termRes.next(), buffer);
+                        return Result.success(termRes.input(), buffer);
                     }
                 }
                 // End-of-input or max reached
@@ -1854,7 +1868,7 @@ public class Parser<I, A> {
                         res.error()
                     );
                 }
-                if (current.position() == res.next().position()) {
+                if (current.position() == res.input().position()) {
                     // Provide more context about the error when parser doesn't consume input
                     return Result.failure(
                         current, 
@@ -1863,7 +1877,7 @@ public class Parser<I, A> {
                     );
                 }
                 buffer.add(res.get());
-                current = res.next();
+                current = res.input();
                 count++;
             }
         });
