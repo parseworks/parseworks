@@ -648,7 +648,7 @@ public class Combinators {
     public static <I, A> Parser<I, A> oneOf(List<Parser<I, A>> parsers) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.unexpectedEofError(in, "one of the expected patterns");
+                return Result.unexpectedEofError(in, "eof before `oneOf` parser");
             }
             for (Parser<I, A> parser : parsers) {
                 Result<I, A> result = parser.apply(in);
@@ -706,7 +706,7 @@ public class Combinators {
     public static <I, A> Parser<I, A> oneOf(Parser<I, A>... parsers) {
         return new NoCheckParser<>(in -> {
             if (in.isEof()) {
-                return Result.unexpectedEofError(in, "one of the expected patterns");
+                return Result.unexpectedEofError(in, "eof before `oneOf` parser");
             }
             for (Parser<I, A> parser : parsers) {
                 Result<I, A> result = parser.apply(in);

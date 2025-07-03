@@ -506,7 +506,7 @@ public class ParserTest {
         Parser<Character, Character> digitParser = chr(Character::isDigit);
 
         // Create a parser that recognizes 'a' followed by a non-digit
-        Parser<Character, Character> aNotDigitParser = aParser.ifThen(not(digitParser));
+        Parser<Character, Character> aNotDigitParser = aParser.peek(not(digitParser));
 
         // Test case 1: Input 'a' - should fail because there's no character after 'a' for not(digitParser) to check
         Result<Character, Character> result1 = aNotDigitParser.parse("a");

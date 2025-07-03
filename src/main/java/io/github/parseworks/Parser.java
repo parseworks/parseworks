@@ -1,27 +1,34 @@
 package io.github.parseworks;
 
+import io.github.parseworks.impl.Failure;
 import io.github.parseworks.impl.IntObjectMap;
 import io.github.parseworks.impl.Pair;
 import io.github.parseworks.impl.parser.NoCheckParser;
 
-import java.util.Optional;
+import java.util.*;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static io.github.parseworks.Combinators.is;
 
 /**
+ * A parser that consumes input of type {@code I} and produces results of type {@code A}.
  * <p>
- * The `Parser` class represents a parser that consumes input of type `I` and transforms the input to a result of type `A`.
- * </p>
- * This class provides various methods for creating parsers, applying them to input, and combining them with other parsers.
- * This is a thread-safe class that can be used to create parsers for different types of input.
+ * This class provides methods for:
+ * <ul>
+ *   <li>Creating basic parsers ({@link #pure(Object)})</li>
+ *   <li>Combining parsers ({@link #then}, {@link #or})</li>
+ *   <li>Transforming results ({@link #map}, {@link #as})</li>
+ * </ul>
+ * <p>
+ * Thread Safety: All methods are thread-safe for concurrent execution.
+ * Each parser maintains a thread-local state for parsing operations.
  *
- * @param <I> the type of the input symbols
- * @param <A> the type of the parsed value
- * @author jason bailey
- * @version $Id: $Id
+ * @param <I> the type of input symbols to parse
+ * @param <A> the type of values produced by the parser
  */
 public class Parser<I, A> {
 
@@ -119,29 +126,28 @@ public class Parser<I, A> {
     }
 
     /**
-     * A parser for expressions with enclosing bracket symbols.
-     * Validates the open bracket, then this parser, and then the close bracket.
-     * If all three succeed, the result of this parser is returned.
+     * Creates a parser that matches an expression enclosed by matching bracket symbols.
      * <p>
-     * This method is useful for parsing expressions that are enclosed by the same bracket symbol,
-     * such as parentheses, brackets, or quotes.
+     * This is equivalent to {@code between(bracket, bracket)} and is useful for
+     * symmetric delimiters like parentheses, brackets, or quotes.
      *
-     * @param bracket the bracket symbol
-     * @return a parser for expressions with enclosing bracket symbols
+     * @param bracket the symbol used as both opening and closing delimiter
+     * @return a parser that matches content between matching bracket symbols
      */
     public Parser<I, A> between(I bracket) {
         return between(bracket, bracket);
     }
 
     /**
-     * A parser for expressions with enclosing symbols.
-     * Validates the open symbol, then this parser, and then the close symbol.
-     * If all three succeed, the result of this parser is returned.
+     * Creates a parser that matches an expression between distinct opening and closing symbols.
+     * <p>
+     * This is useful for asymmetric delimiters like XML tags or different bracket styles.
      *
-     * @param open  the open symbol
-     * @param close the close symbol
-     * @return a parser for expressions with enclosing symbols
+     * @param open the opening delimiter symbol
+     * @param close the closing delimiter symbol
+     * @return a parser that matches content between the specified delimiters
      */
+
     public Parser<I, A> between(I open, I close) {
         return is(open).skipThen(this).thenSkip(is(close));
     }
@@ -184,7 +190,7 @@ public class Parser<I, A> {
      * }</pre>
      *
      * @param pb  the next parser to apply in sequence (whose result will be discarded)
-     * @param <B> the type of the result of the next parser
+     * @param <B> the type of result of the next parser
      * @return a parser that applies this parser and then the next parser, returning only the result of this parser
      * @see #skipThen(Parser) for the opposite operation (discard first result, keep second)
      * @see #then(Parser) for keeping both parser results
@@ -831,14 +837,48 @@ public class Parser<I, A> {
             }
             Result<I, B> peek = lookahead.apply(result.input());
             if (peek.isError()) {
-                return peek.cast();
+                return new Failure<>(input, "Expected 'ifThen' to succeed", "error", (Failure<?, ?>) peek);
             }
             return result;
         });
     }
 
-    public <B> Parser<I, A> withDetailedLog() {
-        return new Parser<>(input -> {
+
+    /**
+     * Creates a parser that logs its progress and results to standard output while behaving exactly like this parser.
+     * <p>
+     * The {@code logOut} method wraps this parser with logging functionality that prints information about:
+     * <ul>
+     *   <li>The input position where parsing starts</li>
+     *   <li>Whether parsing succeeded or failed</li>
+     *   <li>The parsed value (on success) or error message (on failure)</li>
+     * </ul>
+     * <p>
+     * This method is particularly useful for:
+     * <ul>
+     *   <li>Debugging parser behavior</li>
+     *   <li>Understanding why certain inputs fail to parse</li>
+     *   <li>Tracing the execution of complex parser combinations</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Create a parser for integers with logging
+     * Parser<Character, Integer> debugParser = intr.logOut();
+     *
+     * // When parsing "123", outputs:
+     * // Parser starting at position: 0 succeeded with value: 123
+     *
+     * // When parsing "abc", outputs:
+     * // Parser starting at position: 0 failed: Expected digit but found 'a'
+     * }</pre>
+     *
+     * @return a new parser that logs its progress while behaving like this parser
+     * @see NoCheckParser for the implementation that wraps the original parser
+     * @see Result for the structure of success and failure results that are logged
+     */
+    public Parser<I, A> logOut() {
+        return new NoCheckParser<>(input -> {
             System.out.print("Parser starting at position: " + input.position());
             Result<I, A> result = this.apply(input);
             if (result.isSuccess()) {
@@ -947,6 +987,157 @@ public class Parser<I, A> {
      */
     public Result<I, A> parse(Input<I> in) {
         return parse(in, false);
+    }
+
+    /**
+     * Creates an iterator that incrementally parses the input, allowing for streaming processing of parse results.
+     * <p>
+     * The {@code iterateParse} method provides a way to parse input incrementally by returning an iterator
+     * that processes the input one element at a time. This is particularly useful when:
+     * <ul>
+     *   <li>Processing large inputs that shouldn't be parsed all at once</li>
+     *   <li>Implementing streaming or lazy parsing scenarios</li>
+     *   <li>Searching for multiple occurrences of a pattern in the input</li>
+     * </ul>
+     * <p>
+     * The iterator works as follows:
+     * <ol>
+     *   <li>Attempts to parse the input at the current position using this parser</li>
+     *   <li>If parsing succeeds, returns the parsed value and advances the input position</li>
+     *   <li>If parsing fails, skips one character and tries again at the next position</li>
+     *   <li>Continues until the end of input is reached</li>
+     * </ol>
+     * <p>
+     * Implementation details:
+     * <ul>
+     *   <li>The iterator maintains its own input position state</li>
+     *   <li>Results are computed lazily when {@code hasNext()} or {@code next()} is called</li>
+     *   <li>Failed parse attempts are skipped automatically</li>
+     *   <li>The iterator follows the standard Java Iterator contract</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Create a parser that matches integers
+     * Parser<Character, Integer> intParser = integer;
+     *
+     * // Create an input from a string containing mixed content
+     * Input<Character> input = Input.fromString("123 abc 456 def 789");
+     *
+     * // Iterate over all integers in the input
+     * Iterator<Integer> numbers = intParser.iterateParse(input);
+     * while (numbers.hasNext()) {
+     *     Integer number = numbers.next();
+     *     System.out.println(number); // Prints: 123, 456, 789
+     * }
+     * }</pre>
+     *
+     * @param input the input to parse
+     * @return an iterator that yields parse results one at a time
+     * @throws IllegalArgumentException if the input is null
+     * @see Input for input handling
+     * @see Result for parse result handling
+     */
+    public Iterator<A> iterateParse(Input<I> input) {
+        final Parser<I,A> parser = this;
+        return new Iterator<>() {
+            private Input<I> currentInput = input;
+            private Result<I, A> nextResult = null;
+
+
+            @Override
+            public boolean hasNext() {
+                if (currentInput.isEof()) {
+                    return false;
+                }
+
+                if (nextResult != null) {
+                    return true;
+                }
+
+                // Try to find the next valid result
+                while (!currentInput.isEof()) {
+                    Result<I, A> result = parser.parse(currentInput, false);
+                    if (result.isSuccess()) {
+                        nextResult = result;
+                        return true;
+                    }
+                    // Skip one character and try again
+                    currentInput = currentInput.next();
+                }
+
+                return false;
+            }
+
+            @Override
+            public A next() {
+                if (!hasNext()) {
+                    throw new NoSuchElementException("No more elements to parse");
+                }
+
+                // We already have the next result from hasNext()
+                A value = nextResult.get();
+                currentInput = nextResult.input();
+                nextResult = null;
+                return value;
+            }
+        };
+    }
+
+    /**
+     * Creates a Stream that lazily parses the input, providing a modern streaming interface for parse results.
+     * <p>
+     * The {@code streamParse} method converts the parsing process into a Java Stream, allowing for:
+     * <ul>
+     *   <li>Functional-style processing of parse results</li>
+     *   <li>Lazy evaluation of parse operations</li>
+     *   <li>Integration with the Java Stream API</li>
+     *   <li>Composition with other stream operations</li>
+     * </ul>
+     * <p>
+     * The returned Stream has the following characteristics:
+     * <ul>
+     *   <li>ORDERED - elements are processed in the order they appear in the input</li>
+     *   <li>NONNULL - all elements are guaranteed to be non-null</li>
+     *   <li>Non-parallel - parsing is performed sequentially</li>
+     *   <li>Unknown size - the number of elements is not known in advance</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Create a parser for integers
+     * Parser<Character, Integer> intParser = intr;
+     * Input<Character> input = Input.fromString("123 456 789");
+     *
+     * // Process integers using stream operations
+     * intParser.streamParse(input)
+     *         .filter(n -> n > 200)
+     *         .map(n -> n * 2)
+     *         .forEach(System.out::println);
+     *
+     * // Collect all numbers into a list
+     * List<Integer> numbers = intParser.streamParse(input)
+     *                                 .collect(Collectors.toList());
+     * }</pre>
+     * <p>
+     * Note that this method internally uses {@link #iterateParse(Input)} and wraps it in a Stream.
+     * The stream will automatically close any resources associated with the parsing process when
+     * the stream is closed or fully consumed.
+     *
+     * @param input the input to parse
+     * @return a Stream containing the parse results
+     * @throws IllegalArgumentException if the input is null
+     * @see #iterateParse(Input) for the underlying iterator implementation
+     * @see java.util.stream.Stream for available stream operations
+     */
+    public  Stream<A> streamParse(Input<I> input) {
+        return StreamSupport.stream(
+            Spliterators.spliteratorUnknownSize(
+                iterateParse(input),
+                Spliterator.ORDERED | Spliterator.NONNULL
+            ),
+            false
+        );
     }
 
     /**

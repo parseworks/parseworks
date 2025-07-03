@@ -6,9 +6,9 @@
 - Removed Character specific parsers from Parser class.
 - Renamed methods in Parser class to be more descriptive and consistent.
 - Removed `not` from Parser class due to confusion over not's meaning
-- Implemented `onlyIf` and `ifThen` parsers
+- Implemented `onlyIf` and `peek` parsers
   - `onlyIf` applies a condition to a parser at that parsers position
-  - `ifThen` applies a condition to a parser on what follows
+  - `peek` applies a condition to a parser on what follows
 
 
 **Enhancements**
@@ -16,3 +16,4 @@
 
 **New Features**
 - Plugin feature to provide specific implementations of a Parser
+- 
