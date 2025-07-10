@@ -337,7 +337,7 @@ public class CombinatorsTest {
         Parser<Character, Character> letter = chr(Character::isLetter);
 
         // Parser that accepts a letter that's followed by a non-digit
-        Parser<Character, Character> letterFollowedByNonDigit = letter.ifThen(notDigit);
+        Parser<Character, Character> letterFollowedByNonDigit = letter.peek(notDigit);
 
         var firstResult = letterFollowedByNonDigit.parse("a");
         var secondResult = letterFollowedByNonDigit.parse("a1");

@@ -437,7 +437,7 @@ public class ParserTest {
 
     @Test
     public void testIsNot() {
-        Parser<Character, Character> parser = chr(Character::isLetter).onlyIf(isNot('b'));
+        Parser<Character, Character> parser = chr(Character::isLetter).where(isNot('b'));
 
         // Should succeed when current character is 'a'
         Result<Character, Character> result1 = parser.parse("a");
@@ -523,7 +523,7 @@ public class ParserTest {
 
         // Test case 4: Multiple negations - parser that matches 'a' but not 'a' followed by 'b'
         Parser<Character, Character> abParser = chr('a').then(chr('b')).map((a, b) -> a);
-        Parser<Character, Character> aNotAbParser = aParser.onlyIf(not(abParser));
+        Parser<Character, Character> aNotAbParser = aParser.where(not(abParser));
 
         // Should fail on "ab" because abParser succeeds
         Result<Character, Character> result4 = aNotAbParser.parse("ab");

@@ -787,7 +787,7 @@ public class Parser<I, A> {
      * @param <B> the type of the validation parser's result (not used)
      * @return a new parser that succeeds only if both the validation and this parser succeed
      */
-    public <B> Parser<I, A> onlyIf(Parser<I, B> validation) {
+    public <B> Parser<I, A> where(Parser<I, B> validation) {
         return new Parser<>(input -> {
             Result<I, B> validationResult = validation.apply(input);
             if (validationResult.isError()) {
@@ -819,17 +819,17 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse a number only if it's followed by a plus sign
-     * Parser<Character, Integer> numberBeforePlus = number.ifThen(chr('+'));
+     * Parser<Character, Integer> numberBeforePlus = number.peek(chr('+'));
      *
      * // Parse an identifier only if followed by an equals sign (assignment)
-     * Parser<Character, String> assignmentTarget = identifier.ifThen(chr('='));
+     * Parser<Character, String> assignmentTarget = identifier.peek(chr('='));
      * }</pre>
      *
      * @param lookahead the parser to use for lookahead validation
      * @param <B> the type of the lookahead parser's result (not used)
      * @return a new parser that succeeds only if this parser succeeds and is followed by what the lookahead parser matches
      */
-    public <B> Parser<I, A> ifThen(Parser<I, B> lookahead) {
+    public <B> Parser<I, A> peek(Parser<I, B> lookahead) {
         return new Parser<>(input -> {
             Result<I, A> result = this.apply(input);
             if (result.isError()) {
