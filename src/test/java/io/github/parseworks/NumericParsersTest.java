@@ -2,7 +2,7 @@ package io.github.parseworks;
 
 import org.junit.jupiter.api.Test;
 
-import static io.github.parseworks.NumericParsers.*;
+import static io.github.parseworks.parsers.NumericParsers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**

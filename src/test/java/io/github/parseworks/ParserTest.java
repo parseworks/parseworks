@@ -1,5 +1,6 @@
 package io.github.parseworks;
 
+import io.github.parseworks.parsers.NumericParsers;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -7,7 +8,7 @@ import java.util.Optional;
 import java.util.function.BinaryOperator;
 
 import static io.github.parseworks.Combinators.*;
-import static io.github.parseworks.NumericParsers.numeric;
+import static io.github.parseworks.parsers.NumericParsers.numeric;
 import static io.github.parseworks.TextParsers.trim;
 import static org.junit.jupiter.api.Assertions.*;
 

@@ -1,9 +1,9 @@
 package io.github.parseworks;
 
+import io.github.parseworks.parsers.NumericParsers;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import static io.github.parseworks.TextParsers.*;
-import static io.github.parseworks.Combinators.*;
 
 import java.util.ArrayList;
 import java.util.Iterator;

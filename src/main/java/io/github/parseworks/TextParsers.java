@@ -1,5 +1,7 @@
 package io.github.parseworks;
 
+import io.github.parseworks.parsers.NumericParsers;
+
 import static io.github.parseworks.Combinators.satisfy;
 
 /**

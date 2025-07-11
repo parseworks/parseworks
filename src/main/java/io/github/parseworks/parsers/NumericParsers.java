@@ -1,4 +1,8 @@
-package io.github.parseworks;
+package io.github.parseworks.parsers;
+
+import io.github.parseworks.Combinators;
+import io.github.parseworks.FList;
+import io.github.parseworks.Parser;
 
 import java.util.List;
 import java.util.function.Function;

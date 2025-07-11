@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.function.BinaryOperator;
 
 import static io.github.parseworks.Combinators.chr;
-import static io.github.parseworks.NumericParsers.numeric;
+import static io.github.parseworks.parsers.NumericParsers.numeric;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CalculatorParserTest {
