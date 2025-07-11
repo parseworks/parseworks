@@ -1,6 +1,7 @@
 package io.github.parseworks;
 
-import io.github.parseworks.parsers.NumericParsers;
+import io.github.parseworks.parsers.Numeric;
+import io.github.parseworks.parsers.TextParsers;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,7 +26,7 @@ public class TextParsersTest {
 
     @Test
     public void testInteger() {
-        Parser<Character, Integer> parser = NumericParsers.integer;
+        Parser<Character, Integer> parser = Numeric.integer;
         assertEquals(123, parser.parse(Input.of("123")).get());
         assertEquals(-123, parser.parse(Input.of("-123")).get());
         assertEquals(123, parser.parse(Input.of("+123")).get());

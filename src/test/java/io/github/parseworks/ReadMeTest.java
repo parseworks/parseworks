@@ -5,10 +5,10 @@ import org.junit.jupiter.api.Test;
 import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
 
-import static io.github.parseworks.Combinators.chr;
-import static io.github.parseworks.Combinators.oneOf;
-import static io.github.parseworks.parsers.NumericParsers.integer;
-import static io.github.parseworks.parsers.NumericParsers.number;
+import static io.github.parseworks.parsers.Combinators.chr;
+import static io.github.parseworks.parsers.Combinators.oneOf;
+import static io.github.parseworks.parsers.Numeric.integer;
+import static io.github.parseworks.parsers.Numeric.number;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

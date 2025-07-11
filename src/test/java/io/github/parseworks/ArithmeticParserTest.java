@@ -1,12 +1,13 @@
 package io.github.parseworks;
 
+import io.github.parseworks.parsers.Combinators;
 import org.junit.jupiter.api.Test;
 
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.Combinators.chr;
-import static io.github.parseworks.parsers.NumericParsers.doubleValue;
-import static io.github.parseworks.TextParsers.trim;
+import static io.github.parseworks.parsers.Combinators.chr;
+import static io.github.parseworks.parsers.Numeric.doubleValue;
+import static io.github.parseworks.parsers.TextParsers.trim;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**

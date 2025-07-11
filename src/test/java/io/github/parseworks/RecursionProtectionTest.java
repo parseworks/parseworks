@@ -1,12 +1,13 @@
 package io.github.parseworks;
 
-import io.github.parseworks.parsers.NumericParsers;
+import io.github.parseworks.parsers.Combinators;
+import io.github.parseworks.parsers.Numeric;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.Combinators.chr;
+import static io.github.parseworks.parsers.Combinators.chr;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -25,7 +26,7 @@ public class RecursionProtectionTest {
     ));
 
     public static Parser<Character, Integer> number() {
-        return NumericParsers.numeric.map(Character::getNumericValue);
+        return Numeric.numeric.map(Character::getNumericValue);
     }
 
     public static Parser<Character, BinaryOperator<Integer>> operator() {

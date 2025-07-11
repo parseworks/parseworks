@@ -4,6 +4,7 @@ import io.github.parseworks.impl.Failure;
 import io.github.parseworks.impl.IntObjectMap;
 import io.github.parseworks.impl.Pair;
 import io.github.parseworks.impl.parser.NoCheckParser;
+import io.github.parseworks.parsers.Combinators;
 
 import java.util.*;
 import java.util.function.BinaryOperator;
@@ -12,7 +13,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static io.github.parseworks.Combinators.is;
+import static io.github.parseworks.parsers.Combinators.is;
 
 /**
  * A parser that consumes input of type {@code I} and produces results of type {@code A}.

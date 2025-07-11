@@ -1,13 +1,14 @@
 package io.github.parseworks;
 
+import io.github.parseworks.parsers.Combinators;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.Combinators.chr;
-import static io.github.parseworks.parsers.NumericParsers.doubleValue;
-import static io.github.parseworks.parsers.NumericParsers.number;
+import static io.github.parseworks.parsers.Combinators.chr;
+import static io.github.parseworks.parsers.Numeric.doubleValue;
+import static io.github.parseworks.parsers.Numeric.number;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class AssociativityTest {

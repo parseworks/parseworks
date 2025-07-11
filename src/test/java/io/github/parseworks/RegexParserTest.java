@@ -2,7 +2,7 @@ package io.github.parseworks;
 
 import org.junit.jupiter.api.Test;
 
-import static io.github.parseworks.Combinators.regex;
+import static io.github.parseworks.parsers.Combinators.regex;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

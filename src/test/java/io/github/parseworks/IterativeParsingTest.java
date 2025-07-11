@@ -1,9 +1,9 @@
 package io.github.parseworks;
 
-import io.github.parseworks.parsers.NumericParsers;
+import io.github.parseworks.parsers.Numeric;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
-import static io.github.parseworks.TextParsers.*;
+import static io.github.parseworks.parsers.TextParsers.*;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -37,7 +37,7 @@ public class IterativeParsingTest {
 
     @Test
     public void testIterateParseWithNumbers() {
-        Parser<Character, Integer> numberParser = NumericParsers.integer;
+        Parser<Character, Integer> numberParser = Numeric.integer;
         String input = "123 456 789";
         Input<Character> charInput = Input.of(input);
 

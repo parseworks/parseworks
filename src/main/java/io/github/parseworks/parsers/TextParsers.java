@@ -1,8 +1,10 @@
-package io.github.parseworks;
+package io.github.parseworks.parsers;
 
-import io.github.parseworks.parsers.NumericParsers;
+import io.github.parseworks.Input;
+import io.github.parseworks.Parser;
+import io.github.parseworks.Result;
 
-import static io.github.parseworks.Combinators.satisfy;
+import static io.github.parseworks.parsers.Combinators.satisfy;
 
 /**
  * The {@code TextUtils} class provides a comprehensive set of parsers for common text parsing tasks.
@@ -22,14 +24,14 @@ import static io.github.parseworks.Combinators.satisfy;
  * <p>
  * Key parsers include:
  * <ul>
- *   <li>{@link NumericParsers#numeric} - Parses any digit character (0-9)</li>
- *   <li>{@link NumericParsers#nonZeroDigit} - Parses any non-zero digit character (1-9)</li>
+ *   <li>{@link Numeric#numeric} - Parses any digit character (0-9)</li>
+ *   <li>{@link Numeric#nonZeroDigit} - Parses any non-zero digit character (1-9)</li>
  *   <li>{@link #alpha} - Parses any letter character</li>
  *   <li>{@link #alphaNumeric} - Parses any alphanumeric character</li>
  *   <li>{@link #whitespace} - Parses any whitespace character</li>
- *   <li>{@link NumericParsers#unsignedInteger} - Parses an unsigned integer</li>
- *   <li>{@link NumericParsers#integer} - Parses a signed integer</li>
- *   <li>{@link NumericParsers#doubleValue} - Parses a floating-point number</li>
+ *   <li>{@link Numeric#unsignedInteger} - Parses an unsigned integer</li>
+ *   <li>{@link Numeric#integer} - Parses a signed integer</li>
+ *   <li>{@link Numeric#doubleValue} - Parses a floating-point number</li>
  *   <li>{@link #word} - Parses a sequence of letters</li>
  * </ul>
  * <p>
@@ -91,7 +93,7 @@ public class TextParsers {
      * // Fails for input "" (empty input)
      * }</pre>
      *
-     * @see NumericParsers#numeric for parsing numeric digits
+     * @see Numeric#numeric for parsing numeric digits
      * @see #alphaNumeric for parsing alphanumeric characters
      * @see Combinators#chr for parsing with a custom character predicate
      */

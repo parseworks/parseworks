@@ -5,7 +5,7 @@ import io.github.parseworks.*;
 import java.util.HashMap;
 import java.util.Map;
 
-import static io.github.parseworks.Combinators.*;
+import static io.github.parseworks.parsers.Combinators.*;
 
 /**
  * SimpleHtmlParser is a simplified parser for HTML/XML documents using parseworks.

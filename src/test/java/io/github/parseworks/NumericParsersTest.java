@@ -2,11 +2,11 @@ package io.github.parseworks;
 
 import org.junit.jupiter.api.Test;
 
-import static io.github.parseworks.parsers.NumericParsers.*;
+import static io.github.parseworks.parsers.Numeric.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for the NumericParsers class.
+ * Tests for the Numeric class.
  * These tests verify that the numeric parsers correctly parse different types of numeric values.
  */
 public class NumericParsersTest {

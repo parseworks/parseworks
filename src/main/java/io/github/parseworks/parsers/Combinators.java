@@ -1,5 +1,9 @@
-package io.github.parseworks;
+package io.github.parseworks.parsers;
 
+import io.github.parseworks.ApplyBuilder;
+import io.github.parseworks.Input;
+import io.github.parseworks.Parser;
+import io.github.parseworks.Result;
 import io.github.parseworks.impl.Failure.ErrorType;
 import io.github.parseworks.impl.parser.NoCheckParser;
 
@@ -623,7 +627,7 @@ public class Combinators {
      * // Parse one of three different types of token
      * Parser<Character, String> keyword = string("if").or(string("else")).or(string("while"));
      * Parser<Character, String> identifier = regex("[a-zA-Z][a-zA-Z0-9]*");
-     * Parser<Character, String> number = NumericParsers.numeric.many().map(FList::joinChars);
+     * Parser<Character, String> number = Numeric.numeric.many().map(FList::joinChars);
      *
      * // Combine into a single token parser using oneOf
      * Parser<Character, String> token = oneOf(Arrays.asList(

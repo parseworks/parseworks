@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Test;
 import java.util.*;
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.Combinators.*;
-import static io.github.parseworks.TextParsers.trim;
+import static io.github.parseworks.parsers.Combinators.*;
+import static io.github.parseworks.parsers.TextParsers.trim;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**

@@ -1,16 +1,15 @@
 package io.github.parseworks.parsers;
 
-import io.github.parseworks.Combinators;
 import io.github.parseworks.FList;
 import io.github.parseworks.Parser;
 
 import java.util.List;
 import java.util.function.Function;
 
-import static io.github.parseworks.Combinators.*;
+import static io.github.parseworks.parsers.Combinators.*;
 import static io.github.parseworks.Parser.pure;
 
-public class NumericParsers {
+public class Numeric {
 
     /**
      * Creates a parser that matches any digit character except '0'.

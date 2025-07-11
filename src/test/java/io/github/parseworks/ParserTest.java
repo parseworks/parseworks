@@ -1,15 +1,15 @@
 package io.github.parseworks;
 
-import io.github.parseworks.parsers.NumericParsers;
+import io.github.parseworks.parsers.Numeric;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.Combinators.*;
-import static io.github.parseworks.parsers.NumericParsers.numeric;
-import static io.github.parseworks.TextParsers.trim;
+import static io.github.parseworks.parsers.Combinators.*;
+import static io.github.parseworks.parsers.Numeric.numeric;
+import static io.github.parseworks.parsers.TextParsers.trim;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ParserTest {
@@ -138,7 +138,7 @@ public class ParserTest {
 
     @Test
     public void testChainr1() {
-        Parser<Character, Integer> number = NumericParsers.number;
+        Parser<Character, Integer> number = Numeric.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('+').map(op -> Integer::sum);
         Parser<Character, Integer> parser = number.chainRightMany(plus);
         Input<Character> input = Input.of("1+2+3");
@@ -175,7 +175,7 @@ public class ParserTest {
 
     @Test
     public void testNumber() {
-        Parser<Character, Integer> parser = NumericParsers.number;
+        Parser<Character, Integer> parser = Numeric.number;
         Input<Character> input = Input.of("12345");
         Result<Character, Integer> result = parser.parse(input);
         assertTrue(result.isSuccess());
@@ -201,7 +201,7 @@ public class ParserTest {
 
     @Test
     public void testChainl1() {
-        Parser<Character, Integer> number = NumericParsers.number;
+        Parser<Character, Integer> number = Numeric.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('+').map(op -> Integer::sum);
         Parser<Character, Integer> parser = number.chainLeftMany(plus);
         Input<Character> input = Input.of("1+2+3");
@@ -212,7 +212,7 @@ public class ParserTest {
 
     @Test
     public void testChainl() {
-        Parser<Character, Integer> number = NumericParsers.number;
+        Parser<Character, Integer> number = Numeric.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('-').map(op -> (a, b) -> a - b);
         Parser<Character, Integer> parser = number.chainLeftMany(plus);
         Input<Character> input = Input.of("1-2-3");
@@ -223,7 +223,7 @@ public class ParserTest {
 
     @Test
     public void testChainr() {
-        Parser<Character, Integer> number = NumericParsers.number;
+        Parser<Character, Integer> number = Numeric.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('-').map(op -> (a, b) -> a - b);
         Parser<Character, Integer> parser = number.chainRightMany(plus);
         Input<Character> input = Input.of("1-2-3");
@@ -234,7 +234,7 @@ public class ParserTest {
 
     @Test
     public void testChainr2() {
-        Parser<Character, Integer> number = NumericParsers.number;
+        Parser<Character, Integer> number = Numeric.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('-').as((a, b) -> a - b);
         Parser<Character, Integer> parser = number.chainRightMany(plus);
         Input<Character> input = Input.of("1-2-3");
@@ -482,7 +482,7 @@ public class ParserTest {
 
     @Test
     public void testChainZeroOrMany() {
-        Parser<Character, Integer> number = NumericParsers.number;
+        Parser<Character, Integer> number = Numeric.number;
         Parser<Character, BinaryOperator<Integer>> plus = chr('+').map(op -> Integer::sum);
 
         // Test chainLeftZeroOrMany

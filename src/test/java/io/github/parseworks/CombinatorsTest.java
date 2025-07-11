@@ -1,6 +1,7 @@
 package io.github.parseworks;
 
-import io.github.parseworks.parsers.NumericParsers;
+import io.github.parseworks.parsers.Combinators;
+import io.github.parseworks.parsers.Numeric;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -8,7 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 
-import static io.github.parseworks.Combinators.*;
+import static io.github.parseworks.parsers.Combinators.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class CombinatorsTest {
@@ -216,7 +217,7 @@ public class CombinatorsTest {
 
         Parser<Character, String> keyword = string("if").or(string("else")).or(string("while"));
         Parser<Character, String> identifier = regex("[a-zA-Z][a-zA-Z0-9]*");
-        Parser<Character, String> number = NumericParsers.numeric.many().map(FList::joinChars);
+        Parser<Character, String> number = Numeric.numeric.many().map(FList::joinChars);
 
        Parser<Character, String> token = oneOf(Arrays.asList(
          keyword,

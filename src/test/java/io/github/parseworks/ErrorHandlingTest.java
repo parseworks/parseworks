@@ -4,7 +4,7 @@ import io.github.parseworks.impl.Failure;
 import io.github.parseworks.impl.Failure.ErrorType;
 import org.junit.jupiter.api.Test;
 
-import static io.github.parseworks.Combinators.*;
+import static io.github.parseworks.parsers.Combinators.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**

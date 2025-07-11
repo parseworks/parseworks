@@ -87,13 +87,8 @@ In this tutorial, we'll create a simple parser that recognizes a specific string
 #### Step 1: Import the necessary classes
 
 ```java
-import io.github.parseworks.Parser;
-import io.github.parseworks.Input;
-import io.github.parseworks.Result;
-import io.github.parseworks.TextParsers;
 
-import static io.github.parseworks.Combinators.*;
-import static io.github.parseworks.TextParsers.alphaNumeric;
+
 ```
 
 #### Step 2: Create a parser for a specific string
