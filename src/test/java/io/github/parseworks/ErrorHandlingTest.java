@@ -105,12 +105,9 @@ public class ErrorHandlingTest {
             throw new RuntimeException("Test exception");
         });
 
-        Result<Character, String> result = parser.parse("x");
-
-        assertTrue(result.isError());
-        Failure<?, ?> failure = (Failure<?, ?>) result;
-        assertEquals(ErrorType.INTERNAL, failure.errorType());
-        assertTrue(failure.error().startsWith("Internal error"));
+        assertThrows(RuntimeException.class, () -> {
+            Result<Character, String> result = parser.parse("x");
+        });
     }
 
     @Test

@@ -5,7 +5,6 @@ import io.github.parseworks.Input;
 import io.github.parseworks.Parser;
 import io.github.parseworks.Result;
 import io.github.parseworks.impl.Failure.ErrorType;
-import io.github.parseworks.impl.parser.NoCheckParser;
 
 import java.util.*;
 import java.util.function.Predicate;
@@ -58,7 +57,7 @@ public class Combinators {
      * @return a parser that accepts any single input element of the specified type
      */
     public static <I> Parser<I, I> any(Class<I> type) {
-        return new NoCheckParser<>(input -> {
+        return new Parser<>(input -> {
             if (input.isEof()) {
                 return Result.failure(input, type.descriptorString(), "end of input").cast();
             } else {
@@ -163,7 +162,7 @@ public class Combinators {
      */
     @SafeVarargs
     public static <I> Parser<I, I> oneOf(I... items) {
-        return new NoCheckParser<>(in -> {
+        return new Parser<>(in -> {
             if (in.isEof()) {
                 return Result.failure(in, "one of the expected values", "end of input");
             }
@@ -235,7 +234,7 @@ public class Combinators {
      * @see Parser#thenSkip(Parser) for combining with other parsers while discarding the EOF result
      */
     public static <I> Parser<I, Void> eof() {
-        return new NoCheckParser<>(input -> {
+        return new Parser<>(input -> {
             if (input.isEof()) {
                 return Result.success(input, null);
             } else {
@@ -283,7 +282,7 @@ public class Combinators {
      * @see Parser#or(Parser) for providing alternatives when failure occurs
      */
     public static <I, A> Parser<I, A> fail() {
-        return new NoCheckParser<>(in -> {
+        return new Parser<>(in -> {
             String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
             return Result.failure(in, "parser explicitly set to fail", found, ErrorType.GENERIC);
         });
@@ -348,7 +347,7 @@ public class Combinators {
      * @see ErrorType for available error type categories
      */
     public static <I, A> Parser<I, A> fail(String expected, ErrorType errorType) {
-        return new NoCheckParser<>(in -> {
+        return new Parser<>(in -> {
             String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
             return Result.failure(in, expected, found, errorType);
         });
@@ -587,7 +586,7 @@ public class Combinators {
      * @see #is(Object) for the opposite operation (matching a specific value)
      */
     public static <I> Parser<I, I> isNot(I value) {
-        return new NoCheckParser<>(in -> {
+        return new Parser<>(in -> {
             if (in.isEof()) {
                 return Result.unexpectedEofError(in, "any value except " + value);
             }
@@ -650,7 +649,7 @@ public class Combinators {
      * @see Parser#or(Parser) for choosing between two parsers
      */
     public static <I, A> Parser<I, A> oneOf(List<Parser<I, A>> parsers) {
-        return new NoCheckParser<>(in -> {
+        return new Parser<>(in -> {
             if (in.isEof()) {
                 return Result.unexpectedEofError(in, "eof before `oneOf` parser");
             }
@@ -708,7 +707,7 @@ public class Combinators {
      */
     @SafeVarargs
     public static <I, A> Parser<I, A> oneOf(Parser<I, A>... parsers) {
-        return new NoCheckParser<>(in -> {
+        return new Parser<>(in -> {
             if (in.isEof()) {
                 return Result.unexpectedEofError(in, "eof before `oneOf` parser");
             }
@@ -954,7 +953,7 @@ public class Combinators {
      * @return a parser that parses a single item that satisfies the given predicate
      */
     public static <I> Parser<I, I> satisfy(String expectedType, Predicate<I> predicate) {
-        return new NoCheckParser<>(in -> {
+        return new Parser<>(in -> {
             if (in.isEof()) {
                 return Result.failure(in, expectedType);
             }
@@ -1034,7 +1033,7 @@ public class Combinators {
      * @return a parser that succeeds if the current input item equals the provided value
      */
     public static <I> Parser<I, I> is(I equivalence) {
-        return new NoCheckParser<>(in -> {
+        return new Parser<>(in -> {
             if (in.isEof()) {
                 return Result.failure(in, "equivalence");
             }
@@ -1100,7 +1099,7 @@ public class Combinators {
      * @see #chr(char) for single character matching
      */
     public static Parser<Character, String> string(String str) {
-        return new NoCheckParser<>(in -> {
+        return new Parser<>(in -> {
             Input<Character> currentInput = in;
 
             // Handle empty string case

@@ -3,7 +3,6 @@ package io.github.parseworks;
 import io.github.parseworks.impl.Failure;
 import io.github.parseworks.impl.IntObjectMap;
 import io.github.parseworks.impl.Pair;
-import io.github.parseworks.impl.parser.NoCheckParser;
 import io.github.parseworks.parsers.Combinators;
 
 import java.util.*;
@@ -33,7 +32,7 @@ import static io.github.parseworks.parsers.Combinators.is;
  */
 public class Parser<I, A> {
 
-    private final ThreadLocal<IntObjectMap<Object>> contextLocal = ThreadLocal.withInitial(IntObjectMap::new);
+
 
     /**
      * Transforms the result of this parser to a constant value, regardless of the actual parsed result.
@@ -93,7 +92,6 @@ public class Parser<I, A> {
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>Uses an optimized {@code NoCheckParser} implementation for efficiency</li>
      *   <li>Always succeeds regardless of the input</li>
      *   <li>Does not modify or consume the input in any way</li>
      *   <li>Often used with {@link ApplyBuilder#apply} methods to combine parsers functionally</li>
@@ -123,7 +121,7 @@ public class Parser<I, A> {
      * @see ApplyBuilder for combining multiple parsers with transformation functions
      */
     public static <I, A> Parser<I, A> pure(A value) {
-        return new NoCheckParser<>(in -> Result.success(in, value));
+        return new Parser<>(in -> Result.success(in, value));
     }
 
     /**
@@ -875,11 +873,10 @@ public class Parser<I, A> {
      * }</pre>
      *
      * @return a new parser that logs its progress while behaving like this parser
-     * @see NoCheckParser for the implementation that wraps the original parser
      * @see Result for the structure of success and failure results that are logged
      */
     public Parser<I, A> logOut() {
-        return new NoCheckParser<>(input -> {
+        return new Parser<>(input -> {
             System.out.print("Parser starting at position: " + input.position());
             Result<I, A> result = this.apply(input);
             if (result.isSuccess()) {
@@ -971,7 +968,7 @@ public class Parser<I, A> {
      * @return a parser that returns either the successful parse result or the default value
      */
     public Parser<I, A> orElse(A other) {
-        return new NoCheckParser<>(in -> {
+        return new Parser<>(in -> {
             Result<I, A> result = this.apply(in);
             if (result.isError()) {
                 return Result.success(in, other);
@@ -1203,87 +1200,13 @@ public class Parser<I, A> {
     }
 
     /**
-     * Applies this parser to the given input, performing the core parsing operation.
-     * <p>
-     * The {@code apply} method is the fundamental parsing operation that processes input according
-     * to this parser's rules and produces a result. It's the primary mechanism by which all parsers
-     * evaluate input, with built-in protection against infinite recursive loops. The parsing process
-     * works as follows:
-     * <ol>
-     *   <li>Checks for potential infinite recursion by tracking parser/position combinations</li>
-     *   <li>Records the current parser and input position in thread-local tracking arrays</li>
-     *   <li>Delegates to the parser's apply handler function to perform the actual parsing</li>
-     *   <li>Cleans up the tracking state after parsing completes</li>
-     *   <li>Returns a result containing either the successfully parsed value or failure information</li>
-     * </ol>
-     * <p>
-     * This method serves as the core implementation called by all higher-level parsing methods like
-     * {@link #parse(Input)} and {@link #parseAll(Input)}. It's rarely called directly by client code
-     * but is the foundation of the entire parsing process.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses thread-local storage to efficiently track parser positions across the call stack</li>
-     *   <li>Implements a loop detection algorithm that prevents infinite recursion in recursive grammars</li>
-     *   <li>Automatically fails with an {@code INFINITE_LOOP_ERROR} message if recursion is detected</li>
-     *   <li>Ensures proper cleanup of tracking data in both success and failure cases</li>
-     *   <li>Thread-safe implementation that allows concurrent parsing with different parsers</li>
-     * </ul>
-     * <p>
-     * Example usage (typically internal):
-     * <pre>{@code
-     * Parser<Character, Integer> numberParser = intr;
-     * Input<Character> input = Input.of("123");
+     * Applies the specified input to the handler and returns the result.
      *
-     * // Direct application of the parser to input
-     * Result<Character, Integer> result = numberParser.apply(input);
-     *
-     * if (result.isSuccess()) {
-     *     // Successfully parsed 123
-     *     Integer value = result.getValue();             // 123
-     *     Input<Character> remaining = result.getRemaining();  // Input after consuming "123"
-     * } else {
-     *     // Parse failure
-     *     String errorMsg = result.getErrorMessage();    // Description of the parsing error
-     *     Input<Character> errorPos = result.getInput(); // Position where the error occurred
-     * }
-     * }</pre>
-     *
-     * @param in the input to parse
-     * @return a result containing either the successfully parsed value or failure information
-     * @see Result for the structure that contains parsing results
-     * @see #parse(Input) for a higher-level method that wraps this core functionality
-     * @see #parseAll(Input) for parsing that requires consuming the entire input
+     * @param in the input to process of type {@code Input<I>}
+     * @return the result of processing the input, encapsulated in a {@code Result<I, A>}
      */
     public Result<I, A> apply(Input<I> in) {
-        // Fast path - avoid ThreadLocal lookup if position is different
-        int lastPosition = in.position();
-
-        IntObjectMap<Object> config = this.contextLocal.get();
-
-        // Check for infinite recursion
-        if (config.get(lastPosition) == this) {
-            return Result.recursionError(in);
-        }
-
-        config.put(lastPosition, this);
-        try {
-            return applyHandler.apply(in);
-        } catch (RuntimeException e) {
-            // Only catch RuntimeExceptions, let checked exceptions propagate
-            // This allows throwError to work as expected
-            if (e.getCause() instanceof Exception && !(e.getCause() instanceof RuntimeException)) {
-                // If it's a wrapped checked exception (like from throwError), rethrow it
-                throw e;
-            }
-
-            // Catch and wrap unexpected runtime exceptions with context
-            String errorMsg = "Unexpected error during parsing: " + e.getMessage();
-            return Result.internalError(in, errorMsg);
-        } finally {
-            // Remove the parser from the context after parsing
-            config.remove(lastPosition);
-        }
+        return applyHandler.apply(in);
     }
 
     /**
@@ -1880,7 +1803,7 @@ public class Parser<I, A> {
             throw new IllegalArgumentException("Condition parser cannot be null");
         }
 
-        return new NoCheckParser<>(in -> {
+        return new Parser<>(in -> {
             FList<A> results = new FList<>();
             Input<I> currentInput = in;
 
@@ -2091,7 +2014,7 @@ public class Parser<I, A> {
     /**
      * Private constructor to create a parser reference that can be initialized later.
      */
-    private Parser() {
+    protected Parser() {
         this.applyHandler = defaultApplyHandler = in -> {
             throw new IllegalStateException("Parser not initialized");
         };
@@ -2208,7 +2131,35 @@ public class Parser<I, A> {
      * @see #set(Function) for initializing the parser reference with an apply handler
      */
     public static <I, A> Parser<I, A> ref() {
-        return new Parser<>();
+        return new CheckParser<>();
+    }
+
+    private static class CheckParser<I, A> extends Parser<I, A> {
+
+        private final ThreadLocal<IntObjectMap<Object>> contextLocal = ThreadLocal.withInitial(IntObjectMap::new);
+
+
+        public Result<I, A> apply(Input<I> in) {
+            int lastPosition = in.position();
+
+            IntObjectMap<Object> config = this.contextLocal.get();
+
+            // Check for infinite recursion
+            if (config.get(lastPosition) == this) {
+                return Result.recursionError(in);
+            }
+
+            config.put(lastPosition, this);
+            try {
+                return applyHandler.apply(in);
+            } catch (RuntimeException e) {
+                String errorMsg = "Internal error during parsing: " + e.getMessage();
+                return Result.internalError(in, errorMsg);
+            } finally {
+                // Remove the parser from the context after parsing
+                config.remove(lastPosition);
+            }
+        }
     }
 
 

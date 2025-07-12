@@ -21,7 +21,6 @@ public class AssociativityTest {
 
         var result = addition.parse(Input.of("2+3"));
         assertEquals(5.0, result.get(), "Expected 5.0 but got " + result.get());
-
     }
 
 

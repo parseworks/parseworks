@@ -1,7 +1,5 @@
 package io.github.parseworks;
 
-import io.github.parseworks.impl.parser.NoCheckParser;
-
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -57,7 +55,7 @@ public class ApplyBuilder<I, A, B> {
      * @return a parser that applies the function to the value
      */
     public static <I, A, B> Parser<I, B> apply(Parser<I, Function<A, B>> functionProvider, Parser<I, A> valueParser) {
-        return new NoCheckParser<>(in -> {
+        return new Parser<>(in -> {
             Result<I, Function<A, B>> functionResult = functionProvider.apply(in);
             if (functionResult.isError()) {
                 return functionResult.cast();
@@ -201,7 +199,7 @@ public class ApplyBuilder<I, A, B> {
      * @return a new parser with the mapped result
      */
     public <R> Parser<I, R> map(BiFunction<A, B, R> f) {
-        return new NoCheckParser<>(in -> {
+        return new Parser<>(in -> {
             Result<I, A> ra = pa.apply(in);
             if (ra.isError()) {
                 return ra.cast();
