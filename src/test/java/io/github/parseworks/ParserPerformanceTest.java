@@ -51,7 +51,7 @@ public class ParserPerformanceTest {
         
         // Generate a large CSV-like input
         StringBuilder input = new StringBuilder();
-        for (int i = 0; i < 1000000; i++) {
+        for (int i = 0; i < 1_000_000; i++) {
             for (int j = 0; j < 100; j++) {
                 input.append("field").append(j);
                 if (j < 9) input.append(",");

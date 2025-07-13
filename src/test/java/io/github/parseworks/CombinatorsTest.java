@@ -17,9 +17,7 @@ public class CombinatorsTest {
     @Test
     public void testAny() {
         Parser<Character, Character> parser = any(Character.class);
-
-        Parser<Character,String> notQuote = not(chr('"')).map(String::valueOf);
-
+        
         // Success case
         Result<Character, Character> result = parser.parse("a");
         assertTrue(result.isSuccess());

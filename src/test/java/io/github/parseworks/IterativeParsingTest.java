@@ -63,7 +63,7 @@ public class IterativeParsingTest {
         Input<Character> charInput = Input.of(input);
 
         List<String> words = wordParser.streamParse(charInput)
-            .collect(Collectors.toList());
+            .toList();
 
         assertEquals(3, words.size());
         assertEquals("hello", words.get(0));

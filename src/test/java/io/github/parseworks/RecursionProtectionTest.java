@@ -43,7 +43,7 @@ public class RecursionProtectionTest {
         term.set(term2);
         Input<Character> input = Input.of("3+(2*4)-5");
         Result<Character, Integer> result = expression.parse(input);
-        assertEquals(result.get(), 6);
+        assertEquals(6, result.get());
     }
 
 }

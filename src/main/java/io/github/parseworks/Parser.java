@@ -2,18 +2,17 @@ package io.github.parseworks;
 
 import io.github.parseworks.impl.Failure;
 import io.github.parseworks.impl.IntObjectMap;
-import io.github.parseworks.impl.Pair;
+import io.github.parseworks.parsers.Chains;
 import io.github.parseworks.parsers.Combinators;
 
 import java.util.*;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
-import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static io.github.parseworks.parsers.Combinators.is;
-
+import static io.github.parseworks.parsers.Chains.chain;
 /**
  * A parser that consumes input of type {@code I} and produces results of type {@code A}.
  * <p>
@@ -47,10 +46,10 @@ public class Parser<I, A> {
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>First applies this parser to the input</li>
+     *   <li>First, applies this parser to the input</li>
      *   <li>If this parser succeeds, its result is discarded and replaced with the specified value</li>
      *   <li>If this parser fails, the failure is propagated without providing the constant value</li>
-     *   <li>The input position advances according to the original parser's consumption</li>
+     *   <li>The input position advances, according to the original parser's consumption</li>
      * </ul>
      * <p>
      * Example usage:
@@ -355,7 +354,7 @@ public class Parser<I, A> {
      * @throws IllegalArgumentException if the operator parser is null
      * @see #chainLeftMany(Parser) for the version that requires at least one operand
      * @see #chainRight(Parser, Object) for the right-associative equivalent
-     * @see Associativity for associativity options
+     * @see Chains.Associativity for associativity options
      */
     public Parser<I, A> chainLeft(Parser<I, BinaryOperator<A>> op, A a) {
         return this.chainLeftMany(op).or(pure(a));
@@ -401,12 +400,12 @@ public class Parser<I, A> {
      * @param op the parser that recognizes and returns binary operators
      * @return a parser that handles left-associative expressions with at least one operand
      * @throws IllegalArgumentException if the operator parser is null
-     * @see #chain(Parser, Associativity) for the more general method with explicit associativity
+     * @see io.github.parseworks.parsers.Chains#chain(Parser, Parser, Chains.Associativity) for the more general method with explicit associativity
      * @see #chainLeft(Parser, Object) for a version that provides a default value
      * @see #chainRightMany(Parser) for the right-associative equivalent
      */
     public Parser<I, A> chainLeftMany(Parser<I, BinaryOperator<A>> op) {
-        return chain(op, Associativity.LEFT);
+        return chain(this, op, Chains.Associativity.LEFT);
     }
 
     /**
@@ -452,7 +451,7 @@ public class Parser<I, A> {
      * @throws IllegalArgumentException if the operator parser is null
      * @see #chainRightMany(Parser) for the version that requires at least one operand
      * @see #chainLeft(Parser, Object) for the left-associative equivalent
-     * @see Associativity for associativity options
+     * @see Chains.Associativity for associativity options
      */
     public Parser<I, A> chainRight(Parser<I, BinaryOperator<A>> op, A a) {
         return this.chainRightMany(op).or(pure(a));
@@ -546,69 +545,12 @@ public class Parser<I, A> {
      * @param op the parser that recognizes and returns binary operators
      * @return a parser that handles right-associative expressions with at least one operand
      * @throws IllegalArgumentException if the operator parser is null
-     * @see #chain(Parser, Associativity) for the more general method with explicit associativity
+     * @see io.github.parseworks.parsers.Chains#chain(Parser, Parser, Chains.Associativity) for the more general method with explicit associativity
      * @see #chainRight(Parser, Object) for a version that provides a default value
      * @see #chainLeftMany(Parser) for the left-associative equivalent
      */
     public Parser<I, A> chainRightMany(Parser<I, BinaryOperator<A>> op) {
-        return chain(op, Associativity.RIGHT);
-    }
-
-    /**
-     * Creates a repeating parser that handles operator expressions with specified associativity.
-     * <p>
-     * The {@code chain} method is a powerful parser combinator for parsing sequences of
-     * operands separated by operators, commonly used for expression parsing. It processes
-     * the input as follows:
-     * <ol>
-     *   <li>First applies this parser to obtain an initial operand</li>
-     *   <li>Then repeatedly tries to parse an operator followed by another operand</li>
-     *   <li>Combines the results using the parsed operators according to the specified associativity</li>
-     * </ol>
-     * <p>
-     * The method supports two associativity modes:
-     * <ul>
-     *   <li><b>LEFT</b>: Operators are evaluated from left to right. For example, "a+b+c" is
-     *       interpreted as "(a+b)+c"</li>
-     *   <li><b>RIGHT</b>: Operators are evaluated from right to left. For example, "a+b+c" is
-     *       interpreted as "a+(b+c)"</li>
-     * </ul>
-     * <p>
-     * This method serves as the foundation for more specific chainXxx methods like
-     * {@link #chainLeftMany(Parser)} and {@link #chainRightMany(Parser)}.
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse addition expressions with left associativity
-     * Parser<Character, Integer> number = intr;
-     * Parser<Character, BinaryOperator<Integer>> add =
-     *     chr('+').as((a, b) -> a + b);
-     *
-     * Parser<Character, Integer> expression =
-     *     number.chain(add, Associativity.LEFT);
-     *
-     * // Parses "1+2+3" as (1+2)+3 = 6
-     * }</pre>
-     *
-     * @param op            the parser that recognizes and returns binary operators
-     * @param associativity the associativity rule to apply (LEFT or RIGHT)
-     * @return a parser that handles operator expressions with the specified associativity
-     * @throws IllegalArgumentException if any parameter is null
-     * @see #chainLeftMany(Parser) for a specialized left-associative version
-     * @see #chainRightMany(Parser) for a specialized right-associative version
-     * @see Associativity for the associativity options
-     */
-    public Parser<I, A> chain(Parser<I, BinaryOperator<A>> op, Associativity associativity) {
-        if (associativity == Associativity.LEFT) {
-            final Parser<I, UnaryOperator<A>> plo =
-                    op.then(this)
-                            .map((f, y) -> x -> f.apply(x, y));
-            return this.then(plo.zeroOrMany())
-                    .map((a, lf) -> lf.foldLeft(a, (acc, f) -> f.apply(acc)));
-        } else {
-            return this.then(op.then(this).map(Pair::new).zeroOrMany())
-                    .map((a, pairs) -> pairs.stream().reduce(a, (acc, tuple) -> tuple.left().apply(tuple.right(), acc), (a1, a2) -> a1));
-        }
+        return chain(this, op, Chains.Associativity.RIGHT);
     }
 
     /**
@@ -759,8 +701,8 @@ public class Parser<I, A> {
      * without consuming any input from the validation.
      * <p>
      * The {@code onlyIf} method creates a conditional parser that first checks if the validation
-     * parser would succeed at the current position, and if so, proceeds with this parser. The
-     * validation parser's result is discarded and no input is consumed by it. This is useful for
+     * parser succeeds at the current position, and if so, proceeds with this parser. The
+     * validation parser's result is discarded, and no input is consumed by it. This is useful for
      * implementing lookahead validation or parsing with preconditions.
      * <p>
      * Implementation details:
@@ -875,7 +817,7 @@ public class Parser<I, A> {
      * @return a new parser that logs its progress while behaving like this parser
      * @see Result for the structure of success and failure results that are logged
      */
-    public Parser<I, A> logOut() {
+    public Parser<I, A> logSystemOut() {
         return new Parser<>(input -> {
             System.out.print("Parser starting at position: " + input.position());
             Result<I, A> result = this.apply(input);
