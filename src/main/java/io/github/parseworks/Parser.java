@@ -1,9 +1,9 @@
 package io.github.parseworks;
 
-import io.github.parseworks.impl.Failure;
+import io.github.parseworks.impl.result.NoMatch;
 import io.github.parseworks.impl.IntObjectMap;
 import io.github.parseworks.parsers.Chains;
-import io.github.parseworks.parsers.Combinators;
+import io.github.parseworks.parsers.Lexical;
 
 import java.util.*;
 import java.util.function.BinaryOperator;
@@ -11,8 +11,8 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static io.github.parseworks.parsers.Combinators.is;
 import static io.github.parseworks.parsers.Chains.chain;
+import static io.github.parseworks.parsers.Combinators.is;
 /**
  * A parser that consumes input of type {@code I} and produces results of type {@code A}.
  * <p>
@@ -377,7 +377,7 @@ public class Parser<I, A> {
      * <p>
      * Implementation details:
      * <ol>
-     *   <li>First applies this parser to get the initial operand</li>
+     *   <li>First applies this parser to value the initial operand</li>
      *   <li>Then repeatedly tries to parse an operator followed by another operand</li>
      *   <li>Combines the results from left to right using the binary operators</li>
      *   <li>Fails if no valid expression is found</li>
@@ -402,7 +402,7 @@ public class Parser<I, A> {
      * @throws IllegalArgumentException if the operator parser is null
      * @see io.github.parseworks.parsers.Chains#chain(Parser, Parser, Chains.Associativity) for the more general method with explicit associativity
      * @see #chainLeft(Parser, Object) for a version that provides a default value
-     * @see #chainRightMany(Parser) for the right-associative equivalent
+     * @see #chainRightOneOrMore(Parser) for the right-associative equivalent
      */
     public Parser<I, A> chainLeftMany(Parser<I, BinaryOperator<A>> op) {
         return chain(this, op, Chains.Associativity.LEFT);
@@ -411,10 +411,10 @@ public class Parser<I, A> {
     /**
      * Creates a parser for right-associative operator expressions that succeeds even when no operands are found.
      * <p>
-     * The {@code chainRightZeroOrMany} method extends {@link #chainRightMany(Parser)} to handle the case
+     * The {@code chainRightZeroOrMany} method extends {@link #chainRightOneOrMore(Parser)} to handle the case
      * where no operands are present in the input by providing a default value. It processes the input as follows:
      * <ol>
-     *   <li>First attempts to parse a right-associative operator expression using {@code chainRightMany}</li>
+     *   <li>First attempts to parse a right-associative operator expression using {@code chainRightOneOrMore}</li>
      *   <li>If successful, returns the parsed expression value</li>
      *   <li>If parsing fails (no valid expression found), returns the provided default value</li>
      * </ol>
@@ -425,7 +425,7 @@ public class Parser<I, A> {
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>Combines {@link #chainRightMany(Parser)} with {@link #or(Parser)} and {@link #pure(Object)}</li>
+     *   <li>Combines {@link #chainRightOneOrMore(Parser)} with {@link #or(Parser)} and {@link #pure(Object)}</li>
      *   <li>No input is consumed if the expression cannot be parsed</li>
      *   <li>Always succeeds, either with the parsed result or the default value</li>
      * </ul>
@@ -449,12 +449,12 @@ public class Parser<I, A> {
      * @param a  the default value to return if no expression can be parsed
      * @return a parser that handles right-associative expressions or returns the default value
      * @throws IllegalArgumentException if the operator parser is null
-     * @see #chainRightMany(Parser) for the version that requires at least one operand
+     * @see #chainRightOneOrMore(Parser) for the version that requires at least one operand
      * @see #chainLeft(Parser, Object) for the left-associative equivalent
      * @see Chains.Associativity for associativity options
      */
     public Parser<I, A> chainRight(Parser<I, BinaryOperator<A>> op, A a) {
-        return this.chainRightMany(op).or(pure(a));
+        return this.chainRightOneOrMore(op).or(pure(a));
     }
 
     /**
@@ -496,19 +496,19 @@ public class Parser<I, A> {
      * @return a parser that tries this parser first, and if it fails, tries the alternative parser
      * @throws IllegalArgumentException if the other parameter is null
      * @see #orElse(Object) for providing a default value instead of an alternative parser
-     * @see Combinators#oneOf for choosing between multiple parsers
+     * @see Lexical#oneOf for choosing between multiple parsers
      */
     public Parser<I, A> or(Parser<I, A> other) {
         return new Parser<>(in -> {
             Result<I, A> result = this.apply(in);
-            return result.isSuccess() ? result : other.apply(in);
+            return result.matches() ? result : other.apply(in);
         });
     }
 
     /**
      * Creates a parser for right-associative operator expressions requiring at least one operand.
      * <p>
-     * The {@code chainRightMany} method provides specialized support for parsing expressions
+     * The {@code chainRightOneOrMore} method provides specialized support for parsing expressions
      * with right associativity, which means operators are evaluated from right to left. For example,
      * in "a^b^c", the operations are grouped as "a^(b^c)" rather than "(a^b)^c".
      * <p>
@@ -522,7 +522,7 @@ public class Parser<I, A> {
      * <p>
      * Implementation details:
      * <ol>
-     *   <li>First applies this parser to get the initial operand</li>
+     *   <li>First applies this parser to value the initial operand</li>
      *   <li>Then repeatedly tries to parse an operator followed by another operand</li>
      *   <li>Combines the results from right to left using the binary operators</li>
      *   <li>Fails if no valid expression is found</li>
@@ -535,7 +535,7 @@ public class Parser<I, A> {
      * Parser<Character, BinaryOperator<Integer>> power =
      *     chr('^').as((base, exp) -> (int)Math.pow(base, exp));
      *
-     * Parser<Character, Integer> expression = number.chainRightMany(power);
+     * Parser<Character, Integer> expression = number.chainRightOneOrMore(power);
      *
      * // Parses "2^3^2" as 2^(3^2) = 2^9 = 512
      * // Parses "5" as simply 5
@@ -549,7 +549,7 @@ public class Parser<I, A> {
      * @see #chainRight(Parser, Object) for a version that provides a default value
      * @see #chainLeftMany(Parser) for the left-associative equivalent
      */
-    public Parser<I, A> chainRightMany(Parser<I, BinaryOperator<A>> op) {
+    public Parser<I, A> chainRightOneOrMore(Parser<I, BinaryOperator<A>> op) {
         return chain(this, op, Chains.Associativity.RIGHT);
     }
 
@@ -581,7 +581,7 @@ public class Parser<I, A> {
      * <pre>{@code
      * // Parse zero or more digits
      * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, FList<Character>> digits = digit.zeroOrMany();
+     * Parser<Character, FList<Character>> digits = digit.zeroOrMore();
      *
      * // Succeeds with [1,2,3] for input "123"
      * // Succeeds with [] for input "abc" (empty list, no input consumed)
@@ -590,10 +590,10 @@ public class Parser<I, A> {
      *
      * @return a parser that applies this parser zero or more times until it fails,
      * returning a list of all successful parse results
-     * @see #many() for a version that requires at least one match
+     * @see #oneOrMore() for a version that requires at least one match
      * @see #repeat(int, int) for a version with explicit min and max counts
      */
-    public Parser<I, FList<A>> zeroOrMany() {
+    public Parser<I, FList<A>> zeroOrMore() {
         return repeatInternal(0, Integer.MAX_VALUE, null);
     }
 
@@ -601,7 +601,7 @@ public class Parser<I, A> {
      * Creates a parser that applies this parser one or more times until it fails,
      * collecting all successful results into a list.
      * <p>
-     * The {@code many} method implements the Kleene plus (+) operation from formal language theory,
+     * The {@code oneOrMore} method implements the Kleene plus (+) operation from formal language theory,
      * matching the pattern represented by this parser repeated at least once. The parsing process
      * works as follows:
      * <ol>
@@ -611,7 +611,7 @@ public class Parser<I, A> {
      *   <li>Returns all collected results as an {@code FList}</li>
      * </ol>
      * <p>
-     * This method is similar to {@link #zeroOrMany()}, but requires at least one successful match
+     * This method is similar to {@link #zeroOrMore()}, but requires at least one successful match
      * to succeed. If this parser fails on the first attempt, the entire parser fails.
      * <p>
      * Implementation details:
@@ -619,14 +619,14 @@ public class Parser<I, A> {
      *   <li>The parser checks for infinite loops by ensuring input position advances</li>
      *   <li>This is a greedy operation that consumes as much input as possible</li>
      *   <li>Fails if no matches are found</li>
-     *   <li>For guaranteed success regardless of input, use {@link #zeroOrMany()} instead</li>
+     *   <li>For guaranteed success regardless of input, use {@link #zeroOrMore()} instead</li>
      * </ul>
      * <p>
      * Example usage:
      * <pre>{@code
      * // Parse one or more digits
      * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, FList<Character>> digits = digit.many();
+     * Parser<Character, FList<Character>> digits = digit.oneOrMore();
      *
      * // Succeeds with [1,2,3] for input "123"
      * // Succeeds with [1,2,3] for input "123abc" (consuming only "123")
@@ -635,11 +635,11 @@ public class Parser<I, A> {
      *
      * @return a parser that applies this parser one or more times until it fails,
      * returning a list of all successful parse results
-     * @see #zeroOrMany() for a version that succeeds even with zero matches
+     * @see #zeroOrMore() for a version that succeeds even with zero matches
      * @see #repeat(int) for a version with an exact count
      * @see #repeat(int, int) for a version with explicit min and max counts
      */
-    public Parser<I, FList<A>> many() {
+    public Parser<I, FList<A>> oneOrMore() {
         return repeatInternal(1, Integer.MAX_VALUE, null);
     }
 
@@ -647,7 +647,7 @@ public class Parser<I, A> {
      * Creates a repeating parser that applies this parser one or more times until a terminator parser succeeds,
      * collecting all results into a list.
      * <p>
-     * The {@code manyUntil} method combines the behavior of {@link #many()} with a termination condition.
+     * The {@code oneOrMoreUntil} method combines the behavior of {@link #oneOrMore()} with a termination condition.
      * It repeatedly applies this parser until either:
      * <ol>
      *   <li>The terminator parser succeeds, indicating the end of the sequence</li>
@@ -677,7 +677,7 @@ public class Parser<I, A> {
      * // Parse all characters until a semicolon
      * Parser<Character, Character> anyChar = any(Character.class);
      * Parser<Character, Character> semicolon = chr(';');
-     * Parser<Character, FList<Character>> content = anyChar.manyUntil(semicolon);
+     * Parser<Character, FList<Character>> content = anyChar.oneOrMoreUntil(semicolon);
      *
      * // Succeeds with ['a','b','c'] for input "abc;" (consuming all input including semicolon)
      * // Fails for input ";" (no characters found before semicolon)
@@ -688,10 +688,10 @@ public class Parser<I, A> {
      * @return a parser that applies this parser one or more times until the terminator succeeds
      * @throws IllegalArgumentException if the until parameter is null
      * @see #zeroOrManyUntil(Parser) for a version that succeeds even with zero matches
-     * @see #many() for a version that collects until this parser fails
+     * @see #oneOrMore() for a version that collects until this parser fails
      * @see #repeatInternal(int, int, Parser) for the underlying implementation
      */
-    public Parser<I, FList<A>> manyUntil(Parser<I, ?> until) {
+    public Parser<I, FList<A>> oneOrMoreUntil(Parser<I, ?> until) {
         return repeatInternal(1, Integer.MAX_VALUE, until);
     }
 
@@ -731,7 +731,7 @@ public class Parser<I, A> {
     public <B> Parser<I, A> where(Parser<I, B> validation) {
         return new Parser<>(input -> {
             Result<I, B> validationResult = validation.apply(input);
-            if (validationResult.isError()) {
+            if (!validationResult.matches()) {
                 return validationResult.cast();
             }
             return this.apply(input);
@@ -749,7 +749,7 @@ public class Parser<I, A> {
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>First, applies this parser to consume input and get a result</li>
+     *   <li>First, applies this parser to consume input and value a result</li>
      *   <li>Then checks if the lookahead parser succeeds at the new position</li>
      *   <li>If both succeed, returns this parser's result</li>
      *   <li>If either fails, returns the failure</li>
@@ -773,12 +773,12 @@ public class Parser<I, A> {
     public <B> Parser<I, A> peek(Parser<I, B> lookahead) {
         return new Parser<>(input -> {
             Result<I, A> result = this.apply(input);
-            if (result.isError()) {
+            if (!result.matches()) {
                 return result;
             }
             Result<I, B> peek = lookahead.apply(result.input());
-            if (peek.isError()) {
-                return new Failure<>(input, "Expected 'ifThen' to succeed", "error", (Failure<?, ?>) peek);
+            if (!peek.matches()) {
+                return new NoMatch<>(input, "Expected 'ifThen' to succeed", (NoMatch<?, ?>) peek);
             }
             return result;
         });
@@ -821,8 +821,8 @@ public class Parser<I, A> {
         return new Parser<>(input -> {
             System.out.print("Parser starting at position: " + input.position());
             Result<I, A> result = this.apply(input);
-            if (result.isSuccess()) {
-                System.out.println(" succeeded with value: " + result.get());
+            if (result.matches()) {
+                System.out.println(" succeeded with value: " + result.value());
             } else {
                 System.out.println(" failed: " + result.error());
             }
@@ -875,7 +875,7 @@ public class Parser<I, A> {
      * @return a parser that always succeeds, returning either an Optional containing this
      * parser's result or an empty Optional
      * @see #orElse(Object) for providing a default value instead of an Optional
-     * @see #zeroOrMany() for collecting zero or more occurrences of a pattern
+     * @see #zeroOrMore() for collecting zero or more occurrences of a pattern
      */
     public Parser<I, Optional<A>> optional() {
         return this.map(Optional::of).orElse(Optional.empty());
@@ -912,7 +912,7 @@ public class Parser<I, A> {
     public Parser<I, A> orElse(A other) {
         return new Parser<>(in -> {
             Result<I, A> result = this.apply(in);
-            if (result.isError()) {
+            if (!result.matches()) {
                 return Result.success(in, other);
             }
             return result;
@@ -998,7 +998,7 @@ public class Parser<I, A> {
                 // Try to find the next valid result
                 while (!currentInput.isEof()) {
                     Result<I, A> result = parser.parse(currentInput, false);
-                    if (result.isSuccess()) {
+                    if (result.matches()) {
                         nextResult = result;
                         return true;
                     }
@@ -1016,7 +1016,7 @@ public class Parser<I, A> {
                 }
 
                 // We already have the next result from hasNext()
-                A value = nextResult.get();
+                A value = nextResult.value();
                 currentInput = nextResult.input();
                 nextResult = null;
                 return value;
@@ -1113,13 +1113,13 @@ public class Parser<I, A> {
      * Parser<Character, JsonValue> jsonParser = // ... json parser definition
      * Input<Character> input = Input.of("{\"name\":\"John\",\"age\":30}");
      * Result<Character, JsonValue> result = jsonParser.parse(input, true);
-     * // result.isSuccess() == true only if the entire JSON document was valid and fully consumed
+     * // result.matches() == true only if the entire JSON document was valid and fully consumed
      *
      * // Parse just a number from the beginning of input
      * Parser<Character, Integer> numberParser = intr;
      * Input<Character> partialInput = Input.of("42 and more text");
      * Result<Character, Integer> partialResult = numberParser.parse(partialInput, false);
-     * // partialResult.isSuccess() == true, partialResult.get() == 42
+     * // partialResult.matches() == true, partialResult.value() == 42
      * }</pre>
      *
      * @param in         the input to parse
@@ -1131,11 +1131,9 @@ public class Parser<I, A> {
      */
     public Result<I, A> parse(Input<I> in, boolean consumeAll) {
         Result<I, A> result = this.apply(in);
-        if (consumeAll && result.isSuccess()) {
+        if (consumeAll && result.matches()) {
             if (!result.input().isEof()) {
-                // Provide more context about what was found after parsing should have completed
-                String found = result.input().hasMore() ? String.valueOf(result.input().current()) : "unknown";
-                result = Result.expectedEofError(result.input(), found);
+                result = Result.expectedEofError(result.input());
             }
         }
         return result;
@@ -1184,8 +1182,8 @@ public class Parser<I, A> {
      * Input<Character> input = Input.of("123");
      * Result<Character, Integer> result = intParser.parseAll(input);
      *
-     * if (result.isSuccess()) {
-     *     Integer value = result.get(); // Successfully parsed value
+     * if (result.matches()) {
+     *     Integer value = result.value(); // Successfully parsed value
      * } else {
      *     String error = result.getErrorMessage(); // Error message for failure
      * }
@@ -1232,7 +1230,7 @@ public class Parser<I, A> {
      *   <li>All parse results are collected in order of occurrence</li>
      *   <li>The parser checks for infinite loops by ensuring input position advances</li>
      *   <li>The input position is advanced after each successful application</li>
-     *   <li>Unlike {@link #many()}, this parser requires exactly the specified number of matches</li>
+     *   <li>Unlike {@link #oneOrMore()}, this parser requires exactly the specified number of matches</li>
      * </ul>
      * <p>
      * Example usage:
@@ -1252,8 +1250,8 @@ public class Parser<I, A> {
      * @throws IllegalArgumentException if the target count is negative
      * @see #repeat(int, int) for a version with minimum and maximum repetition counts
      * @see #repeatAtLeast(int) for a version with only a minimum count
-     * @see #many() for matching one or more occurrences without an upper limit
-     * @see #zeroOrMany() for matching zero or more occurrences
+     * @see #oneOrMore() for matching one or more occurrences without an upper limit
+     * @see #zeroOrMore() for matching zero or more occurrences
      */
     public Parser<I, FList<A>> repeat(int target) {
         return repeatInternal(target, target, null);
@@ -1307,8 +1305,8 @@ public class Parser<I, A> {
      * @see #repeat(int) for a version with an exact count
      * @see #repeatAtLeast(int) for a version with only a minimum count
      * @see #repeatAtMost(int) for a version with only a maximum count
-     * @see #many() for matching one or more occurrences without an upper limit
-     * @see #zeroOrMany() for matching zero or more occurrences without an upper limit
+     * @see #oneOrMore() for matching one or more occurrences without an upper limit
+     * @see #zeroOrMore() for matching zero or more occurrences without an upper limit
      */
     public Parser<I, FList<A>> repeat(int min, int max) {
         return repeatInternal(min, max, null);
@@ -1328,7 +1326,7 @@ public class Parser<I, A> {
      *   <li>If this parser fails before reaching the minimum count, the entire parser fails</li>
      * </ol>
      * <p>
-     * This method combines the behavior of {@link #repeat(int)} and {@link #many()}, requiring
+     * This method combines the behavior of {@link #repeat(int)} and {@link #oneOrMore()}, requiring
      * a minimum number of matches but allowing for additional matches if available. It is useful
      * for parsing structures with a minimum required length but variable total length.
      * <p>
@@ -1358,8 +1356,8 @@ public class Parser<I, A> {
      * @throws IllegalArgumentException if the target count is negative
      * @see #repeat(int) for a version with an exact count
      * @see #repeat(int, int) for a version with explicit minimum and maximum counts
-     * @see #many() for matching one or more occurrences (equivalent to repeatAtLeast(1))
-     * @see #zeroOrMany() for matching zero or more occurrences (equivalent to repeatAtLeast(0))
+     * @see #oneOrMore() for matching one or more occurrences (equivalent to repeatAtLeast(1))
+     * @see #zeroOrMore() for matching zero or more occurrences (equivalent to repeatAtLeast(0))
      */
     public Parser<I, FList<A>> repeatAtLeast(int target) {
         return repeatInternal(target, Integer.MAX_VALUE, null);
@@ -1387,7 +1385,7 @@ public class Parser<I, A> {
      *   <li>All parse results are collected in order of occurrence</li>
      *   <li>The parser checks for infinite loops by ensuring input position advances</li>
      *   <li>Unlike {@link #repeat(int)}, this parser doesn't require any matches to succeed</li>
-     *   <li>Unlike {@link #zeroOrMany()}, this parser has an upper limit on matches</li>
+     *   <li>Unlike {@link #zeroOrMore()}, this parser has an upper limit on matches</li>
      * </ul>
      * <p>
      * Example usage:
@@ -1408,7 +1406,7 @@ public class Parser<I, A> {
      * @see #repeat(int) for a version with an exact count
      * @see #repeatAtLeast(int) for a version with only a minimum count
      * @see #repeat(int, int) for a version with explicit minimum and maximum counts
-     * @see #zeroOrMany() for matching zero or more occurrences without an upper limit
+     * @see #zeroOrMore() for matching zero or more occurrences without an upper limit
      */
     public Parser<I, FList<A>> repeatAtMost(int max) {
         return repeatInternal(0, max, null);
@@ -1423,7 +1421,7 @@ public class Parser<I, A> {
      *   <li>Attempts to parse a first element using this parser</li>
      *   <li>If the first element is found, then repeatedly tries to parse a separator followed by another element</li>
      *   <li>Collects all parsed elements (ignoring separators) into an {@code FList}</li>
-     *   <li>Returns an empty list if no elements are found (unlike {@link #manySeparatedBy(Parser)} which requires at least one element)</li>
+     *   <li>Returns an empty list if no elements are found (unlike {@link #oneOrMoreSeparatedBy(Parser)} which requires at least one element)</li>
      * </ol>
      * <p>
      * This method is particularly useful for parsing common data formats like comma-separated lists,
@@ -1432,7 +1430,7 @@ public class Parser<I, A> {
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>Builds on {@link #manySeparatedBy(Parser)} but succeeds even when no elements are found</li>
+     *   <li>Builds on {@link #oneOrMoreSeparatedBy(Parser)} but succeeds even when no elements are found</li>
      *   <li>Only the elements are collected; separator values are discarded</li>
      *   <li>Always succeeds, returning an empty list if no elements match</li>
      *   <li>The input position remains unchanged if no elements are found</li>
@@ -1455,12 +1453,12 @@ public class Parser<I, A> {
      * @param <SEP> the type of the separator parse result (which is discarded)
      * @return a parser that parses zero or more elements separated by the given separator
      * @throws IllegalArgumentException if the separator parser is null
-     * @see #manySeparatedBy(Parser) for a version that requires at least one element
-     * @see #zeroOrMany() for collecting repeated elements without separators
+     * @see #oneOrMoreSeparatedBy(Parser) for a version that requires at least one element
+     * @see #zeroOrMore() for collecting repeated elements without separators
      * @see #repeat(int, int) for collecting a specific range of elements
      */
     public <SEP> Parser<I, FList<A>> zeroOrManySeparatedBy(Parser<I, SEP> sep) {
-        return this.manySeparatedBy(sep).map(l -> l).or(pure(new FList<>()));
+        return this.oneOrMoreSeparatedBy(sep).map(l -> l).or(pure(new FList<>()));
     }
 
     /**
@@ -1503,7 +1501,7 @@ public class Parser<I, A> {
     /**
      * Creates a parser that parses a non-empty sequence of elements separated by a delimiter.
      * <p>
-     * The {@code manySeparatedBy} method creates a parser that matches elements using this parser,
+     * The {@code oneOrMoreSeparatedBy} method creates a parser that matches elements using this parser,
      * with each element separated by the specified separator parser. The parsing process works as follows:
      * <ol>
      *   <li>First parses an initial element using this parser (required)</li>
@@ -1544,11 +1542,11 @@ public class Parser<I, A> {
      * @return a parser that parses one or more elements separated by the given separator
      * @throws IllegalArgumentException if the separator parser is null
      * @see #zeroOrManySeparatedBy(Parser) for a version that allows empty sequences
-     * @see #many() for collecting repeated elements without separators
+     * @see #oneOrMore() for collecting repeated elements without separators
      * @see #repeat(int, int) for collecting a specific range of elements
      */
-    public <SEP> Parser<I, FList<A>> manySeparatedBy(Parser<I, SEP> sep) {
-        return this.then(sep.skipThen(this).zeroOrMany()).map(a -> l -> l.prepend(a));
+    public <SEP> Parser<I, FList<A>> oneOrMoreSeparatedBy(Parser<I, SEP> sep) {
+        return this.then(sep.skipThen(this).zeroOrMore()).map(a -> l -> l.prepend(a));
     }
 
     /**
@@ -1662,34 +1660,34 @@ public class Parser<I, A> {
      * expr.set(input -> {
      *     // First try to parse a number
      *     Result<Character, Integer> numResult = number.apply(input);
-     *     if (numResult.isSuccess()) {
+     *     if (numResult.matches()) {
      *         return numResult;
      *     }
      *
      *     // Then try to parse a parenthesized expression
-     *     if (input.atEnd() || input.get() != '(') {
+     *     if (input.atEnd() || input.value() != '(') {
      *         return Result.failure("Expected number or expression", input);
      *     }
      *
      *     // Parse: (expr + expr)
      *     Input<Character> afterOpen = input.advance(1);
      *     Result<Character, Integer> leftResult = expr.apply(afterOpen);
-     *     if (!leftResult.isSuccess()) {
+     *     if (!leftResult.matches()) {
      *         return leftResult;
      *     }
      *
      *     Result<Character, Character> opResult = plus.apply(leftResult.getRemaining());
-     *     if (!opResult.isSuccess()) {
+     *     if (!opResult.matches()) {
      *         return Result.failure("Expected '+'", leftResult.getRemaining());
      *     }
      *
      *     Result<Character, Integer> rightResult = expr.apply(opResult.getRemaining());
-     *     if (!rightResult.isSuccess()) {
+     *     if (!rightResult.matches()) {
      *         return rightResult;
      *     }
      *
      *     Result<Character, Character> closeResult = closeParen.apply(rightResult.getRemaining());
-     *     if (!closeResult.isSuccess()) {
+     *     if (!closeResult.matches()) {
      *         return Result.failure("Expected ')'", rightResult.getRemaining());
      *     }
      *
@@ -1729,7 +1727,7 @@ public class Parser<I, A> {
      *   <li>Return all collected results as an FList</li>
      * </ul>
      * <p>
-     * Unlike {@link #zeroOrMany()}, this parser uses a separate condition parser to determine
+     * Unlike {@link #zeroOrMore()}, this parser uses a separate condition parser to determine
      * when to stop collecting items rather than relying on parse failures. This allows for more
      * flexible parsing based on lookahead or contextual conditions.
      * <p>
@@ -1752,7 +1750,7 @@ public class Parser<I, A> {
             while (!currentInput.isEof()) {
                 // Check if the condition is met
                 Result<I, Boolean> conditionResult = condition.apply(currentInput);
-                if (conditionResult.isError() || !conditionResult.get()) {
+                if (!conditionResult.matches()) {
                     // Condition not met, stop collecting
                     return Result.success(currentInput, results);
                 }
@@ -1762,13 +1760,13 @@ public class Parser<I, A> {
 
                 // Condition met, try to parse an element
                 Result<I, A> elementResult = this.apply(currentInput);
-                if (elementResult.isError()) {
+                if (!elementResult.matches()) {
                     // Failed to parse an element, stop collecting
                     return Result.success(currentInput, results);
                 }
 
                 // Add parsed element to results
-                results = results.append(elementResult.get());
+                results = results.append(elementResult.value());
                 currentInput = elementResult.input();
 
                 // Check if we've advanced the position - if not, break to avoid infinite loop
@@ -1786,7 +1784,7 @@ public class Parser<I, A> {
      * Creates a repeating parser that applies this parser zero or more times until a terminator parser succeeds,
      * collecting all successful results into a list.
      * <p>
-     * This method is a variant of {@link #zeroOrMany()} that stops collection when a specific
+     * This method is a variant of {@link #zeroOrMore()} that stops collection when a specific
      * terminating pattern is found rather than when this parser fails. The parsing process works as follows:
      * <ol>
      *   <li>At each position, first check if the terminator parser succeeds</li>
@@ -1823,8 +1821,8 @@ public class Parser<I, A> {
      * @param terminator the parser that signals when to stop collecting elements
      * @return a parser that applies this parser zero or more times until the terminator succeeds
      * @throws IllegalArgumentException if the terminator parameter is null
-     * @see #manyUntil(Parser) for a version that requires at least one match
-     * @see #zeroOrMany() for a version that collects until this parser fails
+     * @see #oneOrMoreUntil(Parser) for a version that requires at least one match
+     * @see #zeroOrMore() for a version that collects until this parser fails
      */
     public Parser<I, FList<A>> zeroOrManyUntil(Parser<I, ?> terminator) {
         return repeatInternal(0, Integer.MAX_VALUE, terminator);
@@ -1842,8 +1840,8 @@ public class Parser<I, A> {
      *   <li>If a terminator parser is provided, stops when the terminator succeeds</li>
      * </ol>
      * <p>
-     * This method is used internally by higher-level combinators like {@link #zeroOrMany()},
-     * {@link #many()}, and {@link #manyUntil(Parser)}.
+     * This method is used internally by higher-level combinators like {@link #zeroOrMore()},
+     * {@link #oneOrMore()}, and {@link #oneOrMoreUntil(Parser)}.
      * <p>
      * Implementation details:
      * <ul>
@@ -1886,10 +1884,10 @@ public class Parser<I, A> {
             int count = 0;
 
             while (true) {
-                // Check terminator (for manyUntil)
+                // Check terminator (for oneOrMoreUntil)
                 if (until != null) {
                     Result<I, ?> termRes = until.apply(current);
-                    if (termRes.isSuccess()) {
+                    if (termRes.matches()) {
                         if (count < min) {
                             // Provide more context about the error
                             return Result.failure(
@@ -1905,35 +1903,41 @@ public class Parser<I, A> {
                         return Result.success(current, buffer);
                     }
                     // Provide more context about the error
-                    String reason = current.isEof() ? "end of input reached" : "maximum repetitions (" + max + ") reached";
-                    return Result.failure(
-                        current, 
-                        min + " repetitions (found only " + count + ", " + reason + ")", 
-                        current.isEof() ? "end of input" : (current.hasMore() ? String.valueOf(current.current()) : "unknown")
+                    String reason = current.isEof() ? "end of input reached" : "maximum repetitions reached";
+                    return Result.failure( current,min + " repetitions ("+ reason + ")"
                     );
                 }
                 // Parse an item
                 Result<I, A> res = this.apply(current);
-                if (!res.isSuccess()) {
+                if (!res.matches()) {
+                    // If the parser consumed input before failing, it's a hard error
+                    if (res.input() != null && res.input().position() > current.position()) {
+                        return res.cast();
+                    }
+
+                    // If we have a terminator, we MUST reach it
+                    if (until != null) {
+                        return res.cast();
+                    }
+
                     if (count >= min) {
                         return Result.success(current, buffer);
                     }
                     // Pass through the original error with more context
-                    return Result.failure(
-                        current, 
-                        "at least " + min + " repetitions (found only " + count + ")", 
-                        res.error()
+                    // pass literal failure as part of new failure to create a nested response
+                    return new NoMatch<>(current,
+                        "at least " + min + " repetition(s)",
+                        (NoMatch<?, ?>) res
                     );
                 }
                 if (current.position() == res.input().position()) {
                     // Provide more context about the error when parser doesn't consume input
                     return Result.failure(
                         current, 
-                        "parser to consume input during repetition", 
-                        "parser made no progress at position " + current.position()
+                        "parser to consume input during repetition"
                     );
                 }
-                buffer.add(res.get());
+                buffer.add(res.value());
                 current = res.input();
                 count++;
             }
@@ -1952,6 +1956,25 @@ public class Parser<I, A> {
      * A default apply handler that throws an exception if the parser is not initialized.
      */
     private Function<Input<I>, Result<I, A>> defaultApplyHandler;
+
+    /**
+     * Creates a parser that backtracks on failure.
+     * <p>
+     * If the parser fails, it will report the failure at the original input position,
+     * effectively undoing any input consumption that occurred before the failure.
+     *
+     * @return an atomic version of this parser
+     */
+    public Parser<I, A> atomic() {
+        return new Parser<>(in -> {
+            Result<I, A> res = this.apply(in);
+            if (!res.matches()) {
+                NoMatch<I, A> f = (NoMatch<I, A>) res;
+                return new NoMatch<>(in, f.expected(), f, f.combinedFailures());
+            }
+            return res;
+        });
+    }
 
     /**
      * Private constructor to create a parser reference that can be initialized later.
@@ -1995,7 +2018,7 @@ public class Parser<I, A> {
      *     }
      *
      *     // Check for a specific pattern
-     *     if (input.get() == 'a' && input.get(1) == 'b') {
+     *     if (input.value() == 'a' && input.value(1) == 'b') {
      *         return Result.success("ab", input.advance(2));
      *     }
      *
@@ -2079,8 +2102,7 @@ public class Parser<I, A> {
     private static class CheckParser<I, A> extends Parser<I, A> {
 
         private final ThreadLocal<IntObjectMap<Object>> contextLocal = ThreadLocal.withInitial(IntObjectMap::new);
-
-
+        
         public Result<I, A> apply(Input<I> in) {
             int lastPosition = in.position();
 
@@ -2095,8 +2117,7 @@ public class Parser<I, A> {
             try {
                 return applyHandler.apply(in);
             } catch (RuntimeException e) {
-                String errorMsg = "Internal error during parsing: " + e.getMessage();
-                return Result.internalError(in, errorMsg);
+                return Result.internalError(in);
             } finally {
                 // Remove the parser from the context after parsing
                 config.remove(lastPosition);
@@ -2104,5 +2125,163 @@ public class Parser<I, A> {
         }
     }
 
+    /**
+     * Creates a parser that attempts to recover from errors by trying an alternative parser.
+     * <p>
+     * If this parser succeeds, its result is returned. If it fails, the recovery parser is applied
+     * to the same input position.
+     * <p>
+     * This is useful for error recovery in situations where there are multiple valid alternatives,
+     * and you want to try them in sequence.
+     *
+     * @param recovery the parser to try if this parser fails
+     * @param <B> the result type of the recovery parser
+     * @return a new parser that tries the recovery parser if this parser fails
+     */
+    public <B> Parser<I, B> recover(Parser<I, B> recovery) {
+        return new Parser<>(input -> {
+            Result<I, A> result = this.apply(input);
+            if (result.matches()) {
+                return result.cast();
+            }
+            return recovery.apply(input);
+        });
+    }
+
+    /**
+     * Creates a parser that attempts to recover from errors by applying a function
+     * to the failure result.
+     * <p>
+     * If this parser succeeds, its result is returned. If it fails, the recovery function is applied
+     * to the failure result to produce a new result.
+     * <p>
+     * This is useful for custom error recovery strategies, such as:
+     * <ul>
+     *   <li>Transforming errors into default values</li>
+     *   <li>Implementing domain-specific error recovery logic</li>
+     * </ul>
+     *
+     * @param recovery the function to apply to the failure result
+     * @param <B> the result type of the recovery function
+     * @return a new parser that applies the recovery function if this parser fails
+     */
+    public <B> Parser<I, B> recoverWith(Function<NoMatch<I, A>, Result<I, B>> recovery) {
+        return new Parser<>(input -> {
+            Result<I, A> result = this.apply(input);
+            if (result.matches()) {
+                return result.cast();
+            }
+            return recovery.apply((NoMatch<I, A>) result);
+        });
+    }
+
+    /**
+     * Labels this parser with a human-readable expectation that will be used if it fails.
+     * <p>
+     * This combinator does not change parsing behavior or successful results. When the
+     * underlying parser fails, the returned parser produces a new {@link NoMatch}
+     * that:
+     * <ul>
+     *   <li>replaces the failure's {@code expected} message with the provided label,</li>
+     *   <li>preserves the original failure as the cause (including its error type),</li>
+     *   <li>and keeps the input position so error messages point to the correct location.</li>
+     * </ul>
+     * This is useful for making error messages clearer and more domain-specific, e.g.
+     * changing a low-level message like "Expected letter" into a higher-level
+     * "Expected identifier".
+     * <p>
+     * Example:
+     * <pre>{@code
+     * Parser<Character, String> identifier =
+     *     letter().then(oneOrMore(alphaNum())).map(chars -> toString(chars))
+     *             .expecting("identifier");
+     *
+     * Result<Character, String> r = identifier.parse("123");
+     * // r.matches() is true, and the error message will include:
+     * //   "Expected identifier ..."
+     * }</pre>
+     *
+     * @param label a descriptive label for what this parser expects on failure, for example:
+     *              {@code "identifier"}, {@code "closing brace '}'"}, or {@code "digit"}
+     * @return a parser that yields the same success as this parser, but with a clearer failure
+     *         message when this parser fails
+     */
+    public <B> Parser<I, A> expecting(String label) {
+        return new Parser<>(input -> {
+            Result<I, A> result = this.apply(input);
+            if (!result.matches()) return new NoMatch<>(input,  label,(NoMatch<?, ?>) result);
+            return result;
+        });
+    }
+
+    /**
+     * Sequences this parser with a subsequent parser chosen from the value produced by this parser.
+     * <p>
+     * The {@code flatMap} combinator enables dependent (monadic) parsing where the next parsing
+     * step is determined by the successful result of the previous step. Operationally it:
+     * <ol>
+     *   <li>Applies this parser to the current input.</li>
+     *   <li>If this parser fails, the failure is propagated unchanged.</li>
+     *   <li>If this parser succeeds with value {@code a} and advanced input, the provided function
+     *       {@code f} is invoked to obtain the next parser {@code f.apply(a)}.</li>
+     *   <li>The next parser is then applied starting at the advanced input position.</li>
+     * </ol>
+     * <p>
+     * Use {@code flatMap} when the shape of what you need to parse next depends on the value you
+     * just parsed (e.g., a length prefix, a tag that selects a subgrammar, etc.). For independent
+     * composition of multiple parsers (no dependency between results), prefer applicative builders
+     * such as {@link #then(Parser)} together with {@link #map(Function)} or {@link ApplyBuilder}.
+     * <p>
+     * Example: parse a length-prefixed string (e.g., {@code 5:Hello}).
+     * <pre>{@code
+     * Parser<Character, Integer> len = io.github.parseworks.parsers.Numeric.unsignedInteger;
+     * Parser<Character, String> colon = io.github.parseworks.parsers.Combinators.string(":");
+     * Parser<Character, String> payload = len
+     *     .thenSkip(colon)
+     *     .flatMap(n -> io.github.parseworks.parsers.Combinators
+     *         .any(Character.class)
+     *         .repeat(n)
+     *         .map(io.github.parseworks.FList::joinChars)
+     *     );
+     * }</pre>
+     * <p>
+     * Example: branch to a different subparser based on a previously parsed tag.
+     * <pre>{@code
+     * Parser<Character, String> tag = io.github.parseworks.parsers.Combinators.oneOf(
+     *     io.github.parseworks.parsers.Combinators.string("A"),
+     *     io.github.parseworks.parsers.Combinators.string("B")
+     * );
+     * Parser<Character, Object> value = tag.flatMap(t ->
+     *     t.equals("A") ? parseA() : parseB()
+     * );
+     * }</pre>
+     *
+     * @param f  a function that, given the successful value of this parser, returns the next parser to run
+     * @param <B> the result type of the next parser
+     * @return a parser that first applies this parser and, on success, applies the parser returned by {@code f}
+     * @throws IllegalArgumentException if {@code f} is {@code null}
+     * @implNote If {@code f} returns {@code null}, this method reports an internal error to ease debugging.
+     * @see #map(Function) for transforming results without changing control flow
+     * @see #then(Parser) for applicative sequencing of independent parsers
+     * @see ApplyBuilder for building and mapping tuples of independent parser results
+     */
+    public <B> Parser<I, B> flatMap(java.util.function.Function<A, Parser<I, B>> f) {
+        if (f == null) {
+            throw new IllegalArgumentException("flatMap function cannot be null");
+        }
+        return new Parser<>(in -> {
+            Result<I, A> r = this.apply(in);
+            if (!r.matches()) {
+                // propagate the original failure
+                return r.cast();
+            }
+            Parser<I, B> next = f.apply(r.value());
+            if (next == null) {
+                // be defensive to help users diagnose nulls
+                return Result.internalError(r.input()).cast();
+            }
+            return next.apply(r.input());
+        });
+    }
 
 }

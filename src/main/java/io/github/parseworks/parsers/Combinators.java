@@ -4,17 +4,19 @@ import io.github.parseworks.ApplyBuilder;
 import io.github.parseworks.Input;
 import io.github.parseworks.Parser;
 import io.github.parseworks.Result;
-import io.github.parseworks.impl.Failure.ErrorType;
+import io.github.parseworks.impl.result.NoMatch;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * The `Combinators` class provides a set of combinator functions for creating complex parsers
- * by combining simpler ones. These combinators include choice, sequence, many, and satisfy.
+ * by combining simpler ones. These combinators include choice, sequence, oneOrMore, and satisfy.
  *
  * @author jason bailey
  * @version $Id: $Id
@@ -59,7 +61,7 @@ public class Combinators {
     public static <I> Parser<I, I> any(Class<I> type) {
         return new Parser<>(input -> {
             if (input.isEof()) {
-                return Result.failure(input, type.descriptorString(), "end of input").cast();
+                return Result.failure(input, type.descriptorString()).cast();
             } else {
                 return Result.success(input.next(), input.current());
             }
@@ -146,10 +148,10 @@ public class Combinators {
      * <pre>{@code
      * // Parse one of the digits 1, 2, or 3
      * Parser<Character, Character> digit123 = oneOf('1', '2', '3');
-     * 
+     *
      * // Parse one of the boolean literals
      * Parser<String, String> boolLiteral = oneOf("true", "false");
-     * 
+     *
      * // Parse one of several arithmetic operators
      * Parser<Character, Character> operator = oneOf('+', '-', '*', '/');
      * }</pre>
@@ -164,7 +166,7 @@ public class Combinators {
     public static <I> Parser<I, I> oneOf(I... items) {
         return new Parser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, "one of the expected values", "end of input");
+                return Result.failure(in, "one of the expected values");
             }
             I current = in.current();
             for (I item : items) {
@@ -187,7 +189,7 @@ public class Combinators {
                 }
             }
 
-            return Result.failure(in, "one of [" + expectedItems + "]", String.valueOf(current));
+            return Result.failure(in, "one of [" + expectedItems + "]");
         });
     }
 
@@ -238,9 +240,7 @@ public class Combinators {
             if (input.isEof()) {
                 return Result.success(input, null);
             } else {
-                // Provide more context about what was found instead of EOF
-                String found = input.hasMore() ? String.valueOf(input.current()) : "unknown";
-                return Result.expectedEofError(input, found);
+                return Result.expectedEofError(input);
             }
         });
     }
@@ -277,14 +277,11 @@ public class Combinators {
      * @param <I> the type of input symbols
      * @param <A> the type of the parser result
      * @return a parser that always fails
-     * @see #failSyntax(String) for syntax-specific failures
-     * @see #failValidation(String) for validation-specific failures
      * @see Parser#or(Parser) for providing alternatives when failure occurs
      */
     public static <I, A> Parser<I, A> fail() {
         return new Parser<>(in -> {
-            String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
-            return Result.failure(in, "parser explicitly set to fail", found, ErrorType.GENERIC);
+            return Result.failure(in, "parser explicitly set to fail");
         });
     }
 
@@ -319,13 +316,13 @@ public class Combinators {
      * Example usage:
      * <pre>{@code
      * // Create a parser that fails with a syntax error
-     * Parser<Character, String> syntaxError = 
+     * Parser<Character, String> syntaxError =
      *     fail("properly formatted JSON object", ErrorType.SYNTAX);
-     *     
+     *
      * // Create a parser that fails with a validation error
-     * Parser<Character, Integer> validationError = 
+     * Parser<Character, Integer> validationError =
      *     fail("positive integer", ErrorType.VALIDATION);
-     *     
+     *
      * // Use in conditional parsing with specific error types
      * Parser<Character, User> parseUser = input -> {
      *     if (isAuthenticated) {
@@ -336,144 +333,14 @@ public class Combinators {
      * };
      * }</pre>
      *
-     * @param expected  the expected input description
-     * @param errorType the type of error to report
-     * @param <I>       the type of the input symbols
-     * @param <A>       the type of the parsed value
-     * @return a parser that always fails with the specified error type
-     * @see #fail() for a generic failure parser
-     * @see #failSyntax(String) for a syntax-specific failure parser
-     * @see #failValidation(String) for a validation-specific failure parser
-     * @see ErrorType for available error type categories
-     */
-    public static <I, A> Parser<I, A> fail(String expected, ErrorType errorType) {
-        return new Parser<>(in -> {
-            String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
-            return Result.failure(in, expected, found, errorType);
-        });
-    }
-
-    /**
-     * Creates a parser that always fails with a syntax error.
-     * <p>
-     * The {@code failSyntax} method is a specialized version of {@link #fail(String, ErrorType)} that
-     * specifically creates a parser that fails with a {@link ErrorType#SYNTAX} error type. This is
-     * useful for reporting errors related to the structure or grammar of the input, rather than
-     * its semantic meaning.
-     * <p>
-     * Syntax errors typically indicate that the input doesn't conform to the expected grammar or
-     * format rules. Common examples include:
-     * <ul>
-     *   <li>Missing delimiters or terminators (e.g., missing closing bracket)</li>
-     *   <li>Incorrect token order (e.g., operator in wrong position)</li>
-     *   <li>Invalid character sequences (e.g., malformed number literal)</li>
-     *   <li>Unexpected tokens (e.g., keyword where an identifier was expected)</li>
-     * </ul>
-     * <p>
-     * The parsing process is simple:
-     * <ol>
-     *   <li>The parser immediately returns a failure result</li>
-     *   <li>The failure contains the specified expected syntax description</li>
-     *   <li>The failure is categorized with the SYNTAX error type</li>
-     *   <li>The input position remains unchanged (no input is consumed)</li>
-     * </ol>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Create a parser that reports a missing closing parenthesis
-     * Parser<Character, String> missingParen = 
-     *     failSyntax("closing parenthesis ')'");
-     *     
-     * // Use in conditional parsing for syntax validation
-     * Parser<Character, Expression> parseExpr = input -> {
-     *     if (hasOpenBracket && !hasCloseBracket) {
-     *         return failSyntax("matching closing bracket").apply(input);
-     *     } else {
-     *         return actualParser.apply(input);
-     *     }
-     * };
-     * 
-     * // Combine with or() for better error messages
-     * Parser<Character, String> quotedString =
-     *     chr('"')
-     *         .skipThen(regex("[^\"]*"))
-     *         .thenSkip(chr('"'))
-     *         .or(failSyntax("properly quoted string"));
-     * }</pre>
-     *
-     * @param expected the expected syntax description
+     * @param expected the expected input description
      * @param <I>      the type of the input symbols
      * @param <A>      the type of the parsed value
-     * @return a parser that always fails with a SYNTAX error type
-     * @see #fail(String, ErrorType) for creating failures with custom error types
-     * @see #failValidation(String) for creating validation-specific failures
-     * @see ErrorType#SYNTAX for the error type used
+     * @return a parser that always fails with the specified error type
+     * @see #fail() for a generic failure parser
      */
-    public static <I, A> Parser<I, A> failSyntax(String expected) {
-        return fail(expected, ErrorType.SYNTAX);
-    }
-
-    /**
-     * Creates a parser that always fails with a validation error.
-     * <p>
-     * The {@code failValidation} method is a specialized version of {@link #fail(String, ErrorType)} that
-     * specifically creates a parser that fails with a {@link ErrorType#VALIDATION} error type. This is
-     * useful for reporting errors related to the semantic validity of the input, rather than
-     * its syntactic structure.
-     * <p>
-     * Validation errors typically indicate that the input has correct syntax but violates some
-     * semantic constraint or business rule. Common examples include:
-     * <ul>
-     *   <li>Value range violations (e.g., negative number where positive is required)</li>
-     *   <li>Type mismatches (e.g., string where a number is expected)</li>
-     *   <li>Constraint violations (e.g., duplicate key in a map)</li>
-     *   <li>Semantic inconsistencies (e.g., end date before start date)</li>
-     * </ul>
-     * <p>
-     * The parsing process is simple:
-     * <ol>
-     *   <li>The parser immediately returns a failure result</li>
-     *   <li>The failure contains the specified validation constraint description</li>
-     *   <li>The failure is categorized with the VALIDATION error type</li>
-     *   <li>The input position remains unchanged (no input is consumed)</li>
-     * </ol>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Create a parser that reports an invalid age
-     * Parser<Character, Integer> invalidAge = 
-     *     failValidation("age must be between 0 and 120");
-     *     
-     * // Use in conditional parsing for semantic validation
-     * Parser<Character, Integer> age = intr.flatMap(value -> {
-     *     if (value >= 0 && value <= 120) {
-     *         return Parser.pure(value);
-     *     } else {
-     *         return failValidation("age must be between 0 and 120");
-     *     }
-     * });
-     * 
-     * // Validate a date format
-     * Parser<Character, Date> dateParser = 
-     *     dateStringParser.flatMap(dateStr -> {
-     *         try {
-     *             return Parser.pure(new SimpleDateFormat("yyyy-MM-dd").parse(dateStr));
-     *         } catch (ParseException e) {
-     *             return failValidation("date in format yyyy-MM-dd");
-     *         }
-     *     });
-     * }</pre>
-     *
-     * @param constraint the validation constraint description
-     * @param <I>        the type of the input symbols
-     * @param <A>        the type of the parsed value
-     * @return a parser that always fails with a VALIDATION error type
-     * @see #fail(String, ErrorType) for creating failures with custom error types
-     * @see #failSyntax(String) for creating syntax-specific failures
-     * @see ErrorType#VALIDATION for the error type used
-     */
-    public static <I, A> Parser<I, A> failValidation(String constraint) {
-        return fail(constraint, ErrorType.VALIDATION);
+    public static <I, A> Parser<I, A> fail(String expected) {
+        return new Parser<>(in -> Result.failure(in, expected));
     }
 
     /**
@@ -504,7 +371,7 @@ public class Combinators {
      * <pre>{@code
      * // Parse any character that is not a digit
      * Parser<Character, Character> notDigit = not(chr(Character::isDigit));
-     * 
+     *
      * // Parse an identifier that doesn't start with a reserved word
      * Parser<Character, String> keyword = oneOf(
      *     string("if"), string("else"), string("while")
@@ -512,7 +379,7 @@ public class Combinators {
      * Parser<Character, String> identifier = not(keyword).skipThen(
      *     regex("[a-zA-Z][a-zA-Z0-9]*")
      * );
-     * 
+     *
      * // Succeeds with 'a' for input "a"
      * // Fails for input "1" (matches the negated parser)
      * // Fails for empty input (no current element)
@@ -522,16 +389,16 @@ public class Combinators {
      * @param <I>    the type of the input symbols
      * @param <A>    the type of the parsed value
      * @return a parser that succeeds if the provided parser fails, returning the current input element
-     * @see #isNot(Object) for negating equality with a specific value
      * @throws IllegalArgumentException if the parser parameter is null
+     * @see #isNot(Object) for negating equality with a specific value
      */
     public static <I, A> Parser<I, I> not(Parser<I, A> parser) {
         return new Parser<>(in -> {
             Result<I, A> result = parser.apply(in);
-            if (result.isSuccess() || !result.input().hasMore()) {
+            if (result.matches() || !result.input().hasMore()) {
                 // Provide more context about what was found that shouldn't have matched
                 String found = result.input().hasMore() ? String.valueOf(in.current()) : "end of input";
-                return Result.validationError(in, "parser succeeded when we wanted it to fail", found);
+                return Result.validationError(in, "parser succeeded when we wanted it to fail");
             }
             return Result.success(in, in.current());
 
@@ -566,14 +433,14 @@ public class Combinators {
      * <pre>{@code
      * // Parse any character that is not a semicolon
      * Parser<Character, Character> notSemicolon = isNot(';');
-     * 
+     *
      * // Parse any token except "end"
      * Parser<String, String> notEnd = isNot("end");
-     * 
+     *
      * // Parse content until a closing bracket
-     * Parser<Character, String> content = isNot(']').many().map(chars -> 
+     * Parser<Character, String> content = isNot(']').oneOrMore().map(chars ->
      *     chars.stream().map(String::valueOf).collect(Collectors.joining()));
-     * 
+     *
      * // Succeeds with 'a' for input "a"
      * // Fails for input ";" (matches the excluded value)
      * // Fails for empty input (no current element)
@@ -592,7 +459,7 @@ public class Combinators {
             }
             I item = in.current();
             if (Objects.equals(item, value)) {
-                return Result.validationError(in, "any value except " + value, String.valueOf(item));
+                return Result.validationError(in, "any value except " + value);
             } else {
                 return Result.success(in.next(), item);
             }
@@ -626,7 +493,7 @@ public class Combinators {
      * // Parse one of three different types of token
      * Parser<Character, String> keyword = string("if").or(string("else")).or(string("while"));
      * Parser<Character, String> identifier = regex("[a-zA-Z][a-zA-Z0-9]*");
-     * Parser<Character, String> number = Numeric.numeric.many().map(FList::joinChars);
+     * Parser<Character, String> number = Numeric.numeric.oneOrMore().map(FList::joinChars);
      *
      * // Combine into a single token parser using oneOf
      * Parser<Character, String> token = oneOf(Arrays.asList(
@@ -649,20 +516,29 @@ public class Combinators {
      * @see Parser#or(Parser) for choosing between two parsers
      */
     public static <I, A> Parser<I, A> oneOf(List<Parser<I, A>> parsers) {
+        if (parsers.isEmpty()) {
+            throw new IllegalArgumentException("There must be at least one parser defined");
+        }
         return new Parser<>(in -> {
             if (in.isEof()) {
                 return Result.unexpectedEofError(in, "eof before `oneOf` parser");
             }
+            List<NoMatch<I, A>> failures = null;
+
             for (Parser<I, A> parser : parsers) {
                 Result<I, A> result = parser.apply(in);
-                if (result.isSuccess()) {
+                if (result.matches()) {
                     return result;
                 }
+                if (failures == null){
+                    failures = new ArrayList<>();
+                }
+                NoMatch<I,A> fail = ((NoMatch<I, A>) result);
+                failures.add(fail);
             }
-            String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
-            return Result.syntaxError(in, "one of the expected patterns", found);
-        }
-        );
+            assert failures != null;
+            return Result.failure(failures);
+        });
     }
 
     /**
@@ -707,20 +583,7 @@ public class Combinators {
      */
     @SafeVarargs
     public static <I, A> Parser<I, A> oneOf(Parser<I, A>... parsers) {
-        return new Parser<>(in -> {
-            if (in.isEof()) {
-                return Result.unexpectedEofError(in, "eof before `oneOf` parser");
-            }
-            for (Parser<I, A> parser : parsers) {
-                Result<I, A> result = parser.apply(in);
-                if (result.isSuccess()) {
-                    return result;
-                }
-            }
-            String found = in.hasMore() ? String.valueOf(in.current()) : "end of input";
-            return Result.syntaxError(in, "one of the expected patterns", found);
-        }
-        );
+        return oneOf(Arrays.asList(parsers));
     }
 
     /**
@@ -754,13 +617,13 @@ public class Combinators {
      * Parser<Character, Integer> year = regex("\\d{4}").map(Integer::parseInt);
      * Parser<Character, Integer> month = regex("\\d{2}").map(Integer::parseInt);
      * Parser<Character, Integer> day = regex("\\d{2}").map(Integer::parseInt);
-     * 
+     *
      * Parser<Character, List<Integer>> dateComponents = sequence(Arrays.asList(
      *     year,
      *     string("-").skipThen(month),
      *     string("-").skipThen(day)
      * ));
-     * 
+     *
      * // Succeeds with [2023, 4, 15] for input "2023-04-15"
      * // Fails for input "2023/04/15" (wrong separator)
      * // Fails for input "2023-4-15" (month needs two digits)
@@ -780,10 +643,10 @@ public class Combinators {
             Input<I> currentInput = in;
             for (Parser<I, A> parser : parsers) {
                 Result<I, A> result = parser.apply(currentInput);
-                if (!result.isSuccess()) {
+                if (!result.matches()) {
                     return result.cast();
                 }
-                results.add(result.get());
+                results.add(result.value());
                 currentInput = result.input();
             }
             return Result.success(currentInput, results);
@@ -804,17 +667,17 @@ public class Combinators {
      * </ol>
      * <p>
      * The returned ApplyBuilder allows for mapping the two results to a combined value using the
-     * {@link ApplyBuilder#map(java.util.function.BiFunction)} method.
+     * {@link ApplyBuilder#map(BiFunction)} method.
      * <p>
      * Example usage:
      * <pre>{@code
      * // Parse a key-value pair separated by a colon
      * Parser<Character, String> key = regex("[a-zA-Z]+");
      * Parser<Character, String> value = regex("[0-9]+");
-     * Parser<Character, Pair<String, String>> keyValue = 
+     * Parser<Character, Pair<String, String>> keyValue =
      *     sequence(key, string(":").skipThen(value))
      *         .map((k, v) -> new Pair<>(k, v));
-     * 
+     *
      * // Succeeds with Pair("age", "30") for input "age:30"
      * // Fails for input "age=30" (wrong separator)
      * }</pre>
@@ -855,14 +718,14 @@ public class Combinators {
      * Parser<Character, Integer> year = regex("\\d{4}").map(Integer::parseInt);
      * Parser<Character, Integer> month = regex("\\d{2}").map(Integer::parseInt);
      * Parser<Character, Integer> day = regex("\\d{2}").map(Integer::parseInt);
-     * 
-     * Parser<Character, Date> dateParser = 
+     *
+     * Parser<Character, Date> dateParser =
      *     sequence(
-     *         year, 
-     *         string("-").skipThen(month), 
+     *         year,
+     *         string("-").skipThen(month),
      *         string("-").skipThen(day)
      *     ).map((y, m, d) -> new Date(y - 1900, m - 1, d));
-     * 
+     *
      * // Succeeds with Date object for input "2023-04-15"
      * // Fails for input with incorrect format
      * }</pre>
@@ -879,62 +742,6 @@ public class Combinators {
      */
     public static <I, A> ApplyBuilder<I, A, A>.ApplyBuilder3<A> sequence(Parser<I, A> parserA, Parser<I, A> parserB, Parser<I, A> parserC) {
         return parserA.then(parserB).then(parserC);
-    }
-
-    /**
-     * Creates a parser that accepts a single character matching the given predicate.
-     * <p>
-     * The {@code chr(Predicate)} method creates a parser that tests if the current input character
-     * satisfies the provided predicate function. This parser succeeds if the predicate returns true
-     * for the current character. The parsing process works as follows:
-     * <ol>
-     *   <li>Checks if the input is not at EOF</li>
-     *   <li>Applies the predicate to the current character</li>
-     *   <li>If the predicate is satisfied, consumes the character and returns it</li>
-     *   <li>If the predicate is not satisfied or at EOF, fails with an error message</li>
-     * </ol>
-     * <p>
-     * This parser is a specialized version of {@link #satisfy(String, Predicate)} for character input.
-     * It's a fundamental building block for text-based parsers, allowing character filtering based
-     * on arbitrary conditions.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Delegates to {@link #satisfy(String, Predicate)} with a generic "character" expected type</li>
-     *   <li>Consumes exactly one character when successful</li>
-     *   <li>Returns the matched character as the result</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse any digit character
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     *
-     * // Parse any uppercase letter
-     * Parser<Character, Character> uppercase = chr(Character::isUpperCase);
-     *
-     * // Parse any whitespace character
-     * Parser<Character, Character> whitespace = chr(Character::isWhitespace);
-     *
-     * // Parse any character except 'x'
-     * Parser<Character, Character> notX = chr(c -> c != 'x');
-     *
-     * // Combining character parsers
-     * Parser<Character, String> hexDigit = chr(c ->
-     *     Character.isDigit(c) || "ABCDEFabcdef".indexOf(c) >= 0)
-     *     .many().map(chars -> chars.stream()
-     *         .map(String::valueOf)
-     *         .collect(Collectors.joining()));
-     * }</pre>
-     *
-     * @param predicate the condition that characters must satisfy
-     * @return a parser that matches a single character based on the predicate
-     * @see #satisfy(String, Predicate) for the generic version of this parser
-     * @see #chr(char) for matching a specific character
-     * @see #oneOf(String) for matching against a set of characters
-     */
-    public static Parser<Character, Character> chr(Predicate<Character> predicate) {
-        return satisfy("<character>", predicate);
     }
 
     /**
@@ -967,57 +774,6 @@ public class Combinators {
     }
 
     /**
-     * Creates a parser that matches a specific character.
-     * <p>
-     * The {@code chr(char)} method creates a parser that tests if the current input character
-     * equals the specified character value. This parser succeeds only when the current input
-     * character exactly matches the target character. The parsing process works as follows:
-     * <ol>
-     *   <li>Checks if the input is not at EOF</li>
-     *   <li>Compares the current character with the specified character</li>
-     *   <li>If they match, consumes the character and returns it</li>
-     *   <li>If they don't match or at EOF, fails with an error message</li>
-     * </ol>
-     * <p>
-     * This parser is a specialized version of {@link #is(Object)} for character input. It's
-     * commonly used for parsing punctuation, operators, and other specific characters in
-     * text-based parsing.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Delegates to {@link #is(Object)} for equality checking</li>
-     *   <li>Consumes exactly one character when successful</li>
-     *   <li>Returns the matched character as the result</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse specific characters
-     * Parser<Character, Character> comma = chr(',');
-     * Parser<Character, Character> semicolon = chr(';');
-     * Parser<Character, Character> plus = chr('+');
-     *
-     * // Combine to parse a simple addition expression
-     * Parser<Character, Integer> addExpr = digit.then(plus).then(digit)
-     *     .map((d1, op, d2) ->
-     *         Character.getNumericValue(d1) + Character.getNumericValue(d2));
-     *
-     * // Parse punctuated list items
-     * Parser<Character, List<String>> commaSeparated =
-     *     word.separatedByMany(chr(','));
-     * }</pre>
-     *
-     * @param c the specific character to match
-     * @return a parser that matches the specified character
-     * @see #is(Object) for the generic version of this parser
-     * @see #chr(Predicate) for matching characters based on predicates
-     * @see #string(String) for matching sequences of characters
-     */
-    public static Parser<Character, Character> chr(char c) {
-        return is(c);
-    }
-
-    /**
      * Creates a parser that succeeds if the current input item equals the provided value.
      * <p>
      * This parser attempts to match the current input item against the specified equivalence value using
@@ -1035,324 +791,16 @@ public class Combinators {
     public static <I> Parser<I, I> is(I equivalence) {
         return new Parser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, "equivalence");
+                return Result.failure(in, String.valueOf(equivalence));
             }
             I item = in.current();
             if (Objects.equals(item, equivalence)) {
                 return Result.success(in.next(), item);
             } else {
-                return Result.failure(in, "equivalence");
+                return Result.failure(in, String.valueOf(equivalence));
             }
         });
     }
 
-    /**
-     * Creates a parser that matches an exact string of characters.
-     * <p>
-     * The {@code string()} method creates a parser that attempts to match the input exactly
-     * against the provided string. This parser succeeds only if the entire string is matched
-     * character by character. The parsing process works as follows:
-     * <ol>
-     *   <li>Compares each character in the input with the corresponding character in the target string</li>
-     *   <li>If all characters match in sequence, returns the entire matched string</li>
-     *   <li>If any character differs, fails with information about the mismatch point</li>
-     *   <li>If input is too short, fails with an EOF error</li>
-     * </ol>
-     * <p>
-     * Key features:
-     * <ul>
-     *   <li>Performs exact, case-sensitive string matching</li>
-     *   <li>Provides detailed error information showing where the match failed</li>
-     *   <li>Optimized for performance with direct character comparison</li>
-     *   <li>Special case handling for empty strings</li>
-     * </ul>
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses character-by-character comparison rather than multiple parsers</li>
-     *   <li>Returns the original string rather than rebuilding it from characters</li>
-     *   <li>Provides context in error messages showing partial matches</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Match specific keywords
-     * Parser<Character, String> ifKeyword = string("if");
-     * Parser<Character, String> elseKeyword = string("else");
-     *
-     * // Match operators
-     * Parser<Character, String> plusOperator = string("+");
-     * Parser<Character, String> minusOperator = string("-");
-     *
-     * // Match multi-character tokens
-     * Parser<Character, String> arrow = string("->");
-     * Parser<Character, String> equality = string("==");
-     *
-     * // Combine with other parsers
-     * Parser<Character, String> helloWorld = string("Hello").thenSkip(string(" ")).then(string("World"))
-     *     .map((hello, world) -> hello + " " + world);
-     * }</pre>
-     *
-     * @param str the exact string to match
-     * @return a parser that matches the specified string
-     * @see #regex(String) for flexible pattern matching
-     * @see #chr(char) for single character matching
-     */
-    public static Parser<Character, String> string(String str) {
-        return new Parser<>(in -> {
-            Input<Character> currentInput = in;
 
-            // Handle empty string case
-            if (str.isEmpty()) {
-                return Result.success(currentInput, "");
-            }
-
-            // Check if we have enough characters left in the input
-            for (int i = 0; i < str.length(); i++) {
-                if (currentInput.isEof()) {
-                    return Result.failure(in, str);
-                }
-
-                char expected = str.charAt(i);
-                char actual = currentInput.current();
-
-                if (expected != actual) {
-                    return Result.failure(in, str);
-                }
-
-                currentInput = currentInput.next();
-            }
-
-            return Result.success(currentInput, str);
-        });
-    }
-
-
-    /**
-     * Creates a parser that accepts any character that appears in the provided string.
-     * <p>
-     * The {@code oneOf(String)} method creates a parser that succeeds when the current input
-     * character matches any character in the provided string. This parser is useful for defining
-     * character classes or sets of acceptable characters. The parsing process works as follows:
-     * <ol>
-     *   <li>Checks if the input is not at EOF</li>
-     *   <li>Tests if the current character appears in the provided string</li>
-     *   <li>If the character is found in the string, consumes it and returns it</li>
-     *   <li>If the character is not in the string or at EOF, fails with an error message</li>
-     * </ol>
-     * <p>
-     * Performance considerations:
-     * <ul>
-     *   <li>For small strings (less than 10 characters), uses {@link String#indexOf(int)} for lookup</li>
-     *   <li>For larger strings, creates a {@link HashSet} of characters for O(1) lookup performance</li>
-     *   <li>This optimization makes character class matching efficient even with large character sets</li>
-     * </ul>
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Delegates to {@link #satisfy(String, Predicate)} with appropriate predicates</li>
-     *   <li>Uses different implementation strategies based on input string length</li>
-     *   <li>Consumes exactly one character when successful</li>
-     *   <li>Returns the matched character as the result</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse any digit
-     * Parser<Character, Character> digit = oneOf("0123456789");
-     *
-     * // Parse any hexadecimal digit
-     * Parser<Character, Character> hexDigit = oneOf("0123456789ABCDEFabcdef");
-     *
-     * // Parse any vowel
-     * Parser<Character, Character> vowel = oneOf("aeiouAEIOU");
-     *
-     * // Parse any operator
-     * Parser<Character, Character> operator = oneOf("+-*\/");
-     *
-     * // Using with other parsers
-     * Parser<Character, String> identifier =
-     *     oneOf("_$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-     *     .then(oneOf("_$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789").many())
-     *     .map((first, rest) -> first + rest.stream()
-     *         .map(String::valueOf)
-     *         .collect(Collectors.joining()));
-     * }</pre>
-     *
-     * @param str the string containing all acceptable characters
-     * @return a parser that accepts any character that appears in the provided string
-     * @see #chr(Predicate) for matching characters with arbitrary predicates
-     * @see #chr(char) for matching a specific character
-     * @see #oneOf(Object...) for the generic version of this parser
-     */
-    public static Parser<Character, Character> oneOf(String str) {
-        // For small strings (under 10 chars), this approach is efficient
-        if (str.length() < 10) {
-            return satisfy("<oneOf> " + str, c -> str.indexOf(c) != -1);
-        }
-
-        // For larger character sets, use a Set for O(1) lookups
-        Set<Character> charSet = new HashSet<>();
-        for (int i = 0; i < str.length(); i++) {
-            charSet.add(str.charAt(i));
-        }
-
-        return satisfy("character in set [" + str + "]", charSet::contains);
-    }
-
-    /**
-     * Creates a parser that matches input against a regular expression pattern with specified flags.
-     * <p>
-     * The {@code regex()} method creates a parser that incrementally matches characters from the input
-     * stream against the provided regular expression pattern, using the specified Pattern flags.
-     * This parser handles both start (^) and end ($) anchors appropriately in the context of streaming input.
-     * <p>
-     * Valid flag values from {@link Pattern} include:
-     * <ul>
-     *   <li>{@link Pattern#CASE_INSENSITIVE} - Case-insensitive matching</li>
-     *   <li>{@link Pattern#MULTILINE} - Multiline mode, affects ^ and $ behavior</li>
-     *   <li>{@link Pattern#DOTALL} - Dot matches all characters including line terminators</li>
-     *   <li>{@link Pattern#UNICODE_CASE} - Unicode-aware case folding</li>
-     *   <li>{@link Pattern#CANON_EQ} - Canonical equivalence</li>
-     *   <li>{@link Pattern#LITERAL} - Treat pattern as a literal string</li>
-     *   <li>{@link Pattern#UNICODE_CHARACTER_CLASS} - Unicode character classes</li>
-     *   <li>{@link Pattern#COMMENTS} - Permits whitespace and comments in pattern</li>
-     * </ul>
-     * <p>
-     * Multiple flags can be combined using the bitwise OR operator (|).
-     * <p>
-     * Key features:
-     * <ul>
-     *   <li>Progressively reads characters one by one, building a buffer</li>
-     *   <li>Attempts matching after each character to support early success/failure</li>
-     *   <li>Properly respects start anchors (^) by only matching from the beginning</li>
-     *   <li>Properly respects end anchors ($) by only accepting matches at the end of input</li>
-     *   <li>For non-anchored patterns, returns the longest valid match</li>
-     *   <li>Efficiently handles streaming input by using {@link Matcher#hitEnd()} for optimization</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Case-insensitive word parser
-     * Parser<Character, String> caseInsensitiveWord = regex("[a-z]+", Pattern.CASE_INSENSITIVE);
-     * caseInsensitiveWord.parse("Hello").get();  // Returns "Hello"
-     *
-     * // Multiline regex with DOTALL flag
-     * Parser<Character, String> multiline = regex(".*end", Pattern.DOTALL);
-     * multiline.parse("line1\nline2\nend").get();  // Returns "line1\nline2\nend"
-     *
-     * // Combined flags
-     * Parser<Character, String> complex = regex("# match digits\n\\d+",
-     *     Pattern.COMMENTS | Pattern.UNICODE_CHARACTER_CLASS);
-     * }</pre>
-     *
-     * @param regex the regular expression pattern to match against
-     * @param flags the flags to be used with this pattern, as defined in {@link Pattern}
-     * @return a parser that matches the input against the given regular expression with specified flags
-     * @see Pattern for information about Java regular expression syntax and flag constants
-     * @see #regex(String) for the simpler version with default flags
-     */
-    public static Parser<Character, String> regex(String regex, int flags) {
-        boolean hasEndAnchor = regex.endsWith("$") && !regex.endsWith("\\$");
-        Pattern pattern = Pattern.compile(regex, flags);
-
-        return new Parser<>(in -> {
-            // Special case for empty input
-            if (in.isEof()) {
-                Matcher emptyMatcher = pattern.matcher("");
-                if (emptyMatcher.lookingAt()) {
-                    return Result.success(in, emptyMatcher.group());
-                }
-                return Result.failure(in, regex);
-            }
-
-            StringBuilder buffer = new StringBuilder();
-            Input<Character> current = in;
-            int maxLookAhead = 1000; // Safety limit
-            int position = 0;
-
-            // Track best match found so far
-            String bestMatch = null;
-
-            // Progressive matching loop
-            while (!current.isEof() && position++ < maxLookAhead) {
-                char c = current.current();
-                buffer.append(c);
-
-                // Get next position to check for EOF
-                Input<Character> next = current.next();
-                boolean isAtEnd = next.isEof();
-
-                // Try matching at each step
-                Matcher matcher = pattern.matcher(buffer);
-
-                if (matcher.lookingAt()) {
-                    String match = matcher.group();
-
-                    // For end-anchored patterns, only accept matches at end of input
-                    if (!hasEndAnchor || isAtEnd) {
-                        bestMatch = match;
-                    }
-                }
-
-                // If the matcher doesn't benefit from more input, we can stop
-                if (!matcher.hitEnd()) {
-                    break;
-                }
-
-                // Continue reading next character
-                current = next;
-            }
-
-            // Return the best match found if any
-            if (bestMatch != null) {
-                return Result.success(in.skip(bestMatch.length()), bestMatch);
-            }
-
-            // No match found
-            //String preview = buffer.length() > 10 ? buffer.substring(0, 10) + "..." : buffer.toString();
-            return Result.failure(in, regex);
-        });
-    }
-
-    /**
-     * Creates a parser that matches input against a regular expression pattern using default flags.
-     * <p>
-     * This is a convenience method that calls {@link #regex(String, int)} with flags set to 0,
-     * which means no special Pattern flags are enabled. The parser incrementally matches characters
-     * from the input stream against the provided regular expression pattern.
-     * <p>
-     * Key features:
-     * <ul>
-     *   <li>Progressively reads characters one by one, building a buffer</li>
-     *   <li>Attempts matching after each character to support early success/failure</li>
-     *   <li>Properly respects start anchors (^) by only matching from the beginning</li>
-     *   <li>Properly respects end anchors ($) by only accepting matches at the end of input</li>
-     *   <li>For non-anchored patterns, returns the longest valid match</li>
-     *   <li>Efficiently handles streaming input by using {@link Matcher#hitEnd()} for optimization</li>
-     * </ul>
-     * <p>
-     * Example usage:
-     * <pre>{@code
-     * // Parse a word (sequence of letters)
-     * Parser<Character, String> wordParser = regex("[a-zA-Z]+");
-     * wordParser.parse("Hello123").get();  // Returns "Hello"
-     *
-     * // Parse an identifier (letters, digits, underscore)
-     * Parser<Character, String> identifier = regex("[a-zA-Z_][a-zA-Z0-9_]*");
-     * identifier.parse("_var123").get();  // Returns "_var123"
-     *
-     * // Parse a number with optional decimal part
-     * Parser<Character, String> number = regex("\\d+(\\.\\d+)?");
-     * number.parse("42.5").get();  // Returns "42.5"
-     * }</pre>
-     *
-     * @param regex the regular expression pattern to match against
-     * @return a parser that matches the input against the given regular expression
-     * @see #regex(String, int) for creating a regex parser with specific flags
-     * @see Pattern for information about Java regular expression syntax
-     */
-    public static Parser<Character, String> regex(String regex) {
-        return regex(regex, 0);
-    }
 }

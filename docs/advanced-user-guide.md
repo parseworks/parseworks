@@ -35,7 +35,7 @@
 
 ## Introduction
 
-This advanced user guide builds upon the concepts introduced in the [basic user guide](user-guide.md) and explores the more sophisticated features and techniques available in parseWorks. It's designed for users who are already familiar with the fundamentals of parser combinators and want to leverage the full power of the library.
+Build on the concepts from the [user guide](user-guide.md) and explore advanced features and techniques in parseWorks. Use this guide when you already understand the fundamentals of parser combinators and want to apply the full power of the library in complex scenarios.
 
 ## Advanced Parser Combinators
 
@@ -72,13 +72,17 @@ Parser<Character, Integer> expr = number.chainRight(
 For more control, you can use the `chain` method with an explicit `Associativity` parameter:
 
 ```java
+import static io.github.parseworks.parsers.Chains.*;
+
 // Parse expressions with explicit associativity
-Parser<Character, Integer> leftAssoc = number.chain(
+Parser<Character, Integer> leftAssoc = chain(
+    number,
     chr('+').as((a, b) -> a + b),
     Associativity.LEFT
 );
 
-Parser<Character, Integer> rightAssoc = number.chain(
+Parser<Character, Integer> rightAssoc = chain(
+    number,
     chr('^').as((a, b) -> (int)Math.pow(a, b)),
     Associativity.RIGHT
 );
@@ -180,20 +184,27 @@ Parser<Character, FList<Integer>> optionalNumberList = number.zeroOrManySeparate
 
 #### takeWhile
 
-The `takeWhile` method creates a parser that applies the parser as long as a condition is met:
+The `takeWhile` method creates a parser that applies the parser as long as a condition parser yields `true` at each step. You must pass a `Parser<I, Boolean>` condition (not a predicate lambda):
 
 ```java
-// Parse characters until a space is encountered
-Parser<Character, FList<Character>> word = chr(c -> c != ' ').takeWhile(c -> c != ' ');
+// Parse characters until a space is encountered using a Boolean-producing condition parser
+Parser<Character, Boolean> notSpace = chr(ch -> ch != ' ').as(true).or(chr(' ').as(false));
+Parser<Character, FList<Character>> word = chr(ch -> ch != ' ').takeWhile(notSpace);
+
+// Alternatively, prefer the simpler until variants when appropriate
+Parser<Character, FList<Character>> word2 = chr(ch -> ch != ' ').zeroOrManyUntil(chr(' '));
 ```
 
-#### until
+#### Until-style parsing
 
-The `until` method creates a parser that applies the parser until a terminator is encountered:
+There is no `until` instance method. Use `manyUntil` or `zeroOrManyUntil` depending on whether you require at least one element:
 
 ```java
-// Parse characters until a newline is encountered
-Parser<Character, FList<Character>> line = any(Character.class).until(chr('\n'));
+// Parse characters until a newline is encountered (allows empty line)
+Parser<Character, FList<Character>> line = any(Character.class).zeroOrManyUntil(chr('\n'));
+
+// Require at least one character before the newline
+Parser<Character, FList<Character>> nonEmptyLine = any(Character.class).manyUntil(chr('\n'));
 ```
 
 ### Negation and Validation
@@ -841,7 +852,7 @@ One common pitfall is infinite recursion, which can happen when a parser refers 
 
 ```java
 // This will cause infinite recursion in most parser libraries
-// parseworks will detect and mitigate this specific example
+// parseWorks will detect and mitigate this specific example
 Parser<Character, String> badRecursion = Parser.ref();
 badRecursion.set(badRecursion.or(string("x")));
 

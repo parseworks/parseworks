@@ -1,9 +1,9 @@
 package io.github.parseworks;
 
-import io.github.parseworks.impl.Failure;
-import io.github.parseworks.impl.Failure.ErrorType;
-import io.github.parseworks.impl.Success;
+import io.github.parseworks.impl.result.NoMatch;
+import io.github.parseworks.impl.result.Match;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -29,22 +29,22 @@ public interface Result<I, A> {
      * @return a successful result
      */
     static <I, A> Result<I, A> success(Input<I> next, A value) {
-        return new Success<>(value, next);
+        return new Match<>(value, next);
     }
 
     /**
-     * Creates a failure result with the given expected and found values.
-     * Uses the GENERIC error type by default.
+     * Creates a failure result that wraps another failure as its cause, preserving the chain.
+     * Uses the error type from the cause.
      *
      * @param input    the input at which the failure occurred
      * @param expected the expected input
-     * @param found    what was actually found
+     * @param cause    the underlying failure to chain as the cause
      * @param <I>      the type of the input symbols
      * @param <A>      the type of the parsed value
-     * @return a failure result
+     * @return a failure result that chains the given cause
      */
-    static <I, A> Result<I, A> failure(Input<I> input, String expected, String found) {
-        return new Failure<>(input, expected, found);
+    static <I, A> Result<I, A> failure(Input<I> input, String expected, NoMatch<?, ?> cause) {
+        return new NoMatch<>(input, expected, cause);
     }
 
     /**
@@ -59,53 +59,9 @@ public interface Result<I, A> {
      */
 
     static <I, A> Result<I, A> failure(Input<I> input, String expected) {
-        return new Failure<>(input, expected, null);
+        return new NoMatch<>(input, expected);
     }
 
-    /**
-     * Creates a failure result with the given expected and found values and a specific error type.
-     *
-     * @param input     the input at which the failure occurred
-     * @param expected  the expected input
-     * @param found     what was actually found
-     * @param errorType the type of error
-     * @param <I>       the type of the input symbols
-     * @param <A>       the type of the parsed value
-     * @return a failure result
-     */
-    static <I, A> Result<I, A> failure(Input<I> input, String expected, String found, ErrorType errorType) {
-        return new Failure<>(input, expected, found, errorType);
-    }
-
-    /**
-     * Creates a syntax error failure result.
-     * Use this for errors where the input doesn't match the expected syntax.
-     *
-     * @param input    the input at which the failure occurred
-     * @param expected the expected syntax
-     * @param found    what was actually found
-     * @param <I>      the type of the input symbols
-     * @param <A>      the type of the parsed value
-     * @return a failure result with SYNTAX error type
-     */
-    static <I, A> Result<I, A> syntaxError(Input<I> input, String expected, String found) {
-        return failure(input, expected, found, ErrorType.SYNTAX);
-    }
-
-    /**
-     * Creates a type error failure result.
-     * Use this for errors where the input has correct syntax but wrong type.
-     *
-     * @param input    the input at which the failure occurred
-     * @param expected the expected type
-     * @param found    what was actually found
-     * @param <I>      the type of the input symbols
-     * @param <A>      the type of the parsed value
-     * @return a failure result with TYPE error type
-     */
-    static <I, A> Result<I, A> typeError(Input<I> input, String expected, String found) {
-        return failure(input, expected, found, ErrorType.TYPE);
-    }
 
     /**
      * Creates an unexpected EOF error failure result.
@@ -118,7 +74,7 @@ public interface Result<I, A> {
      * @return a failure result with UNEXPECTED_EOF error type
      */
     static <I, A> Result<I, A> unexpectedEofError(Input<I> input, String expected) {
-        return failure(input, expected, "end of input", ErrorType.UNEXPECTED_EOF);
+        return failure(input, expected);
     }
 
     /**
@@ -126,13 +82,12 @@ public interface Result<I, A> {
      * Use this when there is trailing content when EOF was expected.
      *
      * @param input the input at which the failure occurred
-     * @param found the trailing content that was found
      * @param <I>   the type of the input symbols
      * @param <A>   the type of the parsed value
      * @return a failure result with EXPECTED_EOF error type
      */
-    static <I, A> Result<I, A> expectedEofError(Input<I> input, String found) {
-        return failure(input, "end of input", found, ErrorType.EXPECTED_EOF);
+    static <I, A> Result<I, A> expectedEofError(Input<I> input) {
+        return failure(input, "end of input");
     }
 
     /**
@@ -145,7 +100,7 @@ public interface Result<I, A> {
      * @return a failure result with RECURSION error type
      */
     static <I, A> Result<I, A> recursionError(Input<I> input) {
-        return failure(input, "parser to make progress", "infinite recursion detected", ErrorType.RECURSION);
+        return failure(input, "no infinite recursion");
     }
 
 
@@ -154,14 +109,12 @@ public interface Result<I, A> {
      * Use this when input parsed but failed validation.
      *
      * @param input       the input at which the failure occurred
-     * @param constraint  the validation constraint
-     * @param actualValue the actual value that failed validation
      * @param <I>         the type of the input symbols
      * @param <A>         the type of the parsed value
      * @return a failure result with VALIDATION error type
      */
-    static <I, A> Result<I, A> validationError(Input<I> input, String constraint, String actualValue) {
-        return failure(input, constraint, actualValue, ErrorType.VALIDATION);
+    static <I, A> Result<I, A> validationError(Input<I> input, String expected) {
+        return failure(input, expected);
     }
 
     /**
@@ -169,13 +122,16 @@ public interface Result<I, A> {
      * Use this for unexpected errors in parser logic.
      *
      * @param input   the input at which the failure occurred
-     * @param message the error message
      * @param <I>     the type of the input symbols
      * @param <A>     the type of the parsed value
      * @return a failure result with INTERNAL error type
      */
-    static <I, A> Result<I, A> internalError(Input<I> input, String message) {
-        return failure(input, "parser to function correctly", message, ErrorType.INTERNAL);
+    static <I, A> Result<I, A> internalError(Input<I> input) {
+        return failure(input, "parser to function correctly");
+    }
+
+    static <A, I> Result<I,A> failure(List<NoMatch<I,A>> failures) {
+        return new NoMatch<>(null, null, null, failures);
     }
 
     /**
@@ -183,14 +139,7 @@ public interface Result<I, A> {
      *
      * @return true if this result is a success
      */
-    boolean isSuccess();
-
-    /**
-     * Returns true if this result is an error.
-     *
-     * @return true if this result is an error
-     */
-     boolean isError();
+    boolean matches();
 
     /**
      * Returns the parsed value if this result is a success.
@@ -199,7 +148,7 @@ public interface Result<I, A> {
      * @return the parsed value
      * @throws java.lang.RuntimeException if this result is a failure
      */
-     A get();
+     A value();
 
     /**
      * Returns the remaining input after parsing.
@@ -239,7 +188,7 @@ public interface Result<I, A> {
      * @return an Optional containing the parsed value, or an empty Optional if this result is a failure
      */
     default Optional<A> toOptional() {
-        return isSuccess() ? Optional.of(get()) : Optional.empty();
+        return matches() ? Optional.of(value()) : Optional.empty();
     }
 
     /**
@@ -249,7 +198,7 @@ public interface Result<I, A> {
      * @return an Optional containing the error message, or an empty Optional if this result is a success
      */
     default Optional<String> errorOptional() {
-        return isError() ? Optional.of(error()) : Optional.empty();
+        return !matches() ? Optional.of(error()) : Optional.empty();
     }
 
     /**

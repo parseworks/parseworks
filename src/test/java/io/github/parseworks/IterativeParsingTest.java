@@ -2,8 +2,6 @@ package io.github.parseworks;
 
 import io.github.parseworks.parsers.Numeric;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
-import static io.github.parseworks.parsers.TextParsers.*;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -11,12 +9,15 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
+import static io.github.parseworks.parsers.Lexical.alpha;
+import static org.junit.jupiter.api.Assertions.*;
+
 public class IterativeParsingTest {
 
     @Test
     public void testIterateParseWithWords() {
         // Parse space-separated words
-        Parser<Character, String> wordParser = alpha.many().map(chars ->
+        Parser<Character, String> wordParser = alpha.oneOrMore().map(chars ->
             chars.stream().map(String::valueOf).collect(Collectors.joining()));
 
         String input = "hello world test";
@@ -56,7 +57,7 @@ public class IterativeParsingTest {
 
     @Test
     public void testStreamParseWithWords() {
-        Parser<Character, String> wordParser = alpha.many().map(chars ->
+        Parser<Character, String> wordParser = alpha.oneOrMore().map(chars ->
             chars.stream().map(String::valueOf).collect(Collectors.joining()));
 
         String input = "hello world test";
@@ -73,7 +74,7 @@ public class IterativeParsingTest {
 
     @Test
     public void testEmptyInput() {
-        Parser<Character, String> wordParser = alpha.many().map(chars ->
+        Parser<Character, String> wordParser = alpha.oneOrMore().map(chars ->
             chars.stream().map(String::valueOf).collect(Collectors.joining()));
 
         Input<Character> charInput = Input.of("");
@@ -84,7 +85,7 @@ public class IterativeParsingTest {
 
     @Test
     public void testIteratorNoSuchElementException() {
-        Parser<Character, String> wordParser = alpha.many().map(chars ->
+        Parser<Character, String> wordParser = alpha.oneOrMore().map(chars ->
             chars.stream().map(String::valueOf).collect(Collectors.joining()));
 
         Input<Character> charInput = Input.of("test");
@@ -99,7 +100,7 @@ public class IterativeParsingTest {
 
     @Test
     public void testParserWithErrors() {
-        Parser<Character, String> wordParser = alpha.many().map(chars ->
+        Parser<Character, String> wordParser = alpha.oneOrMore().map(chars ->
             chars.stream().map(String::valueOf).collect(Collectors.joining()));
 
         // Input with numbers between words - should skip over them
@@ -117,7 +118,7 @@ public class IterativeParsingTest {
 
     @Test
     public void testMultipleCallsToHasNext() {
-        Parser<Character, String> wordParser = alpha.many().map(chars ->
+        Parser<Character, String> wordParser = alpha.oneOrMore().map(chars ->
             chars.stream().map(String::valueOf).collect(Collectors.joining()));
 
         Input<Character> charInput = Input.of("test");
@@ -132,7 +133,7 @@ public class IterativeParsingTest {
 
     @Test
     public void testParallelStreamProcessing() {
-        Parser<Character, String> wordParser = alpha.many().map(chars ->
+        Parser<Character, String> wordParser = alpha.oneOrMore().map(chars ->
             chars.stream().map(String::valueOf).collect(Collectors.joining()));
 
         String input = "one two three four five";

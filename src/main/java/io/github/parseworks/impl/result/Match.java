@@ -1,4 +1,4 @@
-package io.github.parseworks.impl;
+package io.github.parseworks.impl.result;
 
 import io.github.parseworks.Input;
 import io.github.parseworks.Result;
@@ -11,24 +11,14 @@ import java.util.function.Function;
  * @param <I> the type of the input symbols
  * @param <A> the type of the parsed value
  */
-public record Success<I, A>(
+public record Match<I, A>(
         A value,
         Input<I> input
 ) implements Result<I, A> {
 
     @Override
-    public boolean isSuccess() {
+    public boolean matches() {
         return true;
-    }
-
-    @Override
-    public boolean isError() {
-        return false;
-    }
-
-    @Override
-    public A get() {
-        return value;
     }
 
     @Override
@@ -39,7 +29,7 @@ public record Success<I, A>(
 
     @Override
     public <B> Result<I, B> map(Function<A, B> mapper) {
-        return new Success<>(mapper.apply(value), input);
+        return new Match<>(mapper.apply(value), input);
     }
 
     @Override
@@ -53,6 +43,6 @@ public record Success<I, A>(
     }
 
     public String toString() {
-        return "Success(" + value + ")";
+        return "Match(" + value + ")";
     }
 }

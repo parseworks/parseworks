@@ -1,6 +1,7 @@
 package io.github.parseworks;
 
 import io.github.parseworks.parsers.Combinators;
+import io.github.parseworks.parsers.Lexical;
 import io.github.parseworks.parsers.Numeric;
 import org.junit.jupiter.api.Test;
 
@@ -18,14 +19,14 @@ public class CombinatorsTest {
     public void testAny() {
         Parser<Character, Character> parser = any(Character.class);
         
-        // Success case
+        // Match case
         Result<Character, Character> result = parser.parse("a");
-        assertTrue(result.isSuccess());
-        assertEquals('a', result.get());
+        assertTrue(result.matches());
+        assertEquals('a', result.value());
 
         // EOF case should fail
         Result<Character, Character> eofResult = parser.parse("");
-        assertFalse(eofResult.isSuccess());
+        assertFalse(eofResult.matches());
     }
 
     @Test
@@ -38,13 +39,13 @@ public class CombinatorsTest {
     public void testEof() {
         Parser<Character, Void> parser = eof();
 
-        // Success case (empty input)
+        // Match case (empty input)
         Result<Character, Void> result = parser.parse("");
-        assertTrue(result.isSuccess());
+        assertTrue(result.matches());
 
         // Non-empty input should fail
         Result<Character, Void> failResult = parser.parse("a");
-        assertFalse(failResult.isSuccess());
+        assertFalse(failResult.matches());
     }
 
     @Test
@@ -52,113 +53,113 @@ public class CombinatorsTest {
         Parser<Character, Object> parser = Combinators.fail();
 
         // Should always fail regardless of input
-        assertFalse(parser.parse("a").isSuccess());
-        assertFalse(parser.parse("").isSuccess());
+        assertFalse(parser.parse("a").matches());
+        assertFalse(parser.parse("").matches());
     }
 
     @Test
     public void testNot() {
-        Parser<Character, Character> aParser = chr('a');
+        Parser<Character, Character> aParser = Lexical.chr('a');
         Parser<Character, Character> notAParser = not(aParser);
 
-        // Success case (not 'a')
+        // Match case (not 'a')
         Result<Character, Character> result = notAParser.parse("b");
-        assertTrue(result.isSuccess());
+        assertTrue(result.matches());
 
-        // Failure case ('a' is present)
+        // NoMatch case ('a' is present)
         Result<Character, Character> failResult = notAParser.parse("a");
-        assertFalse(failResult.isSuccess());
+        assertFalse(failResult.matches());
     }
 
     @Test
     public void testIsNot() {
         Parser<Character, Character> parser = isNot('a');
 
-        // Success case (not 'a')
+        // Match case (not 'a')
         Result<Character, Character> result = parser.parse("b");
-        assertTrue(result.isSuccess());
-        assertEquals('b', result.get());
+        assertTrue(result.matches());
+        assertEquals('b', result.value());
 
-        // Failure case ('a')
-        assertFalse(parser.parse("a").isSuccess());
+        // NoMatch case ('a')
+        assertFalse(parser.parse("a").matches());
 
         // EOF case
-        assertFalse(parser.parse("").isSuccess());
+        assertFalse(parser.parse("").matches());
     }
 
     @Test
     public void testOneOfList() {
         List<Parser<Character, Character>> parsers = Arrays.asList(
-                chr('a'), chr('b'), chr('c')
+                Lexical.chr('a'), Lexical.chr('b'), Lexical.chr('c')
         );
         Parser<Character, Character> parser = oneOf(parsers);
 
-        // Success cases
-        assertTrue(parser.parse("a").isSuccess());
-        assertTrue(parser.parse("b").isSuccess());
-        assertTrue(parser.parse("c").isSuccess());
+        // Match cases
+        assertTrue(parser.parse("a").matches());
+        assertTrue(parser.parse("b").matches());
+        assertTrue(parser.parse("c").matches());
 
-        // Failure case
-        assertFalse(parser.parse("d").isSuccess());
+        // NoMatch case
+        assertFalse(parser.parse("d").matches());
 
         // EOF case
-        assertFalse(parser.parse("").isSuccess());
+        assertFalse(parser.parse("").matches());
     }
 
     @Test
     public void testOneOfVarargs() {
         // Test with 2 parsers
-        Parser<Character, Character> parser2 = oneOf(chr('a'), chr('b'));
-        assertTrue(parser2.parse("a").isSuccess());
-        assertTrue(parser2.parse("b").isSuccess());
-        assertFalse(parser2.parse("c").isSuccess());
+        Parser<Character, Character> parser2 = oneOf(Lexical.chr('a'), Lexical.chr('b'));
+        assertTrue(parser2.parse("a").matches());
+        assertTrue(parser2.parse("b").matches());
+        assertFalse(parser2.parse("c").matches());
 
         // Test with 3 parsers
-        Parser<Character, Character> parser3 = oneOf(chr('a'), chr('b'), chr('c'));
-        assertTrue(parser3.parse("c").isSuccess());
-        assertFalse(parser3.parse("d").isSuccess());
+        Parser<Character, Character> parser3 = oneOf(Lexical.chr('a'), Lexical.chr('b'), Lexical.chr('c'));
+        assertTrue(parser3.parse("c").matches());
+        assertFalse(parser3.parse("d").matches());
 
         // Additional tests for 4, 5, and 6 parser variants
-        Parser<Character, Character> parser4 = oneOf(chr('a'), chr('b'), chr('c'), chr('d'));
-        assertTrue(parser4.parse("d").isSuccess());
+        Parser<Character, Character> parser4 = oneOf(Lexical.chr('a'), Lexical.chr('b'), Lexical.chr('c'), Lexical.chr('d'));
+        assertTrue(parser4.parse("d").matches());
 
-        Parser<Character, Character> parser5 = oneOf(chr('a'), chr('b'), chr('c'), chr('d'), chr('e'));
-        assertTrue(parser5.parse("e").isSuccess());
+        Parser<Character, Character> parser5 = oneOf(Lexical.chr('a'), Lexical.chr('b'), Lexical.chr('c'), Lexical.chr('d'), Lexical.chr('e'));
+        assertTrue(parser5.parse("e").matches());
 
-        Parser<Character, Character> parser6 = oneOf(chr('a'), chr('b'), chr('c'), chr('d'), chr('e'), chr('f'));
-        assertTrue(parser6.parse("f").isSuccess());
+        Parser<Character, Character> parser6 = oneOf(Lexical.chr('a'), Lexical.chr('b'), Lexical.chr('c'), Lexical.chr('d'), Lexical.chr('e'), Lexical.chr('f'));
+        assertTrue(parser6.parse("f").matches());
     }
 
     @Test
     public void testSequenceList() {
         List<Parser<Character, Character>> parsers = Arrays.asList(
-                chr('a'), chr('b'), chr('c')
+                Lexical.chr('a'), Lexical.chr('b'), Lexical.chr('c')
         );
         Parser<Character, List<Character>> parser = sequence(parsers);
 
-        // Success case
+        // Match case
         Result<Character, List<Character>> result = parser.parse("abc");
-        assertTrue(result.isSuccess());
-        assertEquals(List.of('a', 'b', 'c'), result.get());
+        assertTrue(result.matches());
+        assertEquals(List.of('a', 'b', 'c'), result.value());
 
-        // Failure cases
-        assertFalse(parser.parse("ab").isSuccess());  // incomplete
-        assertFalse(parser.parse("abd").isSuccess()); // wrong sequence
+        // NoMatch cases
+        assertFalse(parser.parse("ab").matches());  // incomplete
+        assertFalse(parser.parse("abd").matches()); // wrong sequence
     }
 
     @Test
     public void testSequenceVarargs() {
         // Test with 2 parsers
-        Parser<Character, String> parser2 = sequence(chr('a'), chr('b'))
+        Parser<Character, String> parser2 = sequence(Lexical.chr('a'), Lexical.chr('b'))
                 .map((a, b) -> String.valueOf(a) + b);
-        assertTrue(parser2.parse("ab").isSuccess());
-        assertEquals("ab", parser2.parse("ab").get());
+        assertTrue(parser2.parse("ab").matches());
+        assertEquals("ab", parser2.parse("ab").value());
 
         // Test with 3 parsers
-        Parser<Character, String> parser3 = sequence(chr('a'), chr('b'), chr('c'))
+        Parser<Character, String> parser3 = sequence(Lexical.chr('a'), Lexical.chr('b'), Lexical.chr('c'))
                 .map((a, b, c) -> String.valueOf(a) + b + c);
-        assertTrue(parser3.parse("abc").isSuccess());
-        assertEquals("abc", parser3.parse("abc").get());
+        assertTrue(parser3.parse("abc").matches());
+        assertEquals("abc", parser3.parse("abc").value());
     }
 
     @Test
@@ -166,56 +167,56 @@ public class CombinatorsTest {
         Predicate<Character> isUppercase = Character::isUpperCase;
         Parser<Character, Character> parser = satisfy("uppercase letter", isUppercase);
 
-        // Success case
-        assertTrue(parser.parse("A").isSuccess());
-        assertEquals('A', parser.parse("A").get());
+        // Match case
+        assertTrue(parser.parse("A").matches());
+        assertEquals('A', parser.parse("A").value());
 
-        // Failure case
-        assertFalse(parser.parse("a").isSuccess());
+        // NoMatch case
+        assertFalse(parser.parse("a").matches());
 
         // EOF case
-        assertFalse(parser.parse("").isSuccess());
+        assertFalse(parser.parse("").matches());
     }
 
     @Test
     public void testIs() {
         Parser<Character, Character> parser = is('x');
 
-        // Success case
-        assertTrue(parser.parse("x").isSuccess());
-        assertEquals('x', parser.parse("x").get());
+        // Match case
+        assertTrue(parser.parse("x").matches());
+        assertEquals('x', parser.parse("x").value());
 
-        // Failure case
-        assertFalse(parser.parse("y").isSuccess());
+        // NoMatch case
+        assertFalse(parser.parse("y").matches());
 
         // EOF case
-        assertFalse(parser.parse("").isSuccess());
+        assertFalse(parser.parse("").matches());
     }
 
     @Test
     public void testChrPredicate() {
         Predicate<Character> isVowel = c -> "aeiouAEIOU".indexOf(c) >= 0;
-        Parser<Character, Character> parser = chr(isVowel);
+        Parser<Character, Character> parser = Lexical.chr(isVowel);
 
-        // Success cases
-        assertTrue(parser.parse("a").isSuccess());
-        assertTrue(parser.parse("E").isSuccess());
+        // Match cases
+        assertTrue(parser.parse("a").matches());
+        assertTrue(parser.parse("E").matches());
 
-        // Failure case
-        assertFalse(parser.parse("x").isSuccess());
+        // NoMatch case
+        assertFalse(parser.parse("x").matches());
     }
 
     @Test
     public void testChrChar() {
-        Parser<Character, Character> parser = chr('!');
+        Parser<Character, Character> parser = Lexical.chr('!');
 
-        // Success case
-        assertTrue(parser.parse("!").isSuccess());
-        assertEquals('!', parser.parse("!").get());
+        // Match case
+        assertTrue(parser.parse("!").matches());
+        assertEquals('!', parser.parse("!").value());
 
-        Parser<Character, String> keyword = string("if").or(string("else")).or(string("while"));
-        Parser<Character, String> identifier = regex("[a-zA-Z][a-zA-Z0-9]*");
-        Parser<Character, String> number = Numeric.numeric.many().map(FList::joinChars);
+        Parser<Character, String> keyword = Lexical.string("if").or(Lexical.string("else")).or(Lexical.string("while"));
+        Parser<Character, String> identifier = Lexical.regex("[a-zA-Z][a-zA-Z0-9]*");
+        Parser<Character, String> number = Numeric.numeric.oneOrMore().map(FList::joinChars);
 
        Parser<Character, String> token = oneOf(Arrays.asList(
          keyword,
@@ -223,92 +224,76 @@ public class CombinatorsTest {
          number
          ));
 
-        // Failure case
-        assertFalse(parser.parse("?").isSuccess());
+        // NoMatch case
+        assertFalse(parser.parse("?").matches());
     }
 
     @Test
     public void testString() {
-        Parser<Character, String> parser = string("hello");
+        Parser<Character, String> parser = Lexical.string("hello");
 
         var result = parser.parse("hello world");
         var result2 = parser.parse("hello");
-        // Success case
-        assertTrue(result.isSuccess());
-        assertEquals("hello", result2.get());
+        // Match case
+        assertTrue(result.matches());
+        assertEquals("hello", result2.value());
 
-        // Failure cases
-        assertFalse(parser.parse("hell").isSuccess());   // prefix only
-        assertFalse(parser.parse("world").isSuccess());  // different string
+        // NoMatch cases
+        assertFalse(parser.parse("hell").matches());   // prefix only
+        assertFalse(parser.parse("world").matches());  // different string
 
         // Empty string case
-        assertTrue(string("").parse("").isSuccess());
+        assertTrue(Lexical.string("").parse("").matches());
     }
 
     @Test
     public void testOneOfString() {
-        Parser<Character, Character> parser = oneOf("0123456789");
+        Parser<Character, Character> parser = Lexical.oneOf("0123456789");
 
-        // Success cases - all digits
+        // Match cases - all digits
         for (char c = '0'; c <= '9'; c++) {
-            assertTrue(parser.parse(String.valueOf(c)).isSuccess());
-            assertEquals(c, parser.parse(String.valueOf(c)).get());
+            assertTrue(parser.parse(String.valueOf(c)).matches());
+            assertEquals(c, parser.parse(String.valueOf(c)).value());
         }
 
-        // Failure case
-        assertFalse(parser.parse("a").isSuccess());
+        // NoMatch case
+        assertFalse(parser.parse("a").matches());
     }
 
     @Test
     public void testRegex() {
-        // Email pattern
-        Parser<Character, String> parser = regex("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
-
-        // Another regex for testing
-        Parser<Character, String> parser2 = regex("[a-zA-Z]+");
-        // Success case
-        assertTrue(parser.parse("test@example.com").isSuccess());
-        assertFalse(parser.parse("test@example").isSuccess());
-        assertEquals("test@example.com", parser.parse("test@example.com").get());
-
-        // Failure case
-        assertFalse(parser.parse("not-an-email").isSuccess());
-
-        assertFalse(parser2.parse("234454535233443234556435435435634534").isSuccess());
-
-        // Prefix match case
-        Result<Character, String> prefixResult = parser.parse("user@domain.com_extratext");
-        assertTrue(prefixResult.isSuccess());
-        assertEquals("user@domain.com", prefixResult.get());
-
-        // With explicit start anchor
-        Parser<Character, String> anchoredParser = regex("^[0-9]{3}-[0-9]{2}-[0-9]{4}");
-        assertTrue(anchoredParser.parse("123-45-6789").isSuccess());
+        // Keep a simple composition example; detailed regex semantics live in RegexParserTest
+        Parser<Character, String> letters = Lexical.regex("[A-Za-z]+");
+        Result<Character, String> r1 = letters.parse("hello123");
+        assertTrue(r1.matches());
+        assertEquals("hello", r1.value());
+        assertTrue(letters.parse("abc").matches());
+        assertFalse(letters.parse("123").matches());
     }
 
     @Test
     public void testComplexParsers() {
         // Simple arithmetic expression: number + number
-        Parser<Character, Integer> number = oneOf("0123456789").map(Character::getNumericValue);
-        Parser<Character, Character> plus = chr('+');
+        Parser<Character, Integer> number = Lexical.oneOf("0123456789").map(Character::getNumericValue);
+        Parser<Character, Character> plus = Lexical.chr('+');
         Parser<Character, Integer> expr = number.then(plus).then(number)
                 .map((n1, op, n2) -> n1 + n2);
 
-        // Success case
-        assertTrue(expr.parse("2+3").isSuccess());
-        assertEquals(5, expr.parse("2+3").get());
+        // Match case
+        assertTrue(expr.parse("2+3").matches());
+        assertEquals(5, expr.parse("2+3").value());
 
-        // Failure cases
-        assertFalse(expr.parse("2-3").isSuccess()); // Wrong operator
-        assertFalse(expr.parse("23").isSuccess());  // Missing operator
-        assertFalse(expr.parse("2+").isSuccess());  // Missing second number
+        // NoMatch cases
+        assertFalse(expr.parse("2-3").matches()); // Wrong operator
+        assertFalse(expr.parse("23").matches());  // Missing operator
+        assertFalse(expr.parse("2+").matches());  // Missing second number
     }
 
     @Test
     public void testJsonLikeParser() {
         // Parser for "key": "value" pattern
-        Parser<Character, Character> quote = chr('"');
-        Parser<Character, String> chars = chr(c -> c != '"').many()
+        Parser<Character, Character> quote = Lexical.chr('"');
+        Parser<Character, String> chars = Lexical.chr(c -> c != '"').oneOrMore()
                 .map(list -> {
                     StringBuilder sb = new StringBuilder();
                     for (Character c : list) {
@@ -317,24 +302,24 @@ public class CombinatorsTest {
                     return sb.toString();
                 });
         Parser<Character, String> quotedString = chars.between(quote);
-        Parser<Character, String> keyValue = quotedString.then(string(": ")).then(quotedString)
+        Parser<Character, String> keyValue = quotedString.then(Lexical.string(": ")).then(quotedString)
                 .map((key, sep, value) -> key + "=" + value);
 
-        // Success case
+        // Match case
         Result<Character, String> result = keyValue.parse("\"name\": \"John\"");
-        assertTrue(result.isSuccess());
-        assertEquals("name=John", result.get());
+        assertTrue(result.matches());
+        assertEquals("name=John", result.value());
 
-        // Failure cases
-        assertFalse(keyValue.parse("name: \"John\"").isSuccess());    // Missing quotes around key
-        assertFalse(keyValue.parse("\"name\":\"John\"").isSuccess()); // Missing space after colon
+        // NoMatch cases
+        assertFalse(keyValue.parse("name: \"John\"").matches());    // Missing quotes around key
+        assertFalse(keyValue.parse("\"name\":\"John\"").matches()); // Missing space after colon
     }
 
     @Test
     public void testCombinedNotIsNot() {
         // Test combining not and isNot
-        Parser<Character, Character> notDigit = not(chr(Character::isDigit));
-        Parser<Character, Character> letter = chr(Character::isLetter);
+        Parser<Character, Character> notDigit = not(Lexical.chr(Character::isDigit));
+        Parser<Character, Character> letter = Lexical.chr(Character::isLetter);
 
         // Parser that accepts a letter that's followed by a non-digit
         Parser<Character, Character> letterFollowedByNonDigit = letter.peek(notDigit);
@@ -343,8 +328,8 @@ public class CombinatorsTest {
         var secondResult = letterFollowedByNonDigit.parse("a1");
         var thirdResult = letterFollowedByNonDigit.parse("aX");
 
-        assertTrue(firstResult.isError());
-        assertTrue(secondResult.isError());
-        assertTrue(thirdResult.isSuccess());
+        assertFalse(firstResult.matches());
+        assertFalse(secondResult.matches());
+        assertTrue(thirdResult.matches());
     }
 }

@@ -30,7 +30,7 @@ public class Chains {
      * </ul>
      * <p>
      * This method serves as the foundation for more specific chainXxx methods like
-     * {@link Parser#chainLeftMany(Parser)} and {@link Parser#chainRightMany(Parser)}.
+     * {@link Parser#chainLeftMany(Parser)} and {@link Parser#chainRightOneOrMore(Parser)}.
      * <p>
      * Example usage:
      * <pre>{@code
@@ -50,7 +50,7 @@ public class Chains {
      * @return a parser that handles operator expressions with the specified associativity
      * @throws IllegalArgumentException if any parameter is null
      * @see Parser#chainLeftMany(Parser) for a specialized left-associative version
-     * @see Parser#chainRightMany(Parser) for a specialized right-associative version
+     * @see Parser#chainRightOneOrMore(Parser) for a specialized right-associative version
      * @see Associativity for the associativity options
      */
     public static <I,A> Parser<I, A> chain(Parser<I,A> parser, Parser<I, BinaryOperator<A>> op, Associativity associativity) {
@@ -58,10 +58,10 @@ public class Chains {
             final Parser<I, UnaryOperator<A>> plo =
                 op.then(parser)
                     .map((f, y) -> x -> f.apply(x, y));
-            return parser.then(plo.zeroOrMany())
+            return parser.then(plo.zeroOrMore())
                 .map((a, lf) -> lf.foldLeft(a, (acc, f) -> f.apply(acc)));
         } else {
-            return parser.then(op.then(parser).map(Pair::new).zeroOrMany())
+            return parser.then(op.then(parser).map(Pair::new).zeroOrMore())
                 .map((a, pairs) -> pairs.stream().reduce(a, (acc, tuple) -> tuple.left().apply(tuple.right(), acc), (a1, a2) -> a1));
         }
     }
@@ -88,7 +88,7 @@ public class Chains {
      * to specify how repeated operations should be grouped during parsing.
      *
      * @see Parser#chainLeftMany(Parser) for left-associative parsing
-     * @see Parser#chainRightMany(Parser) for right-associative parsing
+     * @see Parser#chainRightOneOrMore(Parser) for right-associative parsing
      */
     public enum Associativity {
         /**
@@ -98,7 +98,7 @@ public class Chains {
          * are performed first. This is the common associativity for:
          * <ul>
          *   <li>Arithmetic operators: addition, subtraction, multiplication, division</li>
-         *   <li>String concatenation in many languages</li>
+         *   <li>String concatenation in oneOrMore languages</li>
          * </ul>
          * <p>
          * Example: "5-3-2" with LEFT associativity is evaluated as "(5-3)-2" = 0

@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.parsers.Combinators.chr;
+import static io.github.parseworks.parsers.Lexical.chr;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -43,7 +43,7 @@ public class RecursionProtectionTest {
         term.set(term2);
         Input<Character> input = Input.of("3+(2*4)-5");
         Result<Character, Integer> result = expression.parse(input);
-        assertEquals(6, result.get());
+        assertEquals(6, result.value());
     }
 
 }

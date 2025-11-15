@@ -5,9 +5,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.parsers.Combinators.chr;
+import static io.github.parseworks.parsers.Lexical.chr;
 import static io.github.parseworks.parsers.Numeric.doubleValue;
-import static io.github.parseworks.parsers.TextParsers.trim;
+import static io.github.parseworks.parsers.Lexical.trim;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -53,7 +53,7 @@ public class ArithmeticParserTest {
     @Test
     public void mathTest() {
         String input = "3 + 5 * (2 * -8)";
-        double result = expression.parse(Input.of(input)).get();
+        double result = expression.parse(Input.of(input)).value();
         assertEquals(-77, result, "Parsing failed for expression: " + input);
     }
 }

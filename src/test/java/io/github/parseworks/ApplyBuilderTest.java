@@ -2,8 +2,8 @@ package io.github.parseworks;
 
 import org.junit.jupiter.api.Test;
 
-import static io.github.parseworks.parsers.Combinators.regex;
-import static io.github.parseworks.parsers.TextParsers.trim;
+import static io.github.parseworks.parsers.Lexical.regex;
+import static io.github.parseworks.parsers.Lexical.trim;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -19,8 +19,8 @@ public class ApplyBuilderTest {
             .map((s1, s2) -> s1 + " " + s2);
         
         Result<Character, String> result = combined.parseAll("helloworld");
-        assertTrue(result.isSuccess());
-        assertEquals("hello world", result.get());
+        assertTrue(result.matches());
+        assertEquals("hello world", result.value());
     }
     
     // Test three-parser combination
@@ -34,8 +34,8 @@ public class ApplyBuilderTest {
             .map((a, b, c) -> a + b + c);
         
         Result<Character, String> result = combined.parseAll("abc");
-        assertTrue(result.isSuccess());
-        assertEquals("abc", result.get());
+        assertTrue(result.matches());
+        assertEquals("abc", result.value());
     }
     
     // Test four-parser combination
@@ -50,8 +50,8 @@ public class ApplyBuilderTest {
             .map((a, b, c, d) -> a + b + c + d);
         
         Result<Character, Integer> result = combined.parse("1234");
-        assertTrue(result.isSuccess());
-        assertEquals(10, result.get()); // 1+2+3+4 = 10
+        assertTrue(result.matches());
+        assertEquals(10, result.value()); // 1+2+3+4 = 10
     }
     
     // Test five-parser combination
@@ -67,8 +67,8 @@ public class ApplyBuilderTest {
             .map((a, b, c, d, e) -> a + b + c + d + e);
         
         Result<Character, Integer> result = combined.parse("12345");
-        assertTrue(result.isSuccess());
-        assertEquals(15, result.get()); // 1+2+3+4+5 = 15
+        assertTrue(result.matches());
+        assertEquals(15, result.value()); // 1+2+3+4+5 = 15
     }
     
     // Test six-parser combination
@@ -85,8 +85,8 @@ public class ApplyBuilderTest {
             .map((a, b, c, d, e, f) -> a + b + c + d + e + f);
         
         Result<Character, Integer> result = combined.parse("123456");
-        assertTrue(result.isSuccess());
-        assertEquals(21, result.get()); // Sum = 21
+        assertTrue(result.matches());
+        assertEquals(21, result.value()); // Sum = 21
     }
     
     // Test seven-parser combination
@@ -104,8 +104,8 @@ public class ApplyBuilderTest {
             .map((a, b, c, d, e, f, g) -> a + b + c + d + e + f + g);
         
         Result<Character, String> result = combined.parse("abcdefg");
-        assertTrue(result.isSuccess());
-        assertEquals("abcdefg", result.get());
+        assertTrue(result.matches());
+        assertEquals("abcdefg", result.value());
     }
     
     // Test eight-parser combination
@@ -124,8 +124,8 @@ public class ApplyBuilderTest {
             .map((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
         
         Result<Character, String> result = combined.parse("12345678");
-        assertTrue(result.isSuccess());
-        assertEquals("12345678", result.get());
+        assertTrue(result.matches());
+        assertEquals("12345678", result.value());
     }
     
     // Test with mixed types
@@ -139,8 +139,8 @@ public class ApplyBuilderTest {
             .map((user, colon, id) -> user + id);
         
         Result<Character, String> result = combined.parse("user:42");
-        assertTrue(result.isSuccess());
-        assertEquals("user42", result.get());
+        assertTrue(result.matches());
+        assertEquals("user42", result.value());
     }
     
     // Test parsing failure
@@ -153,7 +153,7 @@ public class ApplyBuilderTest {
             .map((s1, s2) -> s1 + " " + s2);
         
         Result<Character, String> result = combined.parse("helloplanet");
-        assertTrue(result.isError());
+        assertTrue(!result.matches());
     }
     
     // Test with incomplete input
@@ -166,7 +166,7 @@ public class ApplyBuilderTest {
             .map((s1, s2) -> s1 + " " + s2);
         
         Result<Character, String> result = combined.parse("hello");
-        assertTrue(result.isError());
+        assertTrue(!result.matches());
     }
     
     // Test real-world scenario: parsing a simple assignment statement
@@ -183,8 +183,8 @@ public class ApplyBuilderTest {
             .map((name, eq, value, semi) -> new Assignment(name, value));
         
         Result<Character, Assignment> result = assignmentParser.parseAll("myVar = 42;");
-        assertTrue(result.isSuccess());
-        Assignment assignment = result.get();
+        assertTrue(result.matches());
+        Assignment assignment = result.value();
         assertEquals("myVar", assignment.name);
         assertEquals(42, assignment.value);
     }

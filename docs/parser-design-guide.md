@@ -12,7 +12,7 @@
 
 ## Introduction
 
-This guide provides a systematic approach to designing and implementing parsers using the parseWorks library. Whether you're building a parser for a configuration file, a domain-specific language, or a full-fledged programming language, this guide will help you through the process.
+Use this guide to design and implement parsers with parseWorks. Apply the steps and patterns here to build parsers for configuration files, domain-specific languages, and full programming languages in a consistent, repeatable way.
 
 ## Understanding Parser Concepts
 
@@ -337,7 +337,7 @@ Excessive backtracking can lead to performance issues:
 // Inefficient: Tries to parse a long string, then backtracks to try a shorter one
 Parser<Character, String> inefficient = string("longerString").or(string("short"));
 
-// More efficient: Tries the longer match first, which is more specific
+// More efficient: Tries the shorter match first, which is more specific
 Parser<Character, String> efficient = string("short").or(string("longerString"));
 ```
 

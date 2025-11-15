@@ -19,7 +19,7 @@
 
 ## Introduction
 
-parseWorks is a Java parser combinator framework for constructing LLR(*) parsers. It provides a lightweight, composable, and expressive way to build parsers directly in Java, using a style that aligns with Java naming conventions and idioms.
+Use parseWorks to build LLR(*) parsers in Java with composable parser combinators. Write grammars directly in code, get clear error messages, and keep your parsers lightweight and testable while following familiar Java idioms.
 
 ### Key Features
 
@@ -38,7 +38,7 @@ parseWorks requires Java 17 or higher.
 
 ### Maven
 
-Add the following dependency to your Maven `pom.xml`:
+Add the following dependency to your Maven `pom.xml` (latest release):
 
 ```xml
 <dependency>
@@ -48,12 +48,41 @@ Add the following dependency to your Maven `pom.xml`:
 </dependency>
 ```
 
+Using the current SNAPSHOT (optional):
+
+Maven:
+```xml
+<repositories>
+  <repository>
+    <id>sonatype-snapshots</id>
+    <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+  </repository>
+</repositories>
+
+<dependency>
+  <groupId>io.github.parseworks</groupId>
+  <artifactId>parseworks</artifactId>
+  <version>2.2.1-SNAPSHOT</version>
+</dependency>
+```
+
 ### Gradle
 
 Add the following dependency to your Gradle build file:
 
 ```groovy
 implementation 'io.github.parseworks:parseworks:2.2.0'
+```
+
+Using the SNAPSHOT in Gradle:
+```groovy
+repositories {
+  maven { url 'https://central.sonatype.com/repository/maven-snapshots/' }
+}
+
+dependencies {
+  implementation 'io.github.parseworks:parseworks:2.2.1-SNAPSHOT'
+}
 ```
 
 ## Basic Concepts
@@ -87,8 +116,10 @@ In this tutorial, we'll create a simple parser that recognizes a specific string
 #### Step 1: Import the necessary classes
 
 ```java
-
-
+import io.github.parseworks.Input;
+import io.github.parseworks.Parser;
+import io.github.parseworks.Result;
+import static io.github.parseworks.parsers.Combinators.*;
 ```
 
 #### Step 2: Create a parser for a specific string
@@ -107,7 +138,7 @@ Result<Character, String> result = helloParser.parse(Input.of("hello world"));
 // Check if parsing succeeded
 if (result.isSuccess()) {
     System.out.println("Parsed: " + result.get());
-    System.out.println("Remaining input: " + result.next().current());
+    System.out.println("Remaining input: " + result.input().current());
 } else {
     System.out.println("Parsing failed: " + result.error());
 }
@@ -138,13 +169,7 @@ Parser<Character, String> helloParser = string("hello");
 Parser<Character, String> worldParser = string("world");
 
 // Parser for whitespace
-Parser<Character, String> whitespaceParser = chr(' ').many().map(chars -> {
-    StringBuilder sb = new StringBuilder(chars.size());
-    for (Character c : chars) {
-        sb.append(c);
-    }
-    return sb.toString();
-});
+Parser<Character, String> whitespaceParser = chr(' ').oneOrMore().as("");
 ```
 
 #### Step 2: Combine parsers using `then`
@@ -154,7 +179,7 @@ Parser<Character, String> whitespaceParser = chr(' ').many().map(chars -> {
 Parser<Character, String> helloWorldParser = helloParser
     .then(whitespaceParser)
     .then(worldParser)
-    .map(hello -> space -> world -> hello + space + world);
+    .map(hello -> space -> world -> hello + " " + world);
 ```
 
 #### Step 3: Use `skipThen` and `thenSkip` for cleaner combinations
@@ -170,7 +195,7 @@ Parser<Character, String> cleanerParser = helloParser
 #### Step 4: Parse input with the combined parser
 
 ```java
-Result<Character, String> result = cleanerParser.parse(Input.of("hello    world"));
+Result<Character, String> result = cleanerParser.parse(Input.of("hello world"));
 System.out.println(result.get()); // Outputs: "hello world"
 ```
 
@@ -204,26 +229,13 @@ class KeyValue {
 
 ```java
 // Parser for keys (alphanumeric strings)
-Parser<Character, String> keyParser = alphaNumeric.many().map(chars -> {
-    StringBuilder sb = new StringBuilder(chars.size());
-    for (Character c : chars) {
-        sb.append(c);
-    }
-    return sb.toString();
-});
+Parser<Character, String> keyParser = Lexical.regex("[a-zA-Z0-9]+");
 
 // Parser for the equals sign
-Parser<Character, Character> equalsParser = chr('=');
+Parser<Character, Character> equalsParser = Lexical.chr('=');
 
-// example of a foundational level validation parser
-// a Parser for values (any string until end of line)
-Parser<Character, String> valueParser = satisfy("<not-newline>", c -> c != '\n').zeroOrMany().map(chars -> {
-    StringBuilder sb = new StringBuilder(chars.size());
-    for (Character c : chars) {
-        sb.append(c);
-    }
-    return sb.toString();
-});
+// Parser for values (any string until end of line)
+Parser<Character, String> valueParser = Lexical.regex("[^\\n]*");
 ```
 
 #### Step 3: Combine the parsers
@@ -241,7 +253,7 @@ Parser<Character, KeyValue> keyValueParser = keyParser
 ```java
 // Parser for multiple key-value pairs separated by newlines
 Parser<Character, FList<KeyValue>> configParser = keyValueParser
-    .manySeparatedBy(chr('\n'));
+    .oneOrMoreSeparatedBy(Lexical.chr('\n'));
 
 // Parse a configuration file
 String config = "server=localhost\nport=8080\nuser=admin";
@@ -268,12 +280,31 @@ In this tutorial, we'll learn how to handle parsing errors gracefully.
 #### Step 1: Create a parser that might fail
 
 ```java
+// Parser for keys (alphanumeric strings)
+Parser<Character, String> keyParser = Lexical.regex("[a-zA-Z0-9]+").expecting("key");
+
+// Parser for the equal sign
+Parser<Character, Character> equalsParser = Lexical.chr('=').expecting("equals");
+
+// Parser for values (any string until the end of line)
+Parser<Character, String> valueParser = Lexical.chr(c -> c != '\n' && c != ',' && c != '}')
+    .oneOrMore()
+    .map(FList::joinChars)
+    .expecting("value");
+
+// Parser for a key-value pair
+Parser<Character, KeyValue> keyValueParser = keyParser
+    .thenSkip(equalsParser)
+    .then(valueParser)
+    .map(key -> value -> new KeyValue(key, value))
+    .expecting("key-value pair");
+
 // Parser for a JSON-like object
-Parser<Character, Map<String, String>> objectParser = chr('{')
+Parser<Character, Map<String, String>> objectParser = Lexical.chr('{')
     .skipThen(
-        keyValueParser.manySeparatedBy(string(","))
+        keyValueParser.oneOrMoreSeparatedBy(Lexical.string(","))
     )
-    .thenSkip(chr('}'))
+    .thenSkip(Lexical.chr('}'))
     .map(pairs -> {
         Map<String, String> map = new HashMap<>();
         for (KeyValue kv : pairs) {
@@ -305,7 +336,7 @@ validResult.handle(
 #### Step 3: Try parsing invalid input
 
 ```java
-String invalidInput = "{name=John,age=30"; // Missing closing brace
+String invalidInput = "{name=John,age="; // Missing closing brace
 Result<Character, Map<String, String>> invalidResult = objectParser.parse(Input.of(invalidInput));
 
 invalidResult.handle(
@@ -325,13 +356,13 @@ invalidResult.handle(
 
 ```java
 // Improved parser with better error messages
-Parser<Character, Map<String, String>> betterParser = chr('{')
+Parser<Character, Map<String, String>> betterParser = Lexical.chr('{')
     .skipThen(
-        keyValueParser.manySeparatedBy(string(","))
-            .orElse(Collections.emptyList()) // Default to empty list if parsing fails
+        keyValueParser.oneOrMoreSeparatedBy(Lexical.string(","))
+            .orElse(FList.of()) // Default to empty list if parsing fails
     )
     .thenSkip(
-        chr('}').orElse(fail("Missing closing brace '}'"))
+        Lexical.chr('}').orElse(fail("Missing closing brace '}'"))
     )
     .map(pairs -> {
         Map<String, String> map = new HashMap<>();
@@ -341,6 +372,44 @@ Parser<Character, Map<String, String>> betterParser = chr('{')
         return map;
     });
 ```
+
+#### Step 5: Label failures with `expecting(...)`
+
+Often an error message from a low-level parser is technically correct but not very helpful for the user of your language. Use `expecting(String label)` to attach a clearer, domain-specific label to a parser so that, if it fails, the error message says what you intended to parse.
+
+Key properties:
+- It does not change parsing behavior.
+- On success, it returns the same result.
+- On failure, it preserves the original error as the cause (including its error type) and replaces the top-level “Expected …” with your label.
+
+Example:
+
+```java
+// Suppose an identifier is a letter followed by zero or more alphanumerics
+// Use a regex-based parser for a concise identifier definition
+Parser<Character, String> identifier =
+    regex("[A-Za-z][A-Za-z0-9]*")
+        .expecting("identifier");
+
+Result<Character, String> r = identifier.parse("123");
+if (r.isError()) {
+    System.out.println(r.error());
+    // Output includes something like: "... Expected identifier but found '1' ..."
+}
+```
+
+You can apply `expecting(...)` to any sub-parser to improve error messages at the appropriate abstraction level, e.g.:
+
+```java
+Parser<Character, String> key = regex("[A-Za-z]+").expecting("key");
+Parser<Character, String> value = regex("[A-Za-z0-9]+").expecting("value");
+Parser<Character, KeyValue> keyValueParser =
+    key.thenSkip(chr('=').expecting("'=' after key"))
+       .then(value)
+       .map((k, v) -> new KeyValue(k, v));
+```
+
+This yields clearer diagnostics like "Expected '=' after key" or "Expected value" while retaining the original cause details for debugging.
 
 ### Tutorial 5: Creating a Calculator Parser
 
@@ -366,17 +435,9 @@ number ::= [0-9]+
 #### Step 2: Create parsers for the basic elements
 
 ```java
-// Parser for whitespace
-Parser<Character, String> whitespace = TextParsers.whitespace.zeroOrMany().map(chars -> {
-    StringBuilder sb = new StringBuilder(chars.size());
-    for (Character c : chars) {
-        sb.append(c);
-    }
-    return sb.toString();
-});
-
 // Parser for numbers
-Parser<Character, Integer> number = NumericParsers.number;
+Parser<Character, Integer> number = Lexical.regex("[0-9]+")
+    .map(Integer::parseInt);
 
 // Create references for recursive parsers
 Parser<Character, Integer> expr = Parser.ref();
@@ -387,33 +448,30 @@ Parser<Character, Integer> factor = Parser.ref();
 #### Step 3: Define the factor parser
 
 ```java
-
+import static io.github.parseworks.parsers.Combinators.oneOf;
+import static io.github.parseworks.parsers.Lexical.trim;
 
 // Factor can be a number or an expression in parentheses
-Parser<Character, Integer> numberFactor = number;
-Parser<Character, Integer> parenFactor = chr('(')
-        .skipThen(TextParsers.trim(expr))
-        .thenSkip(chr(')'));
+Parser<Character, Integer> parenFactor = Lexical.chr('(')
+    .skipThen(trim(expr))
+    .thenSkip(Lexical.chr(')'));
 
-factor.
-
-set(
-        oneOf(numberFactor, parenFactor)
-        .
-
-trim(whitespace)
+factor.set(
+    trim(oneOf(number, parenFactor))
 );
 ```
 
 #### Step 4: Define the term parser (multiplication and division)
 
 ```java
+import java.util.function.BinaryOperator;
+
 // Parser for multiplication operator
-Parser<Character, Integer> mulOp = chr('*').trim(whitespace)
+Parser<Character, BinaryOperator<Integer>> mulOp = trim(Lexical.chr('*'))
     .as((a, b) -> a * b);
 
 // Parser for division operator
-Parser<Character, Integer> divOp = chr('/').trim(whitespace)
+Parser<Character, BinaryOperator<Integer>> divOp = trim(Lexical.chr('/'))
     .as((a, b) -> a / b);
 
 // Term handles multiplication and division
@@ -426,11 +484,11 @@ term.set(
 
 ```java
 // Parser for addition operator
-Parser<Character, Integer> addOp = chr('+').trim(whitespace)
-    .as((a, b) -> a + b);
+Parser<Character, BinaryOperator<Integer>> addOp = trim(Lexical.chr('+'))
+    .as(Integer::sum);
 
 // Parser for subtraction operator
-Parser<Character, Integer> subOp = chr('-').trim(whitespace)
+Parser<Character, BinaryOperator<Integer>> subOp = trim(Lexical.chr('-'))
     .as((a, b) -> a - b);
 
 // Expression handles addition and subtraction
@@ -477,71 +535,55 @@ Recursive parsers are essential for parsing nested structures like expressions, 
 Here's a simplified example of a JSON parser:
 
 ```java
+import io.github.parseworks.parsers.Lexical;
+
 // Create references for recursive parsers
 Parser<Character, Object> jsonValue = Parser.ref();
 Parser<Character, Map<String, Object>> jsonObject = Parser.ref();
 Parser<Character, List<Object>> jsonArray = Parser.ref();
 
 // Parser for JSON strings
-Parser<Character, String> jsonString = chr('"')
+Parser<Character, String> jsonString = Lexical.chr('"')
     .skipThen(
-        oneOf(
-            satisfy("<escaped-char>", c -> c == '\\').then(any()),
-            satisfy("<string-char>", c -> c != '"' && c != '\\')
+        Combinators.oneOf(
+            Combinators.satisfy("<escaped-char>", c -> c == '\\').then(Combinators.any()),
+            Combinators.satisfy("<string-char>", c -> c != '"' && c != '\\')
         ).zeroOrMany()
     )
-    .thenSkip(chr('"'))
-    .map(chars -> {
-        StringBuilder sb = new StringBuilder(chars.size());
-        for (int i = 0; i < chars.size(); i++) {
-            Character c = chars.get(i);
-            if (c == '\\' && i + 1 < chars.size()) {
-                Character next = chars.get(++i);
-                switch (next) {
-                    case '"': sb.append('"'); break;
-                    case '\\': sb.append('\\'); break;
-                    case 'n': sb.append('\n'); break;
-                    case 'r': sb.append('\r'); break;
-                    case 't': sb.append('\t'); break;
-                    default: sb.append(next);
-                }
-            } else {
-                sb.append(c);
-            }
-        }
-        return sb.toString();
-    });
+    .thenSkip(Lexical.chr('"'))
+    .map(FList::joinChars); // Simplified for this example
 
 // Parser for JSON numbers
-Parser<Character, Double> jsonNumber = NumericParsers.doubleValue;
+Parser<Character, Double> jsonNumber = Lexical.regex("-?[0-9]+(\\.[0-9]+)?")
+    .map(Double::parseDouble);
 
 // Parser for JSON booleans
-Parser<Character, Boolean> jsonBoolean = oneOf(
-    string("true").as(Boolean.TRUE),
-    string("false").as(Boolean.FALSE)
+Parser<Character, Boolean> jsonBoolean = Combinators.oneOf(
+    Lexical.string("true").as(Boolean.TRUE),
+    Lexical.string("false").as(Boolean.FALSE)
 );
 
 // Parser for JSON null
-Parser<Character, Object> jsonNull = string("null").as(null);
+Parser<Character, Object> jsonNull = Lexical.string("null").as(null);
 
 // Parser for JSON arrays
 jsonArray.set(
-    chr('[')
-        .skipThen(jsonValue.manySeparatedBy(chr(',').trim(whitespace)).trim(whitespace))
-        .thenSkip(chr(']'))
+    Lexical.chr('[')
+        .skipThen(Lexical.trim(jsonValue).zeroOrManySeparatedBy(Lexical.trim(Lexical.chr(','))))
+        .thenSkip(Lexical.chr(']'))
+        .map(FList::toList)
 );
-// leverage the static imported TextParsers.trim
+
 // Parser for JSON objects
+Parser<Character, Map.Entry<String, Object>> jsonProperty = jsonString
+    .thenSkip(Lexical.trim(Lexical.chr(':')))
+    .then(jsonValue)
+    .map(key -> value -> new AbstractMap.SimpleEntry<>(key, value));
+
 jsonObject.set(
-    chr('{')
-        .skipThen(
-            jsonString.trim(whitespace)
-                .thenSkip(trim(chr(':')))
-                .then(jsonValue)
-                .map(key -> value -> new AbstractMap.SimpleEntry<>(key, value))
-                .manySeparatedBy(trim(chr(',')));
-        )
-        .thenSkip(trim(chr('}')))
+    Lexical.chr('{')
+        .skipThen(Lexical.trim(jsonProperty).zeroOrManySeparatedBy(Lexical.trim(Lexical.chr(','))))
+        .thenSkip(Lexical.chr('}'))
         .map(entries -> {
             Map<String, Object> map = new HashMap<>();
             for (Map.Entry<String, Object> entry : entries) {
@@ -551,16 +593,16 @@ jsonObject.set(
         })
 );
 
-// Set the JSON value parser to handle all JSON value types
+// Any JSON value
 jsonValue.set(
-    trim(oneOf(
+    Combinators.oneOf(
         jsonString,
         jsonNumber,
         jsonBoolean,
         jsonNull,
-        jsonArray,
-        jsonObject
-    ))
+        jsonObject,
+        jsonArray
+    )
 );
 ```
 
@@ -593,11 +635,13 @@ Here are some tips for optimizing parser performance:
 - **regex(String pattern)**: Creates a parser that recognizes the given regex pattern
 - **chr(char c)**: Creates a parser that recognizes the given character
 - **oneOf(Parser... parsers)**: Creates a parser that tries each parser in sequence until one succeeds
-- **many()**: Creates a parser that applies the parser one or more times
-- **zeroOrMany()**: Creates a parser that applies the parser one or more times
+- **oneOrMore()**: Creates a parser that applies the parser one or more times
+- **many()**: Alias for `oneOrMore()`
+- **zeroOrMany()**: Creates a parser that applies the parser zero or more times
 - **optional()**: Creates a parser that optionally applies the parser
 - **between(Parser open, Parser close)**: Creates a parser that applies the parser between the open and close parsers
-- **manySeparatedBy(Parser separator)**: Creates a parser that applies the parser one or more times, separated by the separator parser
+- **oneOrMoreSeparatedBy(Parser separator)**: Creates a parser that applies the parser one or more times, separated by the separator parser
+- **manySeparatedBy(Parser separator)**: Alias for `oneOrMoreSeparatedBy()`
 - **zeroOrManySeparatedBy(Parser separator)**: Creates a parser that applies the parser zero or more times, separated by the separator parser
 
 ### Result Handling

@@ -11,9 +11,9 @@ public class SimpleHtmlParserTest {
     @Test
     public void testParseTag() {
         Result<Character, SimpleHtmlParser.Element> result = SimpleHtmlParser.parse("<div>");
-        assertTrue(result.isSuccess());
-        assertInstanceOf(SimpleHtmlParser.StartTag.class, result.get());
-        SimpleHtmlParser.StartTag tag = (SimpleHtmlParser.StartTag) result.get();
+        assertTrue(result.matches());
+        assertInstanceOf(SimpleHtmlParser.StartTag.class, result.value());
+        SimpleHtmlParser.StartTag tag = (SimpleHtmlParser.StartTag) result.value();
         assertEquals("div", tag.getName());
         assertTrue(tag.getAttributes().isEmpty());
     }
@@ -21,9 +21,9 @@ public class SimpleHtmlParserTest {
     @Test
     public void testParseTagWithAttributes() {
         Result<Character, SimpleHtmlParser.Element> result = SimpleHtmlParser.parse("<div id=\"main\" class=\"container\">");
-        assertTrue(result.isSuccess());
-        assertInstanceOf(SimpleHtmlParser.StartTag.class, result.get());
-        SimpleHtmlParser.StartTag tag = (SimpleHtmlParser.StartTag) result.get();
+        assertTrue(result.matches());
+        assertInstanceOf(SimpleHtmlParser.StartTag.class, result.value());
+        SimpleHtmlParser.StartTag tag = (SimpleHtmlParser.StartTag) result.value();
         assertEquals("div", tag.getName());
         assertEquals(2, tag.getAttributes().size());
         assertEquals("main", tag.getAttributes().get("id"));
@@ -33,27 +33,27 @@ public class SimpleHtmlParserTest {
     @Test
     public void testParseEndTag() {
         Result<Character, SimpleHtmlParser.Element> result = SimpleHtmlParser.parse("</div>");
-        assertTrue(result.isSuccess());
-        assertInstanceOf(SimpleHtmlParser.EndTag.class, result.get());
-        SimpleHtmlParser.EndTag tag = (SimpleHtmlParser.EndTag) result.get();
+        assertTrue(result.matches());
+        assertInstanceOf(SimpleHtmlParser.EndTag.class, result.value());
+        SimpleHtmlParser.EndTag tag = (SimpleHtmlParser.EndTag) result.value();
         assertEquals("div", tag.getName());
     }
 
     @Test
     public void testParseComment() {
         Result<Character, SimpleHtmlParser.Element> result = SimpleHtmlParser.parse("<!-- This is a comment -->");
-        assertTrue(result.isSuccess());
-        assertInstanceOf(SimpleHtmlParser.Declaration.class, result.get());
-        SimpleHtmlParser.Declaration comment = (SimpleHtmlParser.Declaration) result.get();
+        assertTrue(result.matches());
+        assertInstanceOf(SimpleHtmlParser.Declaration.class, result.value());
+        SimpleHtmlParser.Declaration comment = (SimpleHtmlParser.Declaration) result.value();
         assertEquals(" This is a comment ", comment.getAttributeValue("data"));
     }
 
     @Test
     public void testParseText() {
         Result<Character, SimpleHtmlParser.Element> result = SimpleHtmlParser.parse("Hello, world!");
-        assertTrue(result.isSuccess());
-        assertInstanceOf(SimpleHtmlParser.TextData.class, result.get());
-        SimpleHtmlParser.TextData text = (SimpleHtmlParser.TextData) result.get();
+        assertTrue(result.matches());
+        assertInstanceOf(SimpleHtmlParser.TextData.class, result.value());
+        SimpleHtmlParser.TextData text = (SimpleHtmlParser.TextData) result.value();
         assertEquals("Hello, world!", text.getText());
     }
 

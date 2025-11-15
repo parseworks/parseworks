@@ -1,4 +1,18 @@
-## 3.0.0
+## Unreleased (2.2.1-SNAPSHOT)
+
+- Enhanced error messaging system:
+  - Introduced TextInput with line/column/snippet utilities (CharArrayInput, CharSequenceInput, ReaderInput implement it)
+  - Failure improvements: custom messages and fullErrorMessage formatting
+  - Parser recovery APIs: recover, recoverWith; error aggregation via AggregateFailure and Parser.collectErrors
+- Documentation updates and examples aligned with current APIs:
+  - Correct use of Numeric.* parsers (replacing NumericParsers.*)
+  - Correct trim usage via TextParsers.trim(parser)
+  - Replaced nonexistent until() with manyUntil()/zeroOrManyUntil()
+  - Clarified chain associativity via Chains.chain(...) and chainLeft/chainRight
+  - Fixed API reference wording for zeroOrMany (zero-or-more)
+- Build: Java 17 baseline confirmed
+
+## 3.0.0 (Planned - Unreleased)
 
 **Breaking Changes**
 - Refactored Utility Parsers into separate files for better organization.

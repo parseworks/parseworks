@@ -247,6 +247,13 @@ public final class FList<T> extends LinkedList<T> implements Iterable<T> {
         return list.foldLeft(new StringBuilder(), StringBuilder::append).toString();
     }
 
+    public static String joinStrings(FList<?> list) {
+        if (list == null || list.isEmpty()) {
+            return "";
+        }
+        return list.foldLeft(new StringBuilder(), StringBuilder::append).toString();
+    }
+
     // Note: We must override all LinkedList's mutation methods to preserve immutability
     // This implementation omits these for brevity, but they should all throw UnsupportedOperationException
 }

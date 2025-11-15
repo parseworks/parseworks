@@ -57,13 +57,13 @@ public class ApplyBuilder<I, A, B> {
     public static <I, A, B> Parser<I, B> apply(Parser<I, Function<A, B>> functionProvider, Parser<I, A> valueParser) {
         return new Parser<>(in -> {
             Result<I, Function<A, B>> functionResult = functionProvider.apply(in);
-            if (functionResult.isError()) {
+            if (!functionResult.matches()) {
                 return functionResult.cast();
             }
-            Function<A, B> func = functionResult.get();
+            Function<A, B> func = functionResult.value();
             Input<I> in2 = functionResult.input();
             Result<I, A> valueResult = valueParser.apply(in2);
-            if (valueResult.isError()) {
+            if (!valueResult.matches()) {
                 return valueResult.cast();
             }
             return valueResult.map(func);
@@ -201,14 +201,14 @@ public class ApplyBuilder<I, A, B> {
     public <R> Parser<I, R> map(BiFunction<A, B, R> f) {
         return new Parser<>(in -> {
             Result<I, A> ra = pa.apply(in);
-            if (ra.isError()) {
+            if (!ra.matches()) {
                 return ra.cast();
             }
             Result<I, B> rb = pb.apply(ra.input());
-            if (rb.isError()) {
+            if (!rb.matches()) {
                 return rb.cast();
             }
-            return Result.success(rb.input(), f.apply(ra.get(), rb.get()));
+            return Result.success(rb.input(), f.apply(ra.value(), rb.value()));
         });
     }
 

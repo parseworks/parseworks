@@ -1,6 +1,10 @@
 package io.github.parseworks.html;
 
-import io.github.parseworks.*;
+import io.github.parseworks.FList;
+import io.github.parseworks.Input;
+import io.github.parseworks.Parser;
+import io.github.parseworks.Result;
+import io.github.parseworks.parsers.Lexical;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,9 +19,7 @@ public class SimpleHtmlParser {
 
     // Element types
     public static class Element {
-
         private String data;
-
         public String getData() {
             return data;
         }
@@ -109,16 +111,10 @@ public class SimpleHtmlParser {
 
     // Token parsers
     private static final Parser<Character, Character> SPACE = 
-        chr(c -> c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f');
+        Lexical.chr(c -> c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f');
 
-    private static final Parser<Character, String> WHITESPACE = 
-        SPACE.zeroOrMany().map(chars -> {
-            StringBuilder sb = new StringBuilder();
-            for (Character c : chars) {
-                sb.append(c);
-            }
-            return sb.toString();
-        });
+    private static final Parser<Character, Void> WHITESPACE =
+        SPACE.zeroOrMore().map(chars -> null);
 
     // Helper function to convert FList<Character> to String
     private static String charsToString(FList<Character> chars) {
@@ -130,22 +126,22 @@ public class SimpleHtmlParser {
     }
 
     private static final Parser<Character, String> NAME_IDENTIFIER = 
-        chr(c -> c != ' ' && c != '\t' && c != '\n' && c != '\r' && c != '\f' && c != '/' && c != '>')
-            .many()
+        Lexical.chr(c -> c != ' ' && c != '\t' && c != '\n' && c != '\r' && c != '\f' && c != '/' && c != '>')
+            .oneOrMore()
             .map(SimpleHtmlParser::charsToString);
 
     private static final Parser<Character, String> ATTR_IDENTIFIER = 
-        chr(c -> c != ' ' && c != '\t' && c != '\n' && c != '\r' && c != '\f' && c != '=' && c != '/' && c != '>')
-            .many()
+        Lexical.chr(c -> c != ' ' && c != '\t' && c != '\n' && c != '\r' && c != '\f' && c != '=' && c != '/' && c != '>')
+            .oneOrMore()
             .map(SimpleHtmlParser::charsToString);
 
     private static final Parser<Character, String> QUOTED_STRING = 
         oneOf(
-            chr('\'').skipThen(chr(c -> c != '\'').zeroOrMany()).thenSkip(chr('\'')),
-            chr('"').skipThen(chr(c -> c != '"').zeroOrMany()).thenSkip(chr('"'))
+            Lexical.chr('\'').skipThen(Lexical.chr(c -> c != '\'').zeroOrMore()).thenSkip(Lexical.chr('\'')),
+            Lexical.chr('"').skipThen(Lexical.chr(c -> c != '"').zeroOrMore()).thenSkip(Lexical.chr('"'))
         ).map(SimpleHtmlParser::charsToString);
 
-    private static final Parser<Character,Map<String,String>> COMMENT_BODY = any(Character.class).zeroOrManyUntil(string("--")).map(
+    private static final Parser<Character,Map<String,String>> COMMENT_BODY = any(Character.class).zeroOrManyUntil(Lexical.string("--")).map(
             data ->{
                 Map<String,String> result = new HashMap<>();
                 result.put("data",charsToString(data));
@@ -154,16 +150,20 @@ public class SimpleHtmlParser {
     );
 
     private static final Parser<Character, Character> TAG_START =
-        chr('<').peek(not(oneOf('!','#','/')));
+        Lexical.chr('<').peek(not(oneOf('!','#','/')));
+
+    record KV(String k, String v){};
 
 
     // Element parsers
     public static final Parser<Character, Element> element = Parser.ref();
-    private static final Parser<Character, Element> tag = Parser.ref();
-    private static final Parser<Character, Element> endTag = Parser.ref();
-    private static final Parser<Character, Element> declarationTag = Parser.ref();
+    private static final Parser<Character, Element> tagBody = Parser.ref();
+    private static final Parser<Character, Element> endTagBody = Parser.ref();
+    private static final Parser<Character, Element> declarationTagBody = Parser.ref();
     private static final Parser<Character, Map<String, String>> attributeList = Parser.ref();
-    private static final Parser<Character, Map<String, String>> attribute = Parser.ref();
+    private static final Parser<Character, KV> attribute = Parser.ref();
+
+
 
     static {
         // Initialize recursive parsers
@@ -173,97 +173,85 @@ public class SimpleHtmlParser {
             WHITESPACE.skipThen(
                 ATTR_IDENTIFIER.then(
                     WHITESPACE.skipThen(
-                        chr('=').skipThen(
-                            WHITESPACE.skipThen(
-                                oneOf(
-                                    QUOTED_STRING,
-                                    chr(c -> c != '>' && c != '"' && c != '\'' && c != ' ' && c != '\t' && c != '\n' && c != '\r')
-                                        .many()
-                                        .map(SimpleHtmlParser::charsToString)
-                                )
-                            )
-                        ).optional()
+                        Lexical.chr('=')
+                            .skipThen(WHITESPACE)
+                            .skipThen(oneOf(
+                                QUOTED_STRING,
+                                Lexical.chr(c -> c != '>' && c != '"' && c != '\'' && c != ' ' && c != '\t' && c != '\n' && c != '\r')
+                                    .oneOrMore() // avoid empty attr value
+                                    .map(FList::joinChars)
+                            ))
+                            .optional()
                     )
-                ).map(name -> valueOpt -> {
-                    Map<String, String> result = new HashMap<>();
-                    if (valueOpt.isPresent()) {
-                        result.put(name, valueOpt.orElse(""));
-                    } else {
-                        result.put(name, "");
-                    }
-                    return result;
-                })
+                ).map(name -> valOpt -> new KV(name, valOpt.orElse("")))
             )
         );
 
         // Attribute list parser - parse multiple attributes
         attributeList.set(
-            attribute.zeroOrMany().map(attrMaps -> {
-                Map<String, String> result = new HashMap<>();
-                for (Map<String, String> map : attrMaps) {
-                    result.putAll(map);
-                }
-                return result;
+            attribute.zeroOrMore().map(kvs -> {
+                Map<String,String> m = new HashMap<>(Math.max(4, kvs.size()*2));
+                for (KV kv : kvs) m.put(kv.k, kv.v);
+                return m;
             })
         );
 
         // Tag parser - parse a start tag with optional attributes
-        tag.set(
-            TAG_START.skipThen(
-                NAME_IDENTIFIER.then(
-                    attributeList.thenSkip(
-                        oneOf(
-                            string(">"),
-                            string("/>")
-                        )
+        tagBody.set(
+            NAME_IDENTIFIER.then(
+                attributeList.thenSkip(
+                    oneOf(
+                        Lexical.string(">"),
+                        Lexical.string("/>")
                     )
-                ).map(name -> attrs -> new StartTag(name, attrs))
-            )
+                )
+            ).map(name -> attrs -> new StartTag(name, attrs))
         );
 
         // End tag parser - parse an end tag
-        endTag.set(
-            string("</").skipThen(
-                NAME_IDENTIFIER.thenSkip(
-                    string(">")
-                )
+        endTagBody.set(
+            NAME_IDENTIFIER.thenSkip(
+                Lexical.string(">")
             ).map(EndTag::new)
         );
 
         // Comment parser - parse an HTML comment
-        declarationTag.set(
-            string("<!").skipThen(
-                NAME_IDENTIFIER.then(
-                    COMMENT_BODY
-                        .thenSkip(chr('>'))
-                        .or(attributeList.thenSkip(
-                            oneOf(
-                                string(">"),
-                                string("/>")
-                            )
+        declarationTagBody.set(
+            NAME_IDENTIFIER.then(
+                COMMENT_BODY
+                    .thenSkip(Lexical.chr('>'))
+                    .or(attributeList.thenSkip(
+                        oneOf(
+                            Lexical.string(">"),
+                            Lexical.string("/>")
                         )
                     )
-                ).map(name -> attributeList ->
-                        new Declaration(name,attributeList)
                 )
+            ).map(name -> attributeList ->
+                    new Declaration(name,attributeList)
             )
         );
 
-        // Raw text parser - parse text content
-        Parser<Character, Element> rawText = 
-            chr(c -> c != '<')
-                .many()
+
+        Parser<Character, Element> rawText =
+            Lexical.chr(c -> c != '<')
+                .oneOrMore() // avoid empty text nodes
                 .map(chars -> new TextData(charsToString(chars)));
 
-        // Element parser - parse any HTML element
-        element.set(
-            oneOf(
-                declarationTag,
-                tag,
-                endTag,
-                rawText
-            )
-        );
+        Parser<Character, Element> anyTag =
+            Lexical.chr('<').skipThen(
+                oneOf(
+                    // order: the next char after '<' decides which one is cheap to try first
+                    Lexical.chr('!').skipThen(declarationTagBody),
+                    Lexical.chr('/').skipThen(endTagBody),
+                    // fallback to start tag
+                    tagBody
+                )
+            );
+
+        // element tries either a tag (when '<') or raw text, without wasting work
+        element.set(oneOf(anyTag, rawText));
+
     }
 
     /**
@@ -288,13 +276,13 @@ public class SimpleHtmlParser {
 
         while (!currentInput.isEof()) {
             Result<Character, Element> result = element.parse(currentInput);
-            if (result.isError()) {
+            if (!result.matches()) {
                 // Skip one character and try again
                 currentInput = currentInput.next();
                 continue;
             }
 
-            elements = elements.append(result.get());
+            elements = elements.append(result.value());
             currentInput = result.input();
         }
 
