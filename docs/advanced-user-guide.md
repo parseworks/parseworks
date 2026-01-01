@@ -772,17 +772,17 @@ public void testNumberParser() {
     
     // Test valid inputs
     assertEquals(42, parser.parse(Input.of("42")).get());
-    assertEquals(0, parser.parse(Input.of("0")).get());
-    assertEquals(123456789, parser.parse(Input.of("123456789")).get());
+    assertEquals(0, parser.parse(Input.of("0")).value());
+    assertEquals(123456789, parser.parse(Input.of("123456789")).value());
     
     // Test invalid inputs
-    assertTrue(parser.parse(Input.of("abc")).isError());
-    assertTrue(parser.parse(Input.of("")).isError());
-    assertTrue(parser.parse(Input.of("42a")).isSuccess());  // Parses "42", leaves "a"
+    assertTrue(!parser.parse(Input.of("abc")).matches());
+    assertTrue(!parser.parse(Input.of("")).matches());
+    assertTrue(parser.parse(Input.of("42a")).matches());  // Parses "42", leaves "a"
     
     // Test with parseAll (consumes all input)
-    assertTrue(parser.parseAll(Input.of("42")).isSuccess());
-    assertTrue(parser.parseAll(Input.of("42a")).isError());  // Fails because "a" is left
+    assertTrue(parser.parseAll(Input.of("42")).matches());
+    assertTrue(!parser.parseAll(Input.of("42a")).matches());  // Fails because "a" is left
 }
 ```
 
@@ -916,7 +916,7 @@ Build your parser incrementally, testing each part as you go:
 ```java
 // Start with simple parsers
 Parser<Character, String> identifier = regex("[a-zA-Z][a-zA-Z0-9]*");
-assertTrue(identifier.parse(Input.of("abc123")).isSuccess());
+assertTrue(identifier.parse(Input.of("abc123")).matches());
 
 // Add more complex parsers
 Parser<Character, Statement> assignStatement = identifier
@@ -924,7 +924,7 @@ Parser<Character, Statement> assignStatement = identifier
     .then(number)
     .thenSkip(chr(';'))
     .map(var -> val -> new AssignStatement(var, val));
-assertTrue(assignStatement.parse(Input.of("abc123=42;")).isSuccess());
+assertTrue(assignStatement.parse(Input.of("abc123=42;")).matches());
 ```
 
 By following these advanced techniques and patterns, you can leverage the full power of parseWorks to create sophisticated parsers for a wide range of applications.

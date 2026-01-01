@@ -1666,7 +1666,7 @@ public class Parser<I, A> {
      *
      *     // Then try to parse a parenthesized expression
      *     if (input.atEnd() || input.value() != '(') {
-     *         return Result.failure("Expected number or expression", input);
+     *         return Result.failure(input, "Expected number or expression");
      *     }
      *
      *     // Parse: (expr + expr)
@@ -1676,23 +1676,23 @@ public class Parser<I, A> {
      *         return leftResult;
      *     }
      *
-     *     Result<Character, Character> opResult = plus.apply(leftResult.getRemaining());
+     *     Result<Character, Character> opResult = plus.apply(leftResult.input());
      *     if (!opResult.matches()) {
-     *         return Result.failure("Expected '+'", leftResult.getRemaining());
+     *         return Result.failure(leftResult.input(), "Expected '+'");
      *     }
      *
-     *     Result<Character, Integer> rightResult = expr.apply(opResult.getRemaining());
+     *     Result<Character, Integer> rightResult = expr.apply(opResult.input());
      *     if (!rightResult.matches()) {
      *         return rightResult;
      *     }
      *
-     *     Result<Character, Character> closeResult = closeParen.apply(rightResult.getRemaining());
+     *     Result<Character, Character> closeResult = closeParen.apply(rightResult.input());
      *     if (!closeResult.matches()) {
-     *         return Result.failure("Expected ')'", rightResult.getRemaining());
+     *         return Result.failure(rightResult.input(), "Expected ')'");
      *     }
      *
-     *     int result = leftResult.getValue() + rightResult.getValue();
-     *     return Result.success(result, closeResult.getRemaining());
+     *     int resultValue = leftResult.value() + rightResult.value();
+     *     return Result.success(closeResult.input(), resultValue);
      * });
      *
      * // Now expr can parse recursive expressions like "5" or "(1+2)" or "((1+2)+3)"
@@ -1994,7 +1994,7 @@ public class Parser<I, A> {
      * <ol>
      *   <li>Receives an {@link Input} object representing the current parsing state</li>
      *   <li>Processes the input according to the parser's grammar rules</li>
-     *   <li>Returns a {@link Result} object containing either a successful parse result or an error</li>
+     *   <li>Returns a {@link Result} object containing either a Match or a NoMatch result</li>
      * </ol>
      * <p>
      * This constructor is the primary way to create custom parsers with specific parsing logic. Most users
@@ -2003,8 +2003,8 @@ public class Parser<I, A> {
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>The apply handler should return a successful result with the parsed value if parsing succeeds</li>
-     *   <li>The apply handler should return a failure result with an error message if parsing fails</li>
+     *   <li>The apply handler should return a Match result with the parsed value if parsing succeeds</li>
+     *   <li>The apply handler should return a NoMatch result with an error message if parsing fails</li>
      *   <li>The apply handler is responsible for properly advancing the input position on success</li>
      *   <li>Thread safety is maintained as parsers are immutable after construction</li>
      * </ul>
@@ -2014,15 +2014,15 @@ public class Parser<I, A> {
      * // Create a custom parser that recognizes a specific pattern
      * Parser<Character, String> customParser = new Parser<>(input -> {
      *     if (input.atEnd()) {
-     *         return Result.failure("Unexpected end of input", input);
+     *         return Result.failure(input, "Unexpected end of input");
      *     }
      *
      *     // Check for a specific pattern
      *     if (input.value() == 'a' && input.value(1) == 'b') {
-     *         return Result.success("ab", input.advance(2));
+     *         return Result.success(input.advance(2), "ab");
      *     }
      *
-     *     return Result.failure("Expected 'ab'", input);
+     *     return Result.failure(input, "Expected 'ab'");
      * });
      * }</pre>
      *

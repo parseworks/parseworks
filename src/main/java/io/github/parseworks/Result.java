@@ -9,8 +9,8 @@ import java.util.function.Function;
 
 /**
  * The `Result` interface represents the outcome of applying a parser to an input.
- * It can either be a success, containing the parsed value and the remaining input,
- * or a failure, containing an error message and the input at which the failure occurred.
+ * It can either be a Match result, containing the parsed value and the remaining input,
+ * or a NoMatch result, containing an error message and the input at which the failure occurred.
  *
  * @param <I> the type of the input symbols
  * @param <A> the type of the parsed value
@@ -20,42 +20,42 @@ import java.util.function.Function;
 public interface Result<I, A> {
 
     /**
-     * Creates a successful result with the given value and remaining input.
+     * Creates a Match result with the given value and remaining input.
      *
      * @param next  the remaining input
      * @param value the parsed value
      * @param <I>   the type of the input symbols
      * @param <A>   the type of the parsed value
-     * @return a successful result
+     * @return a Match result
      */
     static <I, A> Result<I, A> success(Input<I> next, A value) {
         return new Match<>(value, next);
     }
 
     /**
-     * Creates a failure result that wraps another failure as its cause, preserving the chain.
+     * Creates a NoMatch result that wraps another NoMatch as its cause, preserving the chain.
      * Uses the error type from the cause.
      *
      * @param input    the input at which the failure occurred
      * @param expected the expected input
-     * @param cause    the underlying failure to chain as the cause
+     * @param cause    the underlying NoMatch to chain as the cause
      * @param <I>      the type of the input symbols
      * @param <A>      the type of the parsed value
-     * @return a failure result that chains the given cause
+     * @return a NoMatch result that chains the given cause
      */
     static <I, A> Result<I, A> failure(Input<I> input, String expected, NoMatch<?, ?> cause) {
         return new NoMatch<>(input, expected, cause);
     }
 
     /**
-     * Creates a failure result with the given expected value.
+     * Creates a NoMatch result with the given expected value.
      * Uses the GENERIC error type by default.
      *
      * @param input    the input at which the failure occurred
      * @param expected the expected input
      * @param <I>      the type of the input symbols
      * @param <A>      the type of the parsed value
-     * @return a failure result
+     * @return a NoMatch result
      */
 
     static <I, A> Result<I, A> failure(Input<I> input, String expected) {
@@ -64,40 +64,40 @@ public interface Result<I, A> {
 
 
     /**
-     * Creates an unexpected EOF error failure result.
+     * Creates an unexpected EOF error NoMatch result.
      * Use this when the input ended prematurely.
      *
      * @param input    the input at which the failure occurred
      * @param expected what was expected before EOF
      * @param <I>      the type of the input symbols
      * @param <A>      the type of the parsed value
-     * @return a failure result with UNEXPECTED_EOF error type
+     * @return a NoMatch result with UNEXPECTED_EOF error type
      */
     static <I, A> Result<I, A> unexpectedEofError(Input<I> input, String expected) {
         return failure(input, expected);
     }
 
     /**
-     * Creates an expected EOF error failure result.
+     * Creates an expected EOF error NoMatch result.
      * Use this when there is trailing content when EOF was expected.
      *
      * @param input the input at which the failure occurred
      * @param <I>   the type of the input symbols
      * @param <A>   the type of the parsed value
-     * @return a failure result with EXPECTED_EOF error type
+     * @return a NoMatch result with EXPECTED_EOF error type
      */
     static <I, A> Result<I, A> expectedEofError(Input<I> input) {
         return failure(input, "end of input");
     }
 
     /**
-     * Creates a recursion error failure result.
+     * Creates a recursion error NoMatch result.
      * Use this when infinite recursion is detected.
      *
      * @param input the input at which the failure occurred
      * @param <I>   the type of the input symbols
      * @param <A>   the type of the parsed value
-     * @return a failure result with RECURSION error type
+     * @return a NoMatch result with RECURSION error type
      */
     static <I, A> Result<I, A> recursionError(Input<I> input) {
         return failure(input, "no infinite recursion");
@@ -105,26 +105,26 @@ public interface Result<I, A> {
 
 
     /**
-     * Creates a validation error failure result.
+     * Creates a validation error NoMatch result.
      * Use this when input parsed but failed validation.
      *
      * @param input       the input at which the failure occurred
      * @param <I>         the type of the input symbols
      * @param <A>         the type of the parsed value
-     * @return a failure result with VALIDATION error type
+     * @return a NoMatch result with VALIDATION error type
      */
     static <I, A> Result<I, A> validationError(Input<I> input, String expected) {
         return failure(input, expected);
     }
 
     /**
-     * Creates an internal error failure result.
+     * Creates an internal error NoMatch result.
      * Use this for unexpected errors in parser logic.
      *
      * @param input   the input at which the failure occurred
      * @param <I>     the type of the input symbols
      * @param <A>     the type of the parsed value
-     * @return a failure result with INTERNAL error type
+     * @return a NoMatch result with INTERNAL error type
      */
     static <I, A> Result<I, A> internalError(Input<I> input) {
         return failure(input, "parser to function correctly");
@@ -135,18 +135,18 @@ public interface Result<I, A> {
     }
 
     /**
-     * Returns true if this result is a success.
+     * Returns true if this result is a Match.
      *
-     * @return true if this result is a success
+     * @return true if this result is a Match
      */
     boolean matches();
 
     /**
-     * Returns the parsed value if this result is a success.
-     * Throws an exception if this result is a failure.
+     * Returns the parsed value if this result is a Match.
+     * Throws an exception if this result is a NoMatch.
      *
      * @return the parsed value
-     * @throws java.lang.RuntimeException if this result is a failure
+     * @throws java.lang.RuntimeException if this result is a NoMatch
      */
      A value();
 
@@ -175,27 +175,27 @@ public interface Result<I, A> {
      <B> Result<I, B> map(java.util.function.Function<A, B> mapper);
 
     /**
-     * Returns the error message if this result is a failure.
+     * Returns the error message if this result is a NoMatch.
      *
-     * @return the error message, or an empty string if this result is a success
+     * @return the error message, or an empty string if this result is a Match
      */
      String error();
 
     /**
-     * Returns an Optional containing the parsed value if this result is a success.
-     * If this result is a failure, returns an empty Optional.
+     * Returns an Optional containing the parsed value if this result is a Match.
+     * If this result is a NoMatch, returns an empty Optional.
      *
-     * @return an Optional containing the parsed value, or an empty Optional if this result is a failure
+     * @return an Optional containing the parsed value, or an empty Optional if this result is a NoMatch
      */
     default Optional<A> toOptional() {
         return matches() ? Optional.of(value()) : Optional.empty();
     }
 
     /**
-     * Returns an Optional containing the error message if this result is a failure.
-     * If this result is a success, returns an empty Optional.
+     * Returns an Optional containing the error message if this result is a NoMatch.
+     * If this result is a Match, returns an empty Optional.
      *
-     * @return an Optional containing the error message, or an empty Optional if this result is a success
+     * @return an Optional containing the error message, or an empty Optional if this result is a Match
      */
     default Optional<String> errorOptional() {
         return !matches() ? Optional.of(error()) : Optional.empty();
@@ -203,8 +203,8 @@ public interface Result<I, A> {
 
     /**
      * Apply one of two functions to this value.
-     * @param success   the function to be applied to a successful value
-     * @param failure   the function to be applied to a failure value
+     * @param success   the function to be applied to a Match result
+     * @param failure   the function to be applied to a NoMatch result
      * @param <B>       the function return type
      * @return          the result of applying either function
      */

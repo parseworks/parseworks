@@ -100,8 +100,8 @@ An `Input<I>` represents a position in a stream of tokens. It provides methods t
 ### Result
 
 A `Result<I, A>` represents the outcome of parsing. It can be either:
-- A success, containing the parsed value and the remaining input
-- A failure, containing an error message and the position where the failure occurred
+- A `Match`, containing the parsed value and the remaining input
+- A `NoMatch`, containing an error message and the position where the failure occurred
 
 ### Combinators
 
@@ -136,8 +136,8 @@ Parser<Character, String> helloParser = string("hello");
 Result<Character, String> result = helloParser.parse(Input.of("hello world"));
 
 // Check if parsing succeeded
-if (result.isSuccess()) {
-    System.out.println("Parsed: " + result.get());
+if (result.matches()) {
+    System.out.println("Parsed: " + result.value());
     System.out.println("Remaining input: " + result.input().current());
 } else {
     System.out.println("Parsing failed: " + result.error());
@@ -149,8 +149,8 @@ if (result.isSuccess()) {
 ```java
 // Alternative way to handle the result
 String message = result.handle(
-    success -> "Successfully parsed: " + success.get(),
-    failure -> "Parsing failed: " + failure.error()
+    match -> "Successfully parsed: " + match.value(),
+    noMatch -> "Parsing failed: " + noMatch.error()
 );
 System.out.println(message);
 ```
@@ -261,13 +261,13 @@ Result<Character, FList<KeyValue>> result = configParser.parse(Input.of(config))
 
 // Process the result
 result.handle(
-    keyValues -> {
+    match -> {
         System.out.println("Configuration loaded:");
-        keyValues.forEach(kv -> System.out.println("  " + kv.getKey() + ": " + kv.getValue()));
+        match.value().forEach(kv -> System.out.println("  " + kv.getKey() + ": " + kv.getValue()));
         return null;
     },
-    error -> {
-        System.err.println("Failed to parse configuration: " + error.error());
+    noMatch -> {
+        System.err.println("Failed to parse configuration: " + noMatch.error());
         return null;
     }
 );
@@ -321,13 +321,13 @@ String validInput = "{name=John,age=30}";
 Result<Character, Map<String, String>> validResult = objectParser.parse(Input.of(validInput));
 
 validResult.handle(
-    map -> {
+    match -> {
         System.out.println("Successfully parsed object:");
-        map.forEach((k, v) -> System.out.println("  " + k + ": " + v));
+        match.value().forEach((k, v) -> System.out.println("  " + k + ": " + v));
         return null;
     },
-    error -> {
-        System.err.println("Parsing failed: " + error.error());
+    noMatch -> {
+        System.err.println("Parsing failed: " + noMatch.error());
         return null;
     }
 );
@@ -340,13 +340,13 @@ String invalidInput = "{name=John,age="; // Missing closing brace
 Result<Character, Map<String, String>> invalidResult = objectParser.parse(Input.of(invalidInput));
 
 invalidResult.handle(
-    map -> {
+    match -> {
         System.out.println("Successfully parsed object:");
-        map.forEach((k, v) -> System.out.println("  " + k + ": " + v));
+        match.value().forEach((k, v) -> System.out.println("  " + k + ": " + v));
         return null;
     },
-    error -> {
-        System.err.println("Parsing failed: " + error.fullErrorMessage());
+    noMatch -> {
+        System.err.println("Parsing failed: " + noMatch.error());
         return null;
     }
 );
@@ -392,7 +392,7 @@ Parser<Character, String> identifier =
         .expecting("identifier");
 
 Result<Character, String> r = identifier.parse("123");
-if (r.isError()) {
+if (!r.matches()) {
     System.out.println(r.error());
     // Output includes something like: "... Expected identifier but found '1' ..."
 }
@@ -512,12 +512,12 @@ String[] expressions = {
 for (String expression : expressions) {
     Result<Character, Integer> result = expr.parseAll(Input.of(expression));
     result.handle(
-        value -> {
-            System.out.println(expression + " = " + value);
+        match -> {
+            System.out.println(expression + " = " + match.value());
             return null;
         },
-        error -> {
-            System.err.println("Failed to parse " + expression + ": " + error.error());
+        noMatch -> {
+            System.err.println("Failed to parse " + expression + ": " + noMatch.error());
             return null;
         }
     );
@@ -646,11 +646,10 @@ Here are some tips for optimizing parser performance:
 
 ### Result Handling
 
-- **isSuccess()**: Returns true if the result is a success
-- **isError()**: Returns true if the result is a failure
-- **get()**: Returns the parsed value if the result is a success
-- **error()**: Returns the error if the result is a failure
-- **handle(Function<A, R> onSuccess, Function<Failure<I>, R> onFailure)**: Handles both success and failure cases
+- **matches()**: Returns true if the result is a Match
+- **error()**: Returns the error if the result is a NoMatch
+- **value()**: Returns the parsed value if the result is a Match
+- **handle(Function<Result<I, A>, R> onMatch, Function<Result<I, A>, R> onNoMatch)**: Handles both Match and NoMatch cases
 
 ## Troubleshooting
 
@@ -704,11 +703,11 @@ If you're experiencing performance issues with complex parsers, try:
 3. **Check the error position**:
    ```java
    result.handle(
-       success -> { /* ... */ },
-       failure -> {
-           System.err.println("Error at position " + failure.getPosition());
-           System.err.println("Input: " + failure.getInput());
-           System.err.println("Message: " + failure.error());
+       match -> { /* ... */ },
+       noMatch -> {
+           System.err.println("Error at position " + noMatch.input().position());
+           System.err.println("Input: " + noMatch.input());
+           System.err.println("Message: " + noMatch.error());
            return null;
        }
    );

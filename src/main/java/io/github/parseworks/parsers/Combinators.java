@@ -109,7 +109,7 @@ public class Combinators {
      * @param supplier a supplier that creates the exception to throw
      * @param <I>      the type of the input elements
      * @return a parser that always throws the specified exception
-     * @see #fail() for a parser that fails without throwing an exception
+     * @see #fail() for a parser that results in a NoMatch without throwing an exception
      * @see Parser#or(Parser) for combining parsers with fallback behavior (not applicable to throwError)
      */
     public static <I> Parser<I, ? super Object> throwError(Supplier<? extends Exception> supplier) {
@@ -258,9 +258,9 @@ public class Combinators {
      * <p>
      * When applied, this parser will:
      * <ul>
-     *   <li>Always return a failure result</li>
+     *   <li>Always return a NoMatch result</li>
      *   <li>Not consume any input</li>
-     *   <li>Include a generic "fail" message in the error result</li>
+     *   <li>Include a generic "fail" message in the NoMatch result</li>
      * </ul>
      * <p>
      * Example usage:
@@ -299,7 +299,7 @@ public class Combinators {
      * <p>
      * The parsing process is simple:
      * <ol>
-     *   <li>The parser immediately returns a failure result</li>
+     *   <li>The parser immediately returns a NoMatch result</li>
      *   <li>The failure contains the specified expected description</li>
      *   <li>The failure is categorized with the specified error type</li>
      *   <li>The input position remains unchanged (no input is consumed)</li>
@@ -336,8 +336,8 @@ public class Combinators {
      * @param expected the expected input description
      * @param <I>      the type of the input symbols
      * @param <A>      the type of the parsed value
-     * @return a parser that always fails with the specified error type
-     * @see #fail() for a generic failure parser
+     * @return a parser that always fails with a NoMatch result
+     * @see #fail() for a generic NoMatch parser
      */
     public static <I, A> Parser<I, A> fail(String expected) {
         return new Parser<>(in -> Result.failure(in, expected));
@@ -346,14 +346,14 @@ public class Combinators {
     /**
      * Creates a parser that succeeds if the provided parser fails, returning the current input element.
      * <p>
-     * The {@code not} method creates a negation parser that inverts the success/failure behavior of another parser.
+     * The {@code not} method creates a negation parser that inverts the Match/NoMatch behavior of another parser.
      * This is useful for creating parsers that match anything except a specific pattern. The parsing process
      * works as follows:
      * <ol>
      *   <li>Applies the provided parser to the input without consuming any input</li>
-     *   <li>If the provided parser fails, this parser succeeds and returns the current input element</li>
-     *   <li>If the provided parser succeeds, this parser fails with a validation error</li>
-     *   <li>If the input is at EOF, this parser fails</li>
+     *   <li>If the provided parser results in a NoMatch, this parser succeeds (Match) and returns the current input element</li>
+     *   <li>If the provided parser results in a Match, this parser fails (NoMatch) with a validation error</li>
+     *   <li>If the input is at EOF, this parser fails (NoMatch)</li>
      * </ol>
      * <p>
      * This method is particularly useful for creating parsers that exclude certain patterns or for
