@@ -2,6 +2,7 @@ package io.github.parseworks.impl.result;
 
 import io.github.parseworks.Input;
 import io.github.parseworks.Result;
+import io.github.parseworks.ResultType;
 
 import java.util.function.Function;
 
@@ -15,6 +16,11 @@ public record Match<I, A>(
         A value,
         Input<I> input
 ) implements Result<I, A> {
+
+    @Override
+    public ResultType type() {
+        return ResultType.MATCH;
+    }
 
     @Override
     public boolean matches() {

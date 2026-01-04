@@ -45,7 +45,7 @@ public record CharSequenceInput(int position, CharSequence data) implements Text
     }
 
     private static int totalLines(CharSequence data) {
-        if (data.isEmpty()) return 1; // treat empty as single empty line
+        if (data.isEmpty()) return 1; // treat empty as a single empty line
         int lines = 1;
         for (int i = 0; i < data.length(); i++) {
             if (data.charAt(i) == '\n') lines++;
@@ -70,7 +70,7 @@ public record CharSequenceInput(int position, CharSequence data) implements Text
     }
 
     /**
-     * Move to next position.
+     * Move to the next position.
      */
     @Override
     public Input<Character> next() {

@@ -1,15 +1,24 @@
 ## Unreleased (2.2.1-SNAPSHOT)
 
+- Breaking Changes:
+  - Renamed `ResultType.PARSE` to `ResultType.MATCH`.
+  - Removed `Parser.atomic()` in favor of `Combinators.attempt(Parser)`.
+  - Removed `Result.validationError()`.
+  - Changed `Parser.parse(Input, boolean)` to return a `PartialMatch` (which is a `Failure`) if the input is not fully consumed, instead of a generic error.
 - Enhanced error messaging system:
-  - Introduced TextInput with line/column/snippet utilities (CharArrayInput, CharSequenceInput, ReaderInput implement it)
-  - Failure improvements: custom messages and fullErrorMessage formatting
-  - Parser recovery APIs: recover, recoverWith; error aggregation via AggregateFailure and Parser.collectErrors
+  - Introduced `Failure` interface; `NoMatch` and `PartialMatch` now implement it.
+  - Introduced `TextInput` interface with line/column/snippet utilities (`CharArrayInput`, `CharSequenceInput`, `ReaderInput` implement it).
+  - Failure improvements: custom messages and improved formatting.
+  - Parser recovery APIs: `recover`, `recoverWith`; error aggregation via `Parser.collectErrors`.
 - Documentation updates and examples aligned with current APIs:
-  - Correct use of Numeric.* parsers (replacing NumericParsers.*)
-  - Correct trim usage via TextParsers.trim(parser)
-  - Replaced nonexistent until() with manyUntil()/zeroOrManyUntil()
-  - Clarified chain associativity via Chains.chain(...) and chainLeft/chainRight
-  - Fixed API reference wording for zeroOrMany (zero-or-more)
+  - Updated `README.md` to use `Result.value()` instead of `Result.get()`.
+  - Updated `Combinators.java` KDocs to remove nonexistent `fail(String, ErrorType)`.
+  - Updated `docs/advanced-user-guide.md` to remove `failValidation` and `failSyntax`.
+  - Correct use of `Numeric.*` parsers (replacing `NumericParsers.*`).
+  - Correct trim usage via `TextParsers.trim(parser)`.
+  - Replaced nonexistent `until()` with `manyUntil()`/`zeroOrManyUntil()`.
+  - Clarified chain associativity via `Chains.chain(...)` and `chainLeft`/`chainRight`.
+  - Fixed API reference wording for `zeroOrMany` (zero-or-more).
 - Build: Java 17 baseline confirmed
 
 ## 3.0.0 (Planned - Unreleased)

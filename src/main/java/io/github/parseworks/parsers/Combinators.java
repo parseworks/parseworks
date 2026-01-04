@@ -1,10 +1,7 @@
 package io.github.parseworks.parsers;
 
-import io.github.parseworks.ApplyBuilder;
-import io.github.parseworks.Input;
-import io.github.parseworks.Parser;
-import io.github.parseworks.Result;
-import io.github.parseworks.impl.result.NoMatch;
+import io.github.parseworks.*;
+import io.github.parseworks.impl.result.PartialMatch;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,7 +13,7 @@ import java.util.function.Supplier;
 
 /**
  * The `Combinators` class provides a set of combinator functions for creating complex parsers
- * by combining simpler ones. These combinators include choice, sequence, oneOrMore, and satisfy.
+ * by combining simpler ones. These combinators include choice, sequence, and satisfy.
  *
  * @author jason bailey
  * @version $Id: $Id
@@ -286,14 +283,13 @@ public class Combinators {
     }
 
     /**
-     * Creates a parser that always fails with a specific error message and type.
+     * Creates a parser that always fails with a specific error message.
      * <p>
-     * The {@code fail(String, ErrorType)} method extends the basic {@link #fail()} method by allowing
-     * you to specify both the expected input description and the type of error to report. This gives
-     * you more control over the error message and categorization, which can be useful for:
+     * The {@code fail(String)} method extends the basic {@link #fail()} method by allowing
+     * you to specify the expected input description. This gives
+     * you more control over the error message, which can be useful for:
      * <ol>
      *   <li>Creating domain-specific error messages that are more meaningful to users</li>
-     *   <li>Categorizing errors for different handling strategies</li>
      *   <li>Providing more context about why parsing failed</li>
      * </ol>
      * <p>
@@ -301,7 +297,6 @@ public class Combinators {
      * <ol>
      *   <li>The parser immediately returns a NoMatch result</li>
      *   <li>The failure contains the specified expected description</li>
-     *   <li>The failure is categorized with the specified error type</li>
      *   <li>The input position remains unchanged (no input is consumed)</li>
      * </ol>
      * <p>
@@ -310,25 +305,24 @@ public class Combinators {
      *   <li>Always fails without examining the input</li>
      *   <li>Never consumes any input elements</li>
      *   <li>Returns the original input position in the failure result</li>
-     *   <li>Uses the specified error type for categorization</li>
      * </ul>
      * <p>
      * Example usage:
      * <pre>{@code
-     * // Create a parser that fails with a syntax error
+     * // Create a parser that fails with a specific message
      * Parser<Character, String> syntaxError =
-     *     fail("properly formatted JSON object", ErrorType.SYNTAX);
+     *     fail("properly formatted JSON object");
      *
-     * // Create a parser that fails with a validation error
+     * // Create a parser that fails with a message
      * Parser<Character, Integer> validationError =
-     *     fail("positive integer", ErrorType.VALIDATION);
+     *     fail("positive integer");
      *
-     * // Use in conditional parsing with specific error types
+     * // Use in conditional parsing
      * Parser<Character, User> parseUser = input -> {
      *     if (isAuthenticated) {
      *         return userParser.apply(input);
      *     } else {
-     *         return fail("authentication", ErrorType.AUTHORIZATION).apply(input);
+     *         return fail("authentication").apply(input);
      *     }
      * };
      * }</pre>
@@ -398,7 +392,7 @@ public class Combinators {
             if (result.matches() || !result.input().hasMore()) {
                 // Provide more context about what was found that shouldn't have matched
                 String found = result.input().hasMore() ? String.valueOf(in.current()) : "end of input";
-                return Result.validationError(in, "parser succeeded when we wanted it to fail");
+                return Result.failure(in, "parser succeeded when we wanted it to fail");
             }
             return Result.success(in, in.current());
 
@@ -459,7 +453,7 @@ public class Combinators {
             }
             I item = in.current();
             if (Objects.equals(item, value)) {
-                return Result.validationError(in, "any value except " + value);
+                return Result.failure(in, "any value except " + value);
             } else {
                 return Result.success(in.next(), item);
             }
@@ -523,7 +517,7 @@ public class Combinators {
             if (in.isEof()) {
                 return Result.unexpectedEofError(in, "eof before `oneOf` parser");
             }
-            List<NoMatch<I, A>> failures = null;
+            List<Failure<I, A>> failures = null;
 
             for (Parser<I, A> parser : parsers) {
                 Result<I, A> result = parser.apply(in);
@@ -533,8 +527,7 @@ public class Combinators {
                 if (failures == null){
                     failures = new ArrayList<>();
                 }
-                NoMatch<I,A> fail = ((NoMatch<I, A>) result);
-                failures.add(fail);
+                failures.add((Failure<I, A>)result);
             }
             assert failures != null;
             return Result.failure(failures);
@@ -802,5 +795,25 @@ public class Combinators {
         });
     }
 
+
+    /**
+     * Creates a parser that backtracks on failure.
+     * <p>
+     * If the parser fails, it will report the failure at the original input position,
+     * effectively undoing any input consumption that occurred before the failure.
+     *
+     * @param parser the parser to make atomic
+     * @param <I>    the type of the input symbols
+     * @param <A>    the type of the parsed value
+     * @return an atomic version of the provided parser
+     */
+    @SuppressWarnings("unchecked")
+    public static <I, A> Parser<I, A> attempt(Parser<I, A> parser) {
+        return new Parser<>(in -> {
+            Result<I, A> res = parser.apply(in);
+            if (res.matches()) return res;
+            return new PartialMatch<>(in, (Failure<I, A>) res);
+        });
+    }
 
 }

@@ -7,20 +7,30 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
- * An immutable functional list implementation that extends LinkedList.
- * Despite extending a mutable collection, this class preserves immutability
- * by overriding all mutating operations to throw exceptions.
+ * An immutable functional list implementation.
+ * This class preserves immutability by wrapping a List and throwing
+ * UnsupportedOperationException for all mutating operations.
  *
  * @param <T> the type of elements in this list
  * @author jason bailey
  */
-public final class FList<T> extends LinkedList<T> implements Iterable<T> {
+public final class FList<T> extends AbstractList<T> implements Iterable<T> {
+
+    private final List<T> delegate;
 
     /**
      * Constructs an empty {@code FList}.
      */
     public FList() {
-        super();
+        this.delegate = Collections.emptyList();
+    }
+
+    /**
+     * Internal constructor that takes a list directly.
+     * It is assumed the list passed here is either already immutable or will not be modified.
+     */
+    private FList(List<T> list) {
+        this.delegate = Collections.unmodifiableList(list);
     }
 
     /**
@@ -30,9 +40,10 @@ public final class FList<T> extends LinkedList<T> implements Iterable<T> {
      * @param tail the rest of the list (another FList)
      */
     public FList(T head, FList<T> tail) {
-        super();
-        super.add(head);
-        super.addAll(tail);
+        List<T> list = new ArrayList<>(tail.size() + 1);
+        list.add(head);
+        list.addAll(tail);
+        this.delegate = Collections.unmodifiableList(list);
     }
 
     /**
@@ -42,9 +53,10 @@ public final class FList<T> extends LinkedList<T> implements Iterable<T> {
      * @param collection the collection to copy elements from
      */
     public FList(Collection<? extends T> collection) {
-        super();
-        if (collection != null) {
-            super.addAll(collection);
+        if (collection == null || collection.isEmpty()) {
+            this.delegate = Collections.emptyList();
+        } else {
+            this.delegate = Collections.unmodifiableList(new ArrayList<>(collection));
         }
     }
 
@@ -57,11 +69,20 @@ public final class FList<T> extends LinkedList<T> implements Iterable<T> {
      */
     @SafeVarargs
     public static <T> FList<T> of(T... elements) {
-        FList<T> result = new FList<>();
-        if (elements != null && elements.length > 0) {
-            Collections.addAll(result, elements);
+        if (elements == null || elements.length == 0) {
+            return new FList<>();
         }
-        return result;
+        return new FList<>(Arrays.asList(elements));
+    }
+
+    @Override
+    public T get(int index) {
+        return delegate.get(index);
+    }
+
+    @Override
+    public int size() {
+        return delegate.size();
     }
 
     /**
@@ -71,9 +92,10 @@ public final class FList<T> extends LinkedList<T> implements Iterable<T> {
      * @return a new {@code FList} with the new element at the beginning
      */
     public FList<T> prepend(T head) {
-        FList<T> result = new FList<>(this);
-        result.addFirst(head);
-        return result;
+        List<T> list = new ArrayList<>(size() + 1);
+        list.add(head);
+        list.addAll(delegate);
+        return new FList<>(list);
     }
 
     /**
@@ -82,9 +104,9 @@ public final class FList<T> extends LinkedList<T> implements Iterable<T> {
      * @return a new {@code FList} with the elements in reverse order
      */
     public FList<T> reverse() {
-        FList<T> result = new FList<>(this);
-        Collections.reverse(result);
-        return result;
+        List<T> list = new ArrayList<>(delegate);
+        Collections.reverse(list);
+        return new FList<>(list);
     }
 
     /**
@@ -98,7 +120,7 @@ public final class FList<T> extends LinkedList<T> implements Iterable<T> {
         if (isEmpty()) {
             throw new NoSuchElementException("tail() of empty list");
         }
-        return new FList<>(subList(1, size()));
+        return new FList<>(delegate.subList(1, size()));
     }
 
     /**
@@ -112,33 +134,35 @@ public final class FList<T> extends LinkedList<T> implements Iterable<T> {
         if (isEmpty()) {
             throw new NoSuchElementException("head() of empty list");
         }
-        return getFirst();
+        return delegate.get(0);
     }
 
     // --- Functional "modification" methods returning new FList instances ---
 
     public FList<T> append(T element) {
-        FList<T> result = new FList<>(this);
-        result.addLast(element);
-        return result;
+        List<T> list = new ArrayList<>(size() + 1);
+        list.addAll(delegate);
+        list.add(element);
+        return new FList<>(list);
     }
 
     public FList<T> appendAll(Collection<? extends T> collection) {
         if (collection == null || collection.isEmpty()) {
             return this;
         }
-        FList<T> result = new FList<>(this);
-        result.addAll(collection);
-        return result;
+        List<T> list = new ArrayList<>(size() + collection.size());
+        list.addAll(delegate);
+        list.addAll(collection);
+        return new FList<>(list);
     }
 
     public FList<T> replace(int index, T element) {
         if (index < 0 || index >= size()) {
             throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size());
         }
-        FList<T> result = new FList<>(this);
-        result.set(index, element);
-        return result;
+        List<T> list = new ArrayList<>(delegate);
+        list.set(index, element);
+        return new FList<>(list);
     }
 
     public FList<T> removeElement(T element) {
@@ -146,43 +170,43 @@ public final class FList<T> extends LinkedList<T> implements Iterable<T> {
         if (index == -1) {
             return this;
         }
-        FList<T> result = new FList<>(this);
-        result.remove(index);
-        return result;
+        List<T> list = new ArrayList<>(delegate);
+        list.remove(index);
+        return new FList<>(list);
     }
 
     public FList<T> removeAt(int index) {
         if (index < 0 || index >= size()) {
             throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size());
         }
-        FList<T> result = new FList<>(this);
-        result.remove(index);
-        return result;
+        List<T> list = new ArrayList<>(delegate);
+        list.remove(index);
+        return new FList<>(list);
     }
 
     public <R> FList<R> map(Function<? super T, ? extends R> mapper) {
         if (isEmpty()) {
             return new FList<>();
         }
-        FList<R> result = new FList<>();
+        List<R> list = new ArrayList<>(size());
         for (T item : this) {
-            result.add(mapper.apply(item));
+            list.add(mapper.apply(item));
         }
-        return result;
+        return new FList<>(list);
     }
 
     public FList<T> filter(Predicate<? super T> predicate) {
         if (isEmpty()) {
             return this;
         }
-        FList<T> result = new FList<>();
+        List<T> list = new ArrayList<>(size());
         for (T item : this) {
             if (predicate.test(item)) {
-                result.add(item);
+                list.add(item);
             }
         }
-        if (result.size() == size()) return this; // Optimization
-        return result;
+        if (list.size() == size()) return this; // Optimization
+        return new FList<>(list);
     }
 
     public <B> B foldLeft(B identity, BiFunction<B, ? super T, B> folder) {
@@ -205,9 +229,9 @@ public final class FList<T> extends LinkedList<T> implements Iterable<T> {
         if (isEmpty()) {
             return Optional.empty();
         }
-        T result = getFirst();
+        T result = delegate.get(0);
         for (int i = 1; i < size(); i++) {
-            result = reducer.apply(result, get(i));
+            result = reducer.apply(result, delegate.get(i));
         }
         return Optional.of(result);
     }
@@ -225,19 +249,16 @@ public final class FList<T> extends LinkedList<T> implements Iterable<T> {
         if (isEmpty()) {
             return Optional.empty();
         }
-        T result = getLast();
+        T result = delegate.get(size() - 1);
         for (int i = size() - 2; i >= 0; i--) {
-            result = reducer.apply(get(i), result);
+            result = reducer.apply(delegate.get(i), result);
         }
         return Optional.of(result);
     }
 
-    // Override all modifying methods to throw UnsupportedOperationException
-    // and use private versions instead for construction and functional methods
-
     @Override
     public FList<T> subList(int fromIndex, int toIndex) {
-        return new FList<>(super.subList(fromIndex, toIndex));
+        return new FList<>(delegate.subList(fromIndex, toIndex));
     }
 
     public static String joinChars(FList<Character> list) {
@@ -253,7 +274,4 @@ public final class FList<T> extends LinkedList<T> implements Iterable<T> {
         }
         return list.foldLeft(new StringBuilder(), StringBuilder::append).toString();
     }
-
-    // Note: We must override all LinkedList's mutation methods to preserve immutability
-    // This implementation omits these for brevity, but they should all throw UnsupportedOperationException
 }

@@ -1,7 +1,8 @@
 package io.github.parseworks;
 
-import io.github.parseworks.impl.result.NoMatch;
 import io.github.parseworks.impl.result.Match;
+import io.github.parseworks.impl.result.NoMatch;
+import io.github.parseworks.impl.result.PartialMatch;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +34,19 @@ public interface Result<I, A> {
     }
 
     /**
+     * Creates a PartialMatch result that wraps a failure.
+     *
+     * @param input      the input at which the failure occurred
+     * @param failure    the underlying failure
+     * @param <I>        the type of the input symbols
+     * @param <A>        the type of the parsed value
+     * @return a PartialMatch result
+     */
+    static <I, A> Result<I, A> partial(Input<I> input, Failure<I, A> failure) {
+        return new PartialMatch<>(input, failure);
+    }
+
+    /**
      * Creates a NoMatch result that wraps another NoMatch as its cause, preserving the chain.
      * Uses the error type from the cause.
      *
@@ -43,7 +57,7 @@ public interface Result<I, A> {
      * @param <A>      the type of the parsed value
      * @return a NoMatch result that chains the given cause
      */
-    static <I, A> Result<I, A> failure(Input<I> input, String expected, NoMatch<?, ?> cause) {
+    static <I, A> Result<I, A> failure(Input<I> input, String expected, Failure<?, ?> cause) {
         return new NoMatch<>(input, expected, cause);
     }
 
@@ -103,20 +117,7 @@ public interface Result<I, A> {
         return failure(input, "no infinite recursion");
     }
 
-
-    /**
-     * Creates a validation error NoMatch result.
-     * Use this when input parsed but failed validation.
-     *
-     * @param input       the input at which the failure occurred
-     * @param <I>         the type of the input symbols
-     * @param <A>         the type of the parsed value
-     * @return a NoMatch result with VALIDATION error type
-     */
-    static <I, A> Result<I, A> validationError(Input<I> input, String expected) {
-        return failure(input, expected);
-    }
-
+    
     /**
      * Creates an internal error NoMatch result.
      * Use this for unexpected errors in parser logic.
@@ -124,15 +125,22 @@ public interface Result<I, A> {
      * @param input   the input at which the failure occurred
      * @param <I>     the type of the input symbols
      * @param <A>     the type of the parsed value
-     * @return a NoMatch result with INTERNAL error type
+     * @return a NoMatch result
      */
     static <I, A> Result<I, A> internalError(Input<I> input) {
         return failure(input, "parser to function correctly");
     }
 
-    static <A, I> Result<I,A> failure(List<NoMatch<I,A>> failures) {
-        return new NoMatch<>(null, null, null, failures);
+    static <A, I> Result<I,A> failure(List<Failure<I,A>> failures) {
+        return new NoMatch<>(failures);
     }
+
+    /**
+     * Returns the type of this result.
+     *
+     * @return the result type
+     */
+    ResultType type();
 
     /**
      * Returns true if this result is a Match.

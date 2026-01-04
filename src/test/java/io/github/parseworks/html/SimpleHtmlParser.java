@@ -6,7 +6,9 @@ import io.github.parseworks.Parser;
 import io.github.parseworks.Result;
 import io.github.parseworks.parsers.Lexical;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static io.github.parseworks.parsers.Combinators.*;
@@ -271,7 +273,7 @@ public class SimpleHtmlParser {
      * @return the list of elements
      */
     public static FList<Element> parseAll(String input) {
-        FList<Element> elements = new FList<>();
+        List<Element> elements = new ArrayList<>();
         Input<Character> currentInput = Input.of(input);
 
         while (!currentInput.isEof()) {
@@ -282,10 +284,10 @@ public class SimpleHtmlParser {
                 continue;
             }
 
-            elements = elements.append(result.value());
+            elements.add(result.value());
             currentInput = result.input();
         }
 
-        return elements;
+        return new FList<>(elements);
     }
 }

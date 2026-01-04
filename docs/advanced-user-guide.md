@@ -239,7 +239,7 @@ Parser<Character, Integer> positiveNumber = number.flatMap(n -> {
     if (n > 0) {
         return Parser.pure(n);
     } else {
-        return failValidation("positive number");
+        return fail("positive number");
     }
 });
 ```
@@ -266,14 +266,14 @@ Parser<Character, Integer> numberOrError = number.orElse(fail("Expected a number
 
 #### Error Types
 
-parseWorks provides different error types for different kinds of failures:
+parseWorks provides different ways to fail:
 
 ```java
 // Syntax error (input doesn't match expected pattern)
-Parser<Character, String> syntaxError = failSyntax("Expected a valid syntax");
+Parser<Character, String> syntaxError = fail("Expected a valid syntax");
 
 // Validation error (input parsed but failed validation)
-Parser<Character, String> validationError = failValidation("Expected a valid value");
+Parser<Character, String> validationError = fail("Expected a valid value");
 
 // Generic error
 Parser<Character, String> genericError = fail("Something went wrong");

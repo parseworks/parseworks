@@ -99,9 +99,9 @@ An `Input<I>` represents a position in a stream of tokens. It provides methods t
 
 ### Result
 
-A `Result<I, A>` represents the outcome of parsing. It can be either:
-- A `Match`, containing the parsed value and the remaining input
-- A `NoMatch`, containing an error message and the position where the failure occurred
+A `Result<I, A>` represents the outcome of parsing. It can be:
+- A `Match`, containing the parsed value and the remaining input.
+- A `Failure`, which can be either a `NoMatch` (no match at all) or a `PartialMatch` (match started but failed later, or didn't consume all input when required). Both contain error details and the input position.
 
 ### Combinators
 

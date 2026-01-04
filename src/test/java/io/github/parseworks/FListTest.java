@@ -176,4 +176,12 @@ public class FListTest {
         Integer sum = list.foldRight(0, Integer::sum);
         assertEquals(10, sum);
     }
+
+    @Test
+    public void testImmutability() {
+        FList<Integer> list = FList.of(1, 2, 3);
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+            list.add(4);
+        }, "FList should be immutable and throw UnsupportedOperationException on add()");
+    }
 }

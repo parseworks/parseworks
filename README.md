@@ -68,7 +68,7 @@ Parser<Character, Integer> sum =
     number.thenSkip(Lexical.chr('+')).then(number).map(Integer::sum);
 
     // Parse the input "1+2"
-    int value = sum.parse(Input.of("1+2")).get();
+    int value = sum.parse(Input.of("1+2")).value();
 assert value ==3;
 
     // Handle a parsing error

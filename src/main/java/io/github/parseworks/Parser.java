@@ -1,7 +1,7 @@
 package io.github.parseworks;
 
-import io.github.parseworks.impl.result.NoMatch;
 import io.github.parseworks.impl.IntObjectMap;
+import io.github.parseworks.impl.result.NoMatch;
 import io.github.parseworks.parsers.Chains;
 import io.github.parseworks.parsers.Lexical;
 
@@ -55,8 +55,8 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse "true" or "false" strings and convert them directly to boolean values
-     * Parser<Character, Boolean> trueParser = string("true").as(Boolean.TRUE);
-     * Parser<Character, Boolean> falseParser = string("false").as(Boolean.FALSE);
+     * Parser<Character, Boolean> trueParser = Lexical.string("true").as(Boolean.TRUE);
+     * Parser<Character, Boolean> falseParser = Lexical.string("false").as(Boolean.FALSE);
      * Parser<Character, Boolean> boolParser = trueParser.or(falseParser);
      *
      * // Succeeds with true for input "true"
@@ -104,8 +104,8 @@ public class Parser<I, A> {
      * // Combine with other parsers in a data transformation pipeline
      * Parser<Character, User> userParser =
      *     Parser.pure(User::new)
-     *           .apply(string("name:").skipThen(stringLiteral))
-     *           .apply(string("age:").skipThen(intr));
+     *           .apply(Lexical.string("name:").skipThen(Lexical.stringLiteral))
+     *           .apply(Lexical.string("age:").skipThen(Numeric.integer));
      *
      * // Can be used to create empty containers for collection operations
      * Parser<Character, List<Integer>> emptyList = Parser.pure(new ArrayList<>());
@@ -178,8 +178,8 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse an integer followed by a semicolon, keeping only the integer
-     * Parser<Character, Integer> number = intr;
-     * Parser<Character, Character> semicolon = chr(';');
+     * Parser<Character, Integer> number = Numeric.integer;
+     * Parser<Character, Character> semicolon = Lexical.chr(';');
      * Parser<Character, Integer> statement = number.thenSkip(semicolon);
      *
      * // Succeeds with 42 for input "42;"
@@ -226,8 +226,8 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse a "key:" prefix followed by an integer, keeping only the integer
-     * Parser<Character, String> keyPrefix = string("key:");
-     * Parser<Character, Integer> number = intr;
+     * Parser<Character, String> keyPrefix = Lexical.string("key:");
+     * Parser<Character, Integer> number = Numeric.integer;
      * Parser<Character, Integer> keyValue = keyPrefix.skipThen(number);
      *
      * // Succeeds with 42 for input "key:42"
@@ -265,8 +265,8 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse a pair of digit and letter, returning them as a Pair
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, Character> letter = chr(Character::isLetter);
+     * Parser<Character, Character> digit = Lexical.chr(Character::isDigit);
+     * Parser<Character, Character> letter = Lexical.chr(Character::isLetter);
      *
      * Parser<Character, Pair<Character, Character>> digitLetterPair =
      *     digit.then(letter).map((d, l) -> new Pair<>(d, l));
@@ -716,11 +716,11 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse a number only if it's preceded by a plus sign
-     * Parser<Character, Integer> positiveNumber = number.onlyIf(chr('+'));
+     * Parser<Character, Integer> positiveNumber = Numeric.integer.onlyIf(Lexical.chr('+'));
      *
      * // Parse an identifier only if it's not a keyword
-     * Parser<Character, String> identifier = word.onlyIf(
-     *     string("if").or(string("else")).not()
+     * Parser<Character, String> identifier = Lexical.word.onlyIf(
+     *     Lexical.string("if").or(Lexical.string("else")).not()
      * );
      * }</pre>
      *
@@ -728,7 +728,7 @@ public class Parser<I, A> {
      * @param <B> the type of the validation parser's result (not used)
      * @return a new parser that succeeds only if both the validation and this parser succeed
      */
-    public <B> Parser<I, A> where(Parser<I, B> validation) {
+    public <B> Parser<I, A> onlyIf(Parser<I, B> validation) {
         return new Parser<>(input -> {
             Result<I, B> validationResult = validation.apply(input);
             if (!validationResult.matches()) {
@@ -742,7 +742,7 @@ public class Parser<I, A> {
      * Creates a parser that succeeds with this parser's result only if followed by what the lookahead parser matches,
      * without consuming the lookahead input.
      * <p>
-     * The {@code ifThen} method creates a conditional parser that first applies this parser, and if successful,
+     * The {@code peek} method creates a conditional parser that first applies this parser, and if successful,
      * checks if the lookahead parser would succeed at the resulting position. The lookahead parser's result
      * is discarded and no input is consumed by it. This is useful for implementing forward-looking validation
      * or context-sensitive parsing.
@@ -760,10 +760,10 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse a number only if it's followed by a plus sign
-     * Parser<Character, Integer> numberBeforePlus = number.peek(chr('+'));
+     * Parser<Character, Integer> numberBeforePlus = Numeric.integer.peek(Lexical.chr('+'));
      *
      * // Parse an identifier only if followed by an equals sign (assignment)
-     * Parser<Character, String> assignmentTarget = identifier.peek(chr('='));
+     * Parser<Character, String> assignmentTarget = Lexical.word.peek(Lexical.chr('='));
      * }</pre>
      *
      * @param lookahead the parser to use for lookahead validation
@@ -778,7 +778,7 @@ public class Parser<I, A> {
             }
             Result<I, B> peek = lookahead.apply(result.input());
             if (!peek.matches()) {
-                return new NoMatch<>(input, "Expected 'ifThen' to succeed", (NoMatch<?, ?>) peek);
+                return new NoMatch<>(input, "Expected 'peek' to succeed", (NoMatch<?, ?>) peek);
             }
             return result;
         });
@@ -788,7 +788,7 @@ public class Parser<I, A> {
     /**
      * Creates a parser that logs its progress and results to standard output while behaving exactly like this parser.
      * <p>
-     * The {@code logOut} method wraps this parser with logging functionality that prints information about:
+     * The {@code logSystemOut} method wraps this parser with logging functionality that prints information about:
      * <ul>
      *   <li>The input position where parsing starts</li>
      *   <li>Whether parsing succeeded or failed</li>
@@ -805,7 +805,7 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Create a parser for integers with logging
-     * Parser<Character, Integer> debugParser = intr.logOut();
+     * Parser<Character, Integer> debugParser = Numeric.integer.logSystemOut();
      *
      * // When parsing "123", outputs:
      * // Parser starting at position: 0 succeeded with value: 123
@@ -1133,7 +1133,7 @@ public class Parser<I, A> {
         Result<I, A> result = this.apply(in);
         if (consumeAll && result.matches()) {
             if (!result.input().isEof()) {
-                result = Result.expectedEofError(result.input());
+                return Result.partial(result.input(), new NoMatch<>(result.input(), "end of input"));
             }
         }
         return result;
@@ -1439,8 +1439,8 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse a comma-separated list of numbers, allowing empty lists
-     * Parser<Character, Integer> number = intr;
-     * Parser<Character, Character> comma = chr(',');
+     * Parser<Character, Integer> number = Numeric.integer;
+     * Parser<Character, Character> comma = Lexical.chr(',');
      * Parser<Character, FList<Integer>> optionalList = number.separatedByZeroOrMany(comma);
      *
      * // Succeeds with [1,2,3] for input "1,2,3"
@@ -1744,7 +1744,7 @@ public class Parser<I, A> {
         }
 
         return new Parser<>(in -> {
-            FList<A> results = new FList<>();
+            List<A> results = new ArrayList<>();
             Input<I> currentInput = in;
 
             while (!currentInput.isEof()) {
@@ -1752,7 +1752,7 @@ public class Parser<I, A> {
                 Result<I, Boolean> conditionResult = condition.apply(currentInput);
                 if (!conditionResult.matches()) {
                     // Condition not met, stop collecting
-                    return Result.success(currentInput, results);
+                    return Result.success(currentInput, new FList<>(results));
                 }
 
                 // Store the current position to check for advancement
@@ -1762,21 +1762,21 @@ public class Parser<I, A> {
                 Result<I, A> elementResult = this.apply(currentInput);
                 if (!elementResult.matches()) {
                     // Failed to parse an element, stop collecting
-                    return Result.success(currentInput, results);
+                    return Result.success(currentInput, new FList<>(results));
                 }
 
                 // Add parsed element to results
-                results = results.append(elementResult.value());
+                results.add(elementResult.value());
                 currentInput = elementResult.input();
 
                 // Check if we've advanced the position - if not, break to avoid infinite loop
                 if (currentInput.position() == currentPosition) {
-                    return Result.success(currentInput, results);
+                    return Result.success(currentInput, new FList<>(results));
                 }
             }
 
             // Reached end of input
-            return Result.success(currentInput, results);
+            return Result.success(currentInput, new FList<>(results));
         });
     }
 
@@ -1879,12 +1879,12 @@ public class Parser<I, A> {
             throw new IllegalArgumentException("The minimum number of repetitions cannot be greater than the maximum");
         }
         return new Parser<>(in -> {
-            FList<A> buffer = new FList<>();
+            List<A> buffer = new ArrayList<>();
             Input<I> current = in;
             int count = 0;
 
             while (true) {
-                // Check terminator (for oneOrMoreUntil)
+                // Check terminator (for one or moreUntil)
                 if (until != null) {
                     Result<I, ?> termRes = until.apply(current);
                     if (termRes.matches()) {
@@ -1894,13 +1894,13 @@ public class Parser<I, A> {
                                 current, 
                                 "expected at least " + min + " items (found only " + count + " before terminator)");
                         }
-                        return Result.success(termRes.input(), buffer);
+                        return Result.success(termRes.input(), new FList<>(buffer));
                     }
                 }
                 // End-of-input or max reached
                 if (current.isEof() || count >= max) {
                     if (count >= min && until == null) {
-                        return Result.success(current, buffer);
+                        return Result.success(current, new FList<>(buffer));
                     }
                     // Provide more context about the error
                     String reason = current.isEof() ? "end of input reached" : "maximum repetitions reached";
@@ -1921,7 +1921,7 @@ public class Parser<I, A> {
                     }
 
                     if (count >= min) {
-                        return Result.success(current, buffer);
+                        return Result.success(current, new FList<>(buffer));
                     }
                     // Pass through the original error with more context
                     // pass literal failure as part of new failure to create a nested response
@@ -1957,24 +1957,6 @@ public class Parser<I, A> {
      */
     private Function<Input<I>, Result<I, A>> defaultApplyHandler;
 
-    /**
-     * Creates a parser that backtracks on failure.
-     * <p>
-     * If the parser fails, it will report the failure at the original input position,
-     * effectively undoing any input consumption that occurred before the failure.
-     *
-     * @return an atomic version of this parser
-     */
-    public Parser<I, A> atomic() {
-        return new Parser<>(in -> {
-            Result<I, A> res = this.apply(in);
-            if (!res.matches()) {
-                NoMatch<I, A> f = (NoMatch<I, A>) res;
-                return new NoMatch<>(in, f.expected(), f, f.combinedFailures());
-            }
-            return res;
-        });
-    }
 
     /**
      * Private constructor to create a parser reference that can be initialized later.
@@ -2209,15 +2191,15 @@ public class Parser<I, A> {
     public <B> Parser<I, A> expecting(String label) {
         return new Parser<>(input -> {
             Result<I, A> result = this.apply(input);
-            if (!result.matches()) return new NoMatch<>(input,  label,(NoMatch<?, ?>) result);
-            return result;
+            if (result.matches()) return result;
+            return new NoMatch<>(input, label, (Failure<?, ?>) result);
         });
     }
 
     /**
      * Sequences this parser with a subsequent parser chosen from the value produced by this parser.
      * <p>
-     * The {@code flatMap} combinator enables dependent (monadic) parsing where the next parsing
+     * The {@code flatMap} combinator enables dependent (monadic) parsing only if the next parsing
      * step is determined by the successful result of the previous step. Operationally it:
      * <ol>
      *   <li>Applies this parser to the current input.</li>

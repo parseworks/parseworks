@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 import static io.github.parseworks.parsers.Lexical.chr;
 import static io.github.parseworks.parsers.Combinators.oneOf;
+import static io.github.parseworks.parsers.Combinators.attempt;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -70,7 +71,7 @@ public class ParserPerformanceTest {
                 .map(FList::joinChars);
 
         // Conditional: only allow the unquoted variant if the next char is NOT a quote
-        Parser<Character, String> unquotedField = unquotedFieldCore.where(Combinators.not(chr('\"')));
+        Parser<Character, String> unquotedField = unquotedFieldCore.onlyIf(Combinators.not(chr('\"')));
 
         // TYPED VALUES via oneOf: boolean, null, number OR fallback to quoted/unquoted text
         Parser<Character, String> boolToken = oneOf(
@@ -96,7 +97,7 @@ public class ParserPerformanceTest {
         );
 
         // Row: fields separated by commas (with optional surrounding whitespace)
-        Parser<Character, FList<String>> row = field.oneOrMoreSeparatedBy(comma.atomic());
+        Parser<Character, FList<String>> row = field.oneOrMoreSeparatedBy(attempt(comma));
 
         // CSV: rows separated by newlines
         Parser<Character, FList<FList<String>>> csvParser = row.oneOrMoreSeparatedBy(eol);
