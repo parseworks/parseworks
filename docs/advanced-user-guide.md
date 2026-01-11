@@ -41,170 +41,66 @@ Build on the concepts from the [user guide](user-guide.md) and explore advanced 
 
 ### Chain Operations
 
-parseWorks provides several chain operations that are particularly useful for handling operator precedence and associativity in expression parsing:
+Handling operator precedence and associativity is common in expression parsing. `chainLeft` and `chainRight` simplify this by applying a binary operator between parsed elements.
 
-#### chainLeft
-
-The `chainLeft` method creates a parser that applies a binary operator between elements, with left associativity. This is useful for operators like addition and subtraction.
+#### left-associativity with `chainLeft`
+Useful for addition, subtraction, etc., where `1+2+3` should be `(1+2)+3`.
 
 ```java
-// Parse expressions like "1+2+3" with left associativity (evaluates as ((1+2)+3))
-Parser<Character, Integer> expr = number.chainLeft(
-    chr('+').as((a, b) -> a + b),
-    0  // Default value if no elements are found
+Parser<Character, Integer> addition = number.chainLeft(
+    chr('+').as(Integer::sum),
+    0
 );
 ```
 
-#### chainRight
-
-The `chainRight` method creates a parser that applies a binary operator between elements, with right associativity. This is useful for operators like exponentiation.
-
-```java
-// Parse expressions like "2^3^2" with right associativity (evaluates as (2^(3^2)))
-Parser<Character, Integer> expr = number.chainRight(
-    chr('^').as((a, b) -> (int)Math.pow(a, b)),
-    1  // Default value if no elements are found
-);
-```
-
-#### chain with Associativity
-
-For more control, you can use the `chain` method with an explicit `Associativity` parameter:
+#### right-associativity with `chainRight`
+Useful for exponentiation, where `2^3^2` should be `2^(3^2)`.
 
 ```java
-import static io.github.parseworks.parsers.Chains.*;
-
-// Parse expressions with explicit associativity
-Parser<Character, Integer> leftAssoc = chain(
-    number,
-    chr('+').as((a, b) -> a + b),
-    Associativity.LEFT
-);
-
-Parser<Character, Integer> rightAssoc = chain(
-    number,
+Parser<Character, Integer> power = number.chainRight(
     chr('^').as((a, b) -> (int)Math.pow(a, b)),
-    Associativity.RIGHT
+    1
 );
 ```
 
 ### Recursive Parsers
 
-Recursive parsers are essential for parsing nested structures like expressions, JSON, XML, etc. parseWorks provides the `Parser.ref()` method to create recursive parsers.
-
-#### Creating Recursive Parsers
+For nested structures (JSON, expressions), use `Parser.ref()`. This creates a placeholder that you `set()` later, allowing the parser to refer to itself.
 
 ```java
-// Create a reference for a recursive parser
-Parser<Character, Expression> expr = Parser.ref();
+Parser<Character, Expr> expr = Parser.ref();
 
-// Define the parser for terms (factors with multiplication/division)
-Parser<Character, Expression> term = Parser.ref();
+// Parens: ( expr )
+Parser<Character, Expr> parens = chr('(')
+    .skipThen(expr)
+    .thenSkip(chr(')'));
 
-// Define the parser for factors (numbers or parenthesized expressions)
-Parser<Character, Expression> factor = number.map(NumberExpression::new)
-    .or(chr('(').skipThen(expr).thenSkip(chr(')')));
+// A factor is a number OR a parenthesized expression
+Parser<Character, Expr> factor = number.or(parens);
 
-// Set the term parser to handle multiplication and division
-term.set(
-    factor.chainLeft(
-        oneOf(
-            chr('*').as((a, b) -> new BinaryExpression(a, Operator.MULTIPLY, b)),
-            chr('/').as((a, b) -> new BinaryExpression(a, Operator.DIVIDE, b))
-        ),
-        null
-    )
-);
-
-// Set the expression parser to handle addition and subtraction
-expr.set(
-    term.chainLeft(
-        oneOf(
-            chr('+').as((a, b) -> new BinaryExpression(a, Operator.ADD, b)),
-            chr('-').as((a, b) -> new BinaryExpression(a, Operator.SUBTRACT, b))
-        ),
-        null
-    )
-);
+// Close the loop
+expr.set(factor); 
 ```
 
-#### Handling Left Recursion
+### Repetition Nuances
 
-Left recursion can cause infinite loops. parseWorks has built-in protection against this, but it's still best to avoid left recursion when possible. Use right-recursion instead:
+While `zeroOrMore` and `oneOrMore` are common, you often need stricter bounds.
 
-```java
-// Avoid this (left recursion):
-expr.set(expr.then(op).then(term).map(...));
+- `repeat(n)`: Exactly `n` times.
+- `repeat(min, max)`: Between `min` and `max` times.
+- `manyUntil(end)`: Consume items until the `end` parser matches.
 
-// Use this instead (right recursion):
-expr.set(term.then(op.then(expr).optional()).map(...));
-```
+### `takeWhile` and `until`
 
-### Repetition and Sequences
-
-parseWorks provides several methods for handling repetition and sequences:
-
-#### repeat
-
-The `repeat` method creates a parser that applies the parser exactly n times:
+A common "gotcha": `takeWhile` requires a **parser** that returns `Boolean`, not a simple lambda predicate. This is because the condition itself might need to look ahead or consume input.
 
 ```java
-// Parse exactly 3 digits
-Parser<Character, FList<Character>> threeDigits = chr(Character::isDigit).repeat(3);
-```
+// Correct: passing a parser
+Parser<Character, Boolean> isAlpha = chr(Character::isLetter).as(true);
+Parser<Character, FList<Character>> word = any().takeWhile(isAlpha);
 
-#### repeatAtLeast and repeatAtMost
-
-For more flexible repetition:
-
-```java
-// Parse at least 1 digit
-Parser<Character, FList<Character>> atLeastOneDigit = chr(Character::isDigit).repeatAtLeast(1);
-
-// Parse at most 5 digits
-Parser<Character, FList<Character>> atMostFiveDigits = chr(Character::isDigit).repeatAtMost(5);
-
-// Parse between 2 and 4 digits
-Parser<Character, FList<Character>> twoToFourDigits = chr(Character::isDigit).repeat(2, 4);
-```
-
-#### manySeparatedBy and zeroOrManySeparatedBy
-
-For parsing lists of items separated by a delimiter:
-
-```java
-// Parse a comma-separated list of numbers (at least one)
-Parser<Character, FList<Integer>> numberList = number.manySeparatedBy(chr(','));
-
-// Parse a comma-separated list of numbers (possibly empty)
-Parser<Character, FList<Integer>> optionalNumberList = number.zeroOrManySeparatedBy(chr(','));
-```
-
-### Conditional Parsing
-
-#### takeWhile
-
-The `takeWhile` method creates a parser that applies the parser as long as a condition parser yields `true` at each step. You must pass a `Parser<I, Boolean>` condition (not a predicate lambda):
-
-```java
-// Parse characters until a space is encountered using a Boolean-producing condition parser
-Parser<Character, Boolean> notSpace = chr(ch -> ch != ' ').as(true).or(chr(' ').as(false));
-Parser<Character, FList<Character>> word = chr(ch -> ch != ' ').takeWhile(notSpace);
-
-// Alternatively, prefer the simpler until variants when appropriate
-Parser<Character, FList<Character>> word2 = chr(ch -> ch != ' ').zeroOrManyUntil(chr(' '));
-```
-
-#### Until-style parsing
-
-There is no `until` instance method. Use `manyUntil` or `zeroOrManyUntil` depending on whether you require at least one element:
-
-```java
-// Parse characters until a newline is encountered (allows empty line)
-Parser<Character, FList<Character>> line = any(Character.class).zeroOrManyUntil(chr('\n'));
-
-// Require at least one character before the newline
-Parser<Character, FList<Character>> nonEmptyLine = any(Character.class).manyUntil(chr('\n'));
+// Cleaner alternative:
+Parser<Character, FList<Character>> word2 = chr(Character::isLetter).zeroOrMore();
 ```
 
 ### Negation and Validation
@@ -310,65 +206,12 @@ Parser<Character, Integer> signedNumber = chr('-').optional().then(number)
     .map(sign -> num -> sign.isPresent() ? -num : num);
 ```
 
-## Performance Optimization
+## Performance Tips
 
-### Parser Reuse
-
-One of the most effective ways to optimize parser performance is to reuse parsers instead of creating new ones for each parse operation:
-
-```java
-// Define parsers once
-private static final Parser<Character, String> KEYWORD_IF = string("if");
-private static final Parser<Character, String> KEYWORD_ELSE = string("else");
-private static final Parser<Character, String> KEYWORD_WHILE = string("while");
-
-// Reuse them in multiple places
-Parser<Character, String> keyword = oneOf(KEYWORD_IF, KEYWORD_ELSE, KEYWORD_WHILE);
-```
-
-### Avoiding Excessive Backtracking
-
-Excessive backtracking can lead to performance issues. Try to make your parsers more deterministic:
-
-```java
-// Inefficient: Tries to parse a long string, then backtracks to try a shorter one
-Parser<Character, String> inefficient = string("longerString").or(string("short"));
-
-// More efficient: Tries the longer match first, which is more specific
-Parser<Character, String> efficient = string("short").or(string("longerString"));
-```
-
-### Optimizing Regular Expressions
-
-When using regular expressions, be mindful of their performance characteristics:
-
-```java
-// Inefficient: Uses a greedy quantifier that may require backtracking
-Parser<Character, String> inefficient = regex(".*end");
-
-// More efficient: Uses a non-greedy quantifier
-Parser<Character, String> efficient = regex(".*?end");
-```
-
-### Memory Considerations
-
-For parsing large inputs, consider the memory usage of your parsers:
-
-```java
-// Memory-intensive: Collects all characters into a list
-Parser<Character, FList<Character>> memoryIntensive = any(Character.class).many();
-
-// More memory-efficient: Processes characters one by one
-Parser<Character, Integer> memoryEfficient = any(Character.class).many()
-    .map(chars -> {
-        int count = 0;
-        for (Character c : chars) {
-            // Process each character individually
-            count++;
-        }
-        return count;
-    });
-```
+1. **Static Reuse**: Define common parsers (keywords, delimiters) as `static final` fields. Creating parsers on-the-fly inside a loop is a major performance killer.
+2. **Deterministic Choices**: In `oneOf`, ensure your alternatives are as distinct as possible. If they overlap, put the longest/most specific one first.
+3. **Be careful with `trim()`**: It's convenient but adds lookahead/backtracking. Apply it at the "token" level rather than around every single character parser.
+4. **Regular Expressions**: `Lexical.regex` is backed by standard Java `Pattern`. It's fast for tokenization but avoid complex, nested groups if a simple `chr()` loop would suffice.
 
 ## Working with Complex Grammars
 

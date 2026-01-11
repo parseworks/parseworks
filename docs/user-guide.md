@@ -19,26 +19,20 @@
 
 ## Introduction
 
-Use parseWorks to build LLR(*) parsers in Java with composable parser combinators. Write grammars directly in code, get clear error messages, and keep your parsers lightweight and testable while following familiar Java idioms.
+parseWorks is a Java library for building LLR(*) parsers using parser combinators. Instead of external grammar files or code generation, you define your grammar directly in Java. It's designed to be lightweight, thread-safe, and provides helpful diagnostics when parsing fails.
 
 ### Key Features
 
-- **Composable Parser Combinators**: Build complex parsers by combining simpler ones
-- **Informative Error Messages**: Get detailed information about parse failures
-- **Thread-Safe**: All parsers and inputs are immutable
-- **Lightweight**: Zero dependencies (except for JUnit in tests)
-- **Left-Recursion Failsafe**: Prevents common pitfalls in recursive parsers
-- **Looping Empty Input Detection**: Detects infinite loops on empty inputs
+- **Composable Combinators**: Build complex grammars by nesting simple parsers.
+- **Detailed Diagnostics**: Error messages pinpoint exactly where and why a parse failed.
+- **Thread-Safe**: Immutable parsers and input streams.
+- **Zero Dependencies**: Requires only Java 17+ (JUnit for tests).
+- **Failsafes**: Built-in detection for left-recursion and infinite loops on empty inputs.
 
 ## Installation
 
-### Requirements
-
-parseWorks requires Java 17 or higher.
-
 ### Maven
-
-Add the following dependency to your Maven `pom.xml` (latest release):
+Add this to your `pom.xml`:
 
 ```xml
 <dependency>
@@ -48,9 +42,7 @@ Add the following dependency to your Maven `pom.xml` (latest release):
 </dependency>
 ```
 
-Using the current SNAPSHOT (optional):
-
-Maven:
+For the latest `SNAPSHOT`:
 ```xml
 <repositories>
   <repository>
@@ -67,185 +59,66 @@ Maven:
 ```
 
 ### Gradle
-
-Add the following dependency to your Gradle build file:
-
 ```groovy
 implementation 'io.github.parseworks:parseworks:2.2.0'
 ```
 
-Using the SNAPSHOT in Gradle:
-```groovy
-repositories {
-  maven { url 'https://central.sonatype.com/repository/maven-snapshots/' }
-}
-
-dependencies {
-  implementation 'io.github.parseworks:parseworks:2.2.1-SNAPSHOT'
-}
-```
-
 ## Basic Concepts
 
-Before diving into the tutorials, let's understand the core concepts of parseWorks:
+### Parser<I, A>
+A `Parser` is a function transforming `Input<I>` into a `Result<I, A>`. Usually, `I` is `Character` for text parsing.
 
-### Parser
+### Input<I>
+Wraps the source data (e.g., String, char array) and tracks the current position.
 
-A `Parser<I, A>` is a function that takes an input of type `I` and produces a result of type `A`. In most cases, `I` will be `Character`, meaning the parser processes text input character by character.
+### Result<I, A>
+The outcome of a parse attempt:
+- **Match**: Success. Contains the value `A` and the remaining `Input`.
+- **Failure**: No match. Can be a simple mismatch or a `PartialMatch` (where part of a sequence matched before failing).
 
-### Input
+## Quick Start
 
-An `Input<I>` represents a position in a stream of tokens. It provides methods to get the current token, advance to the next token, and check if there are more tokens.
-
-### Result
-
-A `Result<I, A>` represents the outcome of parsing. It can be:
-- A `Match`, containing the parsed value and the remaining input.
-- A `Failure`, which can be either a `NoMatch` (no match at all) or a `PartialMatch` (match started but failed later, or didn't consume all input when required). Both contain error details and the input position.
-
-### Combinators
-
-Combinators are functions that take one or more parsers as input and return a new parser. They allow you to build complex parsers by combining simpler ones.
-
-## Step-by-Step Tutorials
-
-### Tutorial 1: Creating Your First Parser
-
-In this tutorial, we'll create a simple parser that recognizes a specific string.
-
-#### Step 1: Import the necessary classes
+### 1. Basic String Match
+The simplest parser matches a literal string.
 
 ```java
-import io.github.parseworks.Input;
-import io.github.parseworks.Parser;
-import io.github.parseworks.Result;
 import static io.github.parseworks.parsers.Combinators.*;
-```
 
-#### Step 2: Create a parser for a specific string
+Parser<Character, String> hello = string("hello");
+Result<Character, String> result = hello.parse(Input.of("hello world"));
 
-```java
-// Create a parser that recognizes the string "hello"
-Parser<Character, String> helloParser = string("hello");
-```
-
-#### Step 3: Parse some input
-
-```java
-// Parse the input "hello world"
-Result<Character, String> result = helloParser.parse(Input.of("hello world"));
-
-// Check if parsing succeeded
 if (result.matches()) {
-    System.out.println("Parsed: " + result.value());
-    System.out.println("Remaining input: " + result.input().current());
-} else {
-    System.out.println("Parsing failed: " + result.error());
+    System.out.println("Got: " + result.value()); // "hello"
 }
 ```
 
-#### Step 4: Handle the result using the `handle` method
+### 2. Composition with `then`
+Use `then`, `skipThen`, and `thenSkip` to sequence parsers.
 
 ```java
-// Alternative way to handle the result
-String message = result.handle(
-    match -> "Successfully parsed: " + match.value(),
-    noMatch -> "Parsing failed: " + noMatch.error()
-);
-System.out.println(message);
+// Match "hello", skip a space, then match "world"
+Parser<Character, String> helloWorld = string("hello")
+    .thenSkip(chr(' '))
+    .then(string("world"))
+    .map(h -> w -> h + " " + w);
+
+System.out.println(helloWorld.parse(Input.of("hello world")).get());
 ```
 
-### Tutorial 2: Combining Parsers
-
-In this tutorial, we'll learn how to combine parsers to create more complex ones.
-
-#### Step 1: Create basic parsers
+### 3. Handling Structured Data
+For anything more complex than strings, use `map` to build your domain objects.
 
 ```java
-// Parser for the word "hello"
-Parser<Character, String> helloParser = string("hello");
-
-// Parser for the word "world"
-Parser<Character, String> worldParser = string("world");
-
-// Parser for whitespace
-Parser<Character, String> whitespaceParser = chr(' ').oneOrMore().as("");
-```
-
-#### Step 2: Combine parsers using `then`
-
-```java
-// Parser for "hello world"
-Parser<Character, String> helloWorldParser = helloParser
-    .then(whitespaceParser)
-    .then(worldParser)
-    .map(hello -> space -> world -> hello + " " + world);
-```
-
-#### Step 3: Use `skipThen` and `thenSkip` for cleaner combinations
-
-```java
-// Parser for "hello world" that ignores whitespace
-Parser<Character, String> cleanerParser = helloParser
-    .thenSkip(whitespaceParser)
-    .then(worldParser)
-    .map(hello -> world -> hello + " " + world);
-```
-
-#### Step 4: Parse input with the combined parser
-
-```java
-Result<Character, String> result = cleanerParser.parse(Input.of("hello world"));
-System.out.println(result.get()); // Outputs: "hello world"
-```
-
-### Tutorial 3: Parsing Structured Data
-
-In this tutorial, we'll create a parser for a simple key-value format.
-
-#### Step 1: Define the data structure
-
-```java
-class KeyValue {
-    private final String key;
-    private final String value;
-
-    public KeyValue(String key, String value) {
-        this.key = key;
-        this.value = value;
-    }
-
-    public String getKey() { return key; }
-    public String getValue() { return value; }
-
-    @Override
-    public String toString() {
-        return key + "=" + value;
-    }
+class KV {
+    final String k, v;
+    KV(String k, String v) { this.k = k; this.v = v; }
 }
-```
 
-#### Step 2: Create parsers for the components
-
-```java
-// Parser for keys (alphanumeric strings)
-Parser<Character, String> keyParser = Lexical.regex("[a-zA-Z0-9]+");
-
-// Parser for the equals sign
-Parser<Character, Character> equalsParser = Lexical.chr('=');
-
-// Parser for values (any string until end of line)
-Parser<Character, String> valueParser = Lexical.regex("[^\\n]*");
-```
-
-#### Step 3: Combine the parsers
-
-```java
-// Parser for a key-value pair
-Parser<Character, KeyValue> keyValueParser = keyParser
-    .thenSkip(equalsParser)
-    .then(valueParser)
-    .map(key -> value -> new KeyValue(key, value));
+// key=value
+Parser<Character, KV> kvParser = Lexical.regex("[a-z]+")
+    .thenSkip(chr('='))
+    .then(Lexical.regex("[^\\n]*"))
+    .map(k -> v -> new KV(k, v));
 ```
 
 #### Step 4: Parse multiple key-value pairs
@@ -275,141 +148,27 @@ result.handle(
 
 ### Tutorial 4: Error Handling
 
-In this tutorial, we'll learn how to handle parsing errors gracefully.
+By default, parseWorks tries to give useful error messages, but you can improve them by adding labels to your parsers.
 
-#### Step 1: Create a parser that might fail
+#### Using `expecting(...)`
+
+If a parser fails, the error message usually says what it was looking for (e.g., "Expected '='"). Often you want a more high-level description. `expecting(String label)` replaces the default "Expected ..." with your own text.
 
 ```java
-// Parser for keys (alphanumeric strings)
-Parser<Character, String> keyParser = Lexical.regex("[a-zA-Z0-9]+").expecting("key");
-
-// Parser for the equal sign
-Parser<Character, Character> equalsParser = Lexical.chr('=').expecting("equals");
-
-// Parser for values (any string until the end of line)
-Parser<Character, String> valueParser = Lexical.chr(c -> c != '\n' && c != ',' && c != '}')
-    .oneOrMore()
-    .map(FList::joinChars)
-    .expecting("value");
-
-// Parser for a key-value pair
-Parser<Character, KeyValue> keyValueParser = keyParser
-    .thenSkip(equalsParser)
-    .then(valueParser)
-    .map(key -> value -> new KeyValue(key, value))
-    .expecting("key-value pair");
-
-// Parser for a JSON-like object
-Parser<Character, Map<String, String>> objectParser = Lexical.chr('{')
-    .skipThen(
-        keyValueParser.oneOrMoreSeparatedBy(Lexical.string(","))
-    )
-    .thenSkip(Lexical.chr('}'))
-    .map(pairs -> {
-        Map<String, String> map = new HashMap<>();
-        for (KeyValue kv : pairs) {
-            map.put(kv.getKey(), kv.getValue());
-        }
-        return map;
-    });
+// Better: "Expected identifier" instead of "Expected [A-Za-z]..."
+Parser<Character, String> id = regex("[A-Za-z]+")
+    .expecting("identifier");
 ```
 
-#### Step 2: Try parsing valid input
+#### Custom Failures
+
+Use `fail(String message)` inside a `flatMap` for validation or `orElse` for specific error cases.
 
 ```java
-String validInput = "{name=John,age=30}";
-Result<Character, Map<String, String>> validResult = objectParser.parse(Input.of(validInput));
-
-validResult.handle(
-    match -> {
-        System.out.println("Successfully parsed object:");
-        match.value().forEach((k, v) -> System.out.println("  " + k + ": " + v));
-        return null;
-    },
-    noMatch -> {
-        System.err.println("Parsing failed: " + noMatch.error());
-        return null;
-    }
+Parser<Character, Integer> positive = number.flatMap(n -> 
+    n > 0 ? Parser.pure(n) : fail("a positive number")
 );
 ```
-
-#### Step 3: Try parsing invalid input
-
-```java
-String invalidInput = "{name=John,age="; // Missing closing brace
-Result<Character, Map<String, String>> invalidResult = objectParser.parse(Input.of(invalidInput));
-
-invalidResult.handle(
-    match -> {
-        System.out.println("Successfully parsed object:");
-        match.value().forEach((k, v) -> System.out.println("  " + k + ": " + v));
-        return null;
-    },
-    noMatch -> {
-        System.err.println("Parsing failed: " + noMatch.error());
-        return null;
-    }
-);
-```
-
-#### Step 4: Provide better error messages
-
-```java
-// Improved parser with better error messages
-Parser<Character, Map<String, String>> betterParser = Lexical.chr('{')
-    .skipThen(
-        keyValueParser.oneOrMoreSeparatedBy(Lexical.string(","))
-            .orElse(FList.of()) // Default to empty list if parsing fails
-    )
-    .thenSkip(
-        Lexical.chr('}').orElse(fail("Missing closing brace '}'"))
-    )
-    .map(pairs -> {
-        Map<String, String> map = new HashMap<>();
-        for (KeyValue kv : pairs) {
-            map.put(kv.getKey(), kv.getValue());
-        }
-        return map;
-    });
-```
-
-#### Step 5: Label failures with `expecting(...)`
-
-Often an error message from a low-level parser is technically correct but not very helpful for the user of your language. Use `expecting(String label)` to attach a clearer, domain-specific label to a parser so that, if it fails, the error message says what you intended to parse.
-
-Key properties:
-- It does not change parsing behavior.
-- On success, it returns the same result.
-- On failure, it preserves the original error as the cause (including its error type) and replaces the top-level “Expected …” with your label.
-
-Example:
-
-```java
-// Suppose an identifier is a letter followed by zero or more alphanumerics
-// Use a regex-based parser for a concise identifier definition
-Parser<Character, String> identifier =
-    regex("[A-Za-z][A-Za-z0-9]*")
-        .expecting("identifier");
-
-Result<Character, String> r = identifier.parse("123");
-if (!r.matches()) {
-    System.out.println(r.error());
-    // Output includes something like: "... Expected identifier but found '1' ..."
-}
-```
-
-You can apply `expecting(...)` to any sub-parser to improve error messages at the appropriate abstraction level, e.g.:
-
-```java
-Parser<Character, String> key = regex("[A-Za-z]+").expecting("key");
-Parser<Character, String> value = regex("[A-Za-z0-9]+").expecting("value");
-Parser<Character, KeyValue> keyValueParser =
-    key.thenSkip(chr('=').expecting("'=' after key"))
-       .then(value)
-       .map((k, v) -> new KeyValue(k, v));
-```
-
-This yields clearer diagnostics like "Expected '=' after key" or "Expected value" while retaining the original cause details for debugging.
 
 ### Tutorial 5: Creating a Calculator Parser
 
@@ -715,30 +474,9 @@ If you're experiencing performance issues with complex parsers, try:
    
 ## Best Practices
 
-1. **Compose parsers from smaller, reusable components**
-
-   Break down complex parsers into smaller, reusable components. This makes your code more maintainable and easier to test.
-
-2. **Use meaningful names for parsers**
-
-   Give your parsers meaningful names that reflect what they parse. This makes your code more readable and easier to understand.
-
-3. **Handle errors gracefully**
-
-   Provide meaningful error messages when parsing fails. This helps users understand what went wrong and how to fix it.
-
-4. **Test your parsers with a variety of inputs**
-
-   Test your parsers with both valid and invalid inputs to ensure they behave correctly in all cases.
-
-5. **Document your parsers**
-
-   Document your parsers with comments that explain what they parse and how they work. This helps others understand your code.
-
-6. **Use the right combinator for the job**
-
-   Choose the appropriate combinator for each parsing task. For example, use `many()` for zero or more occurrences, `many1()` for one or more occurrences, and `optional()` for optional elements.
-
-7. **Avoid excessive backtracking**
-
-   Excessive backtracking can lead to performance issues. Try to make your parsers more deterministic to reduce backtracking.
+1. **Keep it small**: Break complex grammars into small, named parsers. It's easier to test and debug.
+2. **Name your parsers**: Instead of nesting everything, use descriptive variable names.
+3. **Use `expecting()` at boundaries**: Don't label every single `chr()`, but do label major components like `identifier`, `statement`, or `expression`.
+4. **Test edge cases**: Empty input, unexpected characters, and unfinished sequences are where parsers usually fail.
+5. **Prefer `Lexical` for speed**: When parsing common patterns like numbers or identifiers, `Lexical.regex` or `Lexical.chr` are often faster and clearer than building them from individual character parsers.
+6. **Watch out for backtracking**: The `oneOf` combinator tries parsers in order. Put the most specific or longest matches first to avoid unnecessary work or incorrect matches.
