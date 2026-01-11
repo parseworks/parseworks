@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.function.BinaryOperator;
 
+import static io.github.parseworks.parsers.Combinators.attempt;
 import static io.github.parseworks.parsers.Lexical.chr;
 import static io.github.parseworks.parsers.Numeric.doubleValue;
 import static io.github.parseworks.parsers.Numeric.number;
@@ -29,8 +30,8 @@ public class AssociativityTest {
         Parser<Character, Double> expression = Parser.ref();
         Parser<Character, Double> term = Parser.ref();
 
-        Parser<Character, Double> addition = term.then(chr('+')).then(expression).map((left, op, right) -> Double.sum(left, right));
-        Parser<Character, Double> multiplication = doubleValue.then(chr('*')).then(term).map((left, op, right) -> left * right);
+        Parser<Character, Double> addition = attempt(term.then(chr('+')).then(expression).map((left, op, right) -> Double.sum(left, right)));
+        Parser<Character, Double> multiplication = attempt(doubleValue.then(chr('*')).then(term).map((left, op, right) -> left * right));
         term.set(multiplication.or(doubleValue));
         expression.set(Combinators.oneOf(List.of(
                 addition,
@@ -48,8 +49,8 @@ public class AssociativityTest {
         Parser<Character, Double> expression = Parser.ref();
         Parser<Character, Double> term = Parser.ref();
 
-        Parser<Character, Double> addition = term.then(chr('+')).then(expression).map((left, op, right) -> Double.sum(left, right));
-        Parser<Character, Double> multiplication = doubleValue.then(chr('*')).then(term).map((left, op, right) -> left * right);
+        Parser<Character, Double> addition = attempt(term.then(chr('+')).then(expression).map((left, op, right) -> Double.sum(left, right)));
+        Parser<Character, Double> multiplication = attempt(doubleValue.then(chr('*')).then(term).map((left, op, right) -> left * right));
         term.set(multiplication.or(doubleValue));
         expression.set(Combinators.oneOf(List.of(
                 addition,

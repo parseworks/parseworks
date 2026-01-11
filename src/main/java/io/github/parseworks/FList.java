@@ -261,14 +261,8 @@ public final class FList<T> extends AbstractList<T> implements Iterable<T> {
         return new FList<>(delegate.subList(fromIndex, toIndex));
     }
 
-    public static String joinChars(FList<Character> list) {
-        if (list == null || list.isEmpty()) {
-            return "";
-        }
-        return list.foldLeft(new StringBuilder(), StringBuilder::append).toString();
-    }
 
-    public static String joinStrings(FList<?> list) {
+    public static String join(FList<?> list) {
         if (list == null || list.isEmpty()) {
             return "";
         }

@@ -524,6 +524,12 @@ public class Combinators {
                 if (result.matches()) {
                     return result;
                 }
+                
+                // If it's a hard failure (consumed input), stop and return it
+                if (result.type() == ResultType.PARTIAL && result.input().position() > in.position()) {
+                    return result;
+                }
+
                 if (failures == null){
                     failures = new ArrayList<>();
                 }

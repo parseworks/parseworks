@@ -37,7 +37,7 @@ public class FListTest {
 
         // Test joinChars() method
         FList<Character> chars = FList.of('h', 'e', 'l', 'l', 'o');
-        String joined = FList.joinChars(chars);
+        String joined = FList.join(chars);
         assertEquals("hello", joined);
     }
 

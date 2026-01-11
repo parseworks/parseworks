@@ -181,7 +181,7 @@ public class SimpleHtmlParser {
                                 QUOTED_STRING,
                                 Lexical.chr(c -> c != '>' && c != '"' && c != '\'' && c != ' ' && c != '\t' && c != '\n' && c != '\r')
                                     .oneOrMore() // avoid empty attr value
-                                    .map(FList::joinChars)
+                                    .map(FList::join)
                             ))
                             .optional()
                     )

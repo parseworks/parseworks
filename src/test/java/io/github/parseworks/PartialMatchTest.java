@@ -52,10 +52,10 @@ public class PartialMatchTest {
 
         Result<Character, String> result = abcd.parse(input);
         assertFalse(result.matches());
-        assertEquals(ResultType.NO_MATCH, result.type());
+        assertEquals(ResultType.PARTIAL, result.type());
         // value() should throw exception for PartialMatch
         assertThrows(RuntimeException.class, result::value);
-        assertEquals(0, result.input().position());
+        assertEquals(3, result.input().position());
     }
 
     @Test
@@ -77,9 +77,9 @@ public class PartialMatchTest {
         
         Result<Character, String> result = abcd.parse(input);
         
-        assertEquals(ResultType.NO_MATCH, result.type());
-        NoMatch<Character, String> partial = (NoMatch<Character, String>) result;
-        assertEquals(0, partial.input().position());
+        assertEquals(ResultType.PARTIAL, result.type());
+        PartialMatch<Character, String> partial = (PartialMatch<Character, String>) result;
+        assertEquals(3, partial.input().position());
     }
 
     @Test

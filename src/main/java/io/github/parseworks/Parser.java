@@ -194,7 +194,15 @@ public class Parser<I, A> {
      * @see #then(Parser) for keeping both parser results
      */
     public <B> Parser<I, A> thenSkip(Parser<I, B> pb) {
-        return then(pb).map((a, b) -> a);
+        return new Parser<>(in -> {
+            Result<I, A> res = this.apply(in);
+            if (!res.matches()) return res;
+            Result<I, B> res2 = pb.apply(res.input());
+            if (!res2.matches()) {
+                return Result.partial(res2.input(), (Failure<I, A>) res2.cast());
+            }
+            return Result.success(res2.input(), res.value());
+        });
     }
 
 
@@ -242,7 +250,15 @@ public class Parser<I, A> {
      * @see #then(Parser) for keeping both parser results
      */
     public <B> Parser<I, B> skipThen(Parser<I, B> pb) {
-        return then(pb).map((a, b) -> b);
+        return new Parser<>(in -> {
+            Result<I, A> res = this.apply(in);
+            if (!res.matches()) return res.cast();
+            Result<I, B> res2 = pb.apply(res.input());
+            if (!res2.matches()) {
+                return Result.partial(res2.input(), (Failure<I, B>) res2);
+            }
+            return res2;
+        });
     }
 
 
@@ -1923,6 +1939,14 @@ public class Parser<I, A> {
                     if (count >= min) {
                         return Result.success(current, new FList<>(buffer));
                     }
+                    
+                    if (current.position() > in.position()) {
+                        return Result.partial(current, new NoMatch<>(current,
+                                "at least " + min + " repetition(s)",
+                                (NoMatch<?, ?>) res
+                        ));
+                    }
+
                     // Pass through the original error with more context
                     // pass literal failure as part of new failure to create a nested response
                     return new NoMatch<>(current,
@@ -2262,7 +2286,11 @@ public class Parser<I, A> {
                 // be defensive to help users diagnose nulls
                 return Result.internalError(r.input()).cast();
             }
-            return next.apply(r.input());
+            Result<I, B> rb = next.apply(r.input());
+            if (!rb.matches()) {
+                return (Result<I, B>) Result.partial(rb.input(), (Failure<I, B>) rb);
+            }
+            return rb;
         });
     }
 

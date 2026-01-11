@@ -1,6 +1,7 @@
 package io.github.parseworks;
 
 import io.github.parseworks.impl.result.NoMatch;
+import io.github.parseworks.Failure;
 import io.github.parseworks.parsers.Lexical;
 import org.junit.jupiter.api.Test;
 
@@ -69,9 +70,9 @@ public class ErrorHandlingTest {
         Result<Character, String> result = expr.parse("(((");
 
         assertFalse(result.matches());
-        NoMatch<?, ?> failure = (NoMatch<?, ?>) result;
+        Failure<?, ?> failure = (Failure<?, ?>) result;
 
-        // Print the actual error type and message for debugging
+        // Print the actual error message for debugging
         System.out.println("[DEBUG_LOG] Error message: " + failure.error());
     }
 

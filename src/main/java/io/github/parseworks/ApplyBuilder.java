@@ -58,13 +58,13 @@ public class ApplyBuilder<I, A, B> {
         return new Parser<>(in -> {
             Result<I, Function<A, B>> functionResult = functionProvider.apply(in);
             if (!functionResult.matches()) {
-                return functionResult.cast();
+                return (Result<I, B>) functionResult.cast();
             }
             Function<A, B> func = functionResult.value();
             Input<I> in2 = functionResult.input();
             Result<I, A> valueResult = valueParser.apply(in2);
             if (!valueResult.matches()) {
-                return valueResult.cast();
+                return (Result<I, B>) Result.partial(valueResult.input(), (Failure<I, A>) valueResult);
             }
             return valueResult.map(func);
         });
@@ -206,7 +206,7 @@ public class ApplyBuilder<I, A, B> {
             }
             Result<I, B> rb = pb.apply(ra.input());
             if (!rb.matches()) {
-                return rb.cast();
+                return (Result<I, R>) Result.partial(rb.input(), (Failure<I, B>) rb);
             }
             return Result.success(rb.input(), f.apply(ra.value(), rb.value()));
         });

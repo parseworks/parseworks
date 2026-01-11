@@ -4,6 +4,7 @@ import io.github.parseworks.FList;
 import io.github.parseworks.Input;
 import io.github.parseworks.Parser;
 import io.github.parseworks.Result;
+import io.github.parseworks.impl.result.NoMatch;
 
 import java.util.HashSet;
 import java.util.Objects;
@@ -360,6 +361,9 @@ public class Lexical {
             // Check if we have enough characters left in the input
             for (int i = 0; i < str.length(); i++) {
                 if (currentInput.isEof()) {
+                    if (i > 0) {
+                        return Result.partial(currentInput, new NoMatch<>(currentInput, str));
+                    }
                     return Result.failure(in, str);
                 }
 
@@ -367,6 +371,9 @@ public class Lexical {
                 char actual = currentInput.current();
 
                 if (expected != actual) {
+                    if (i > 0) {
+                        return Result.partial(currentInput, new NoMatch<>(currentInput, str));
+                    }
                     return Result.failure(in, str);
                 }
 

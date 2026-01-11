@@ -122,7 +122,7 @@ public class UserGuideExamplesTest {
         // Parser for values (any string until the end of line)
         Parser<Character, String> valueParser = Lexical.chr(c -> c != '\n' && c != ',' && c != '}')
             .oneOrMore()
-            .map(FList::joinChars)
+            .map(FList::join)
             .expecting("value");
 
         // Parser for a key-value pair

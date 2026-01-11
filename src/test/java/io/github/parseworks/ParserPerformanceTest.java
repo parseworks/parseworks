@@ -59,7 +59,7 @@ public class ParserPerformanceTest {
         Parser<Character, String> quotedChunk = Combinators.oneOf(
             escapedQuote.map(s -> "\\\""),            // "" -> "
             notQuote.map(Object::toString)             // any non-quote char
-        ).oneOrMore().map(FList::joinStrings);
+        ).oneOrMore().map(FList::join);
 
         Parser<Character, String> quotedField =
             chr('"').skipThen(quotedChunk).thenSkip(chr('"'));
@@ -68,7 +68,7 @@ public class ParserPerformanceTest {
         Parser<Character, String> unquotedFieldCore =
             chr(c -> c != ',' && c != '\n' && c != '\r')
                 .oneOrMore()
-                .map(FList::joinChars);
+                .map(FList::join);
 
         // Conditional: only allow the unquoted variant if the next char is NOT a quote
         Parser<Character, String> unquotedField = unquotedFieldCore.onlyIf(Combinators.not(chr('\"')));
