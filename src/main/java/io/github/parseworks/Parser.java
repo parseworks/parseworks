@@ -609,7 +609,7 @@ public class Parser<I, A> {
      * @see #oneOrMore() for a version that requires at least one match
      * @see #repeat(int, int) for a version with explicit min and max counts
      */
-    public Parser<I, FList<A>> zeroOrMore() {
+    public Parser<I, List<A>> zeroOrMore() {
         return repeatInternal(0, Integer.MAX_VALUE, null);
     }
 
@@ -655,7 +655,7 @@ public class Parser<I, A> {
      * @see #repeat(int) for a version with an exact count
      * @see #repeat(int, int) for a version with explicit min and max counts
      */
-    public Parser<I, FList<A>> oneOrMore() {
+    public Parser<I, List<A>> oneOrMore() {
         return repeatInternal(1, Integer.MAX_VALUE, null);
     }
 
@@ -707,7 +707,7 @@ public class Parser<I, A> {
      * @see #oneOrMore() for a version that collects until this parser fails
      * @see #repeatInternal(int, int, Parser) for the underlying implementation
      */
-    public Parser<I, FList<A>> oneOrMoreUntil(Parser<I, ?> until) {
+    public Parser<I, List<A>> oneOrMoreUntil(Parser<I, ?> until) {
         return repeatInternal(1, Integer.MAX_VALUE, until);
     }
 
@@ -1269,7 +1269,7 @@ public class Parser<I, A> {
      * @see #oneOrMore() for matching one or more occurrences without an upper limit
      * @see #zeroOrMore() for matching zero or more occurrences
      */
-    public Parser<I, FList<A>> repeat(int target) {
+    public Parser<I, List<A>> repeat(int target) {
         return repeatInternal(target, target, null);
     }
 
@@ -1324,7 +1324,7 @@ public class Parser<I, A> {
      * @see #oneOrMore() for matching one or more occurrences without an upper limit
      * @see #zeroOrMore() for matching zero or more occurrences without an upper limit
      */
-    public Parser<I, FList<A>> repeat(int min, int max) {
+    public Parser<I, List<A>> repeat(int min, int max) {
         return repeatInternal(min, max, null);
     }
 
@@ -1375,7 +1375,7 @@ public class Parser<I, A> {
      * @see #oneOrMore() for matching one or more occurrences (equivalent to repeatAtLeast(1))
      * @see #zeroOrMore() for matching zero or more occurrences (equivalent to repeatAtLeast(0))
      */
-    public Parser<I, FList<A>> repeatAtLeast(int target) {
+    public Parser<I, List<A>> repeatAtLeast(int target) {
         return repeatInternal(target, Integer.MAX_VALUE, null);
     }
 
@@ -1424,7 +1424,7 @@ public class Parser<I, A> {
      * @see #repeat(int, int) for a version with explicit minimum and maximum counts
      * @see #zeroOrMore() for matching zero or more occurrences without an upper limit
      */
-    public Parser<I, FList<A>> repeatAtMost(int max) {
+    public Parser<I, List<A>> repeatAtMost(int max) {
         return repeatInternal(0, max, null);
     }
 
@@ -1473,8 +1473,8 @@ public class Parser<I, A> {
      * @see #zeroOrMore() for collecting repeated elements without separators
      * @see #repeat(int, int) for collecting a specific range of elements
      */
-    public <SEP> Parser<I, FList<A>> zeroOrManySeparatedBy(Parser<I, SEP> sep) {
-        return this.oneOrMoreSeparatedBy(sep).map(l -> l).or(pure(new FList<>()));
+    public <SEP> Parser<I, List<A>> zeroOrManySeparatedBy(Parser<I, SEP> sep) {
+        return this.oneOrMoreSeparatedBy(sep).map(l -> l).or(pure(Collections.emptyList()));
     }
 
     /**
@@ -1561,8 +1561,8 @@ public class Parser<I, A> {
      * @see #oneOrMore() for collecting repeated elements without separators
      * @see #repeat(int, int) for collecting a specific range of elements
      */
-    public <SEP> Parser<I, FList<A>> oneOrMoreSeparatedBy(Parser<I, SEP> sep) {
-        return this.then(sep.skipThen(this).zeroOrMore()).map(a -> l -> l.prepend(a));
+    public <SEP> Parser<I, List<A>> oneOrMoreSeparatedBy(Parser<I, SEP> sep) {
+        return this.then(sep.skipThen(this).zeroOrMore()).map(a -> l -> Lists.prepend(a, l));
     }
 
     /**
@@ -1754,7 +1754,7 @@ public class Parser<I, A> {
      * @return a parser that collects elements while the condition is true
      * @throws IllegalArgumentException if the condition parser is null
      */
-    public Parser<I, FList<A>> takeWhile(Parser<I, Boolean> condition) {
+    public Parser<I, List<A>> takeWhile(Parser<I, Boolean> condition) {
         if (condition == null) {
             throw new IllegalArgumentException("Condition parser cannot be null");
         }
@@ -1768,7 +1768,7 @@ public class Parser<I, A> {
                 Result<I, Boolean> conditionResult = condition.apply(currentInput);
                 if (!conditionResult.matches()) {
                     // Condition not met, stop collecting
-                    return Result.success(currentInput, new FList<>(results));
+                    return Result.success(currentInput, Collections.unmodifiableList(results));
                 }
 
                 // Store the current position to check for advancement
@@ -1778,7 +1778,7 @@ public class Parser<I, A> {
                 Result<I, A> elementResult = this.apply(currentInput);
                 if (!elementResult.matches()) {
                     // Failed to parse an element, stop collecting
-                    return Result.success(currentInput, new FList<>(results));
+                    return Result.success(currentInput, Collections.unmodifiableList(results));
                 }
 
                 // Add parsed element to results
@@ -1787,12 +1787,11 @@ public class Parser<I, A> {
 
                 // Check if we've advanced the position - if not, break to avoid infinite loop
                 if (currentInput.position() == currentPosition) {
-                    return Result.success(currentInput, new FList<>(results));
+                    return Result.success(currentInput, Collections.unmodifiableList(results));
                 }
             }
 
-            // Reached end of input
-            return Result.success(currentInput, new FList<>(results));
+            return Result.success(currentInput, Collections.unmodifiableList(results));
         });
     }
 
@@ -1840,7 +1839,7 @@ public class Parser<I, A> {
      * @see #oneOrMoreUntil(Parser) for a version that requires at least one match
      * @see #zeroOrMore() for a version that collects until this parser fails
      */
-    public Parser<I, FList<A>> zeroOrManyUntil(Parser<I, ?> terminator) {
+    public Parser<I, List<A>> zeroOrManyUntil(Parser<I, ?> terminator) {
         return repeatInternal(0, Integer.MAX_VALUE, terminator);
     }
 
@@ -1887,7 +1886,7 @@ public class Parser<I, A> {
      * @throws IllegalArgumentException if {@code min} is negative, {@code max} is less than {@code min},
      *                                   or {@code until} is null when required
      */
-    private Parser<I, FList<A>> repeatInternal(int min, int max, Parser<I, ?> until) {
+    private Parser<I, List<A>> repeatInternal(int min, int max, Parser<I, ?> until) {
         if (min < 0 || max < 0) {
             throw new IllegalArgumentException("The number of repetitions cannot be negative");
         }
@@ -1910,13 +1909,13 @@ public class Parser<I, A> {
                                 current, 
                                 "expected at least " + min + " items (found only " + count + " before terminator)");
                         }
-                        return Result.success(termRes.input(), new FList<>(buffer));
+                        return Result.success(termRes.input(), Collections.unmodifiableList(buffer));
                     }
                 }
                 // End-of-input or max reached
                 if (current.isEof() || count >= max) {
                     if (count >= min && until == null) {
-                        return Result.success(current, new FList<>(buffer));
+                        return Result.success(current, Collections.unmodifiableList(buffer));
                     }
                     // Provide more context about the error
                     String reason = current.isEof() ? "end of input reached" : "maximum repetitions reached";
@@ -1937,7 +1936,7 @@ public class Parser<I, A> {
                     }
 
                     if (count >= min) {
-                        return Result.success(current, new FList<>(buffer));
+                        return Result.success(current, Collections.unmodifiableList(buffer));
                     }
                     
                     if (current.position() > in.position()) {

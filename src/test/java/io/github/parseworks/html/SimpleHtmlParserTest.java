@@ -1,8 +1,9 @@
 package io.github.parseworks.html;
 
-import io.github.parseworks.FList;
 import io.github.parseworks.Result;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -59,7 +60,7 @@ public class SimpleHtmlParserTest {
 
     @Test
     public void testParseMultipleElements() {
-        FList<SimpleHtmlParser.Element> elements = SimpleHtmlParser.parseAll("<div>Hello, world!</div>");
+        List<SimpleHtmlParser.Element> elements = SimpleHtmlParser.parseAll("<div>Hello, world!</div>");
         assertEquals(3, elements.size());
 
         assertInstanceOf(SimpleHtmlParser.StartTag.class, elements.get(0));
@@ -94,7 +95,7 @@ public class SimpleHtmlParserTest {
                 </body>
                 </html>""";
 
-        FList<SimpleHtmlParser.Element> elements = SimpleHtmlParser.parseAll(html);
+        List<SimpleHtmlParser.Element> elements = SimpleHtmlParser.parseAll(html);
         assertFalse(elements.isEmpty());
 
         // Count the number of each element type

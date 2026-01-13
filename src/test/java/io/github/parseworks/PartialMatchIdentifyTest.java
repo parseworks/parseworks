@@ -3,9 +3,8 @@ package io.github.parseworks;
 import io.github.parseworks.parsers.Lexical;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
+import java.util.List;
 
-import static io.github.parseworks.parsers.Combinators.oneOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class PartialMatchIdentifyTest {
@@ -42,10 +41,10 @@ public class PartialMatchIdentifyTest {
     @Test
     public void testRepeatPartialMatch() {
         Parser<Character, Character> a = Lexical.chr('a');
-        Parser<Character, FList<Character>> a3 = a.repeat(3);
+        Parser<Character, List<Character>> a3 = a.repeat(3);
         Input<Character> input = Input.of("aab");
         
-        Result<Character, FList<Character>> result = a3.apply(input);
+        Result<Character, List<Character>> result = a3.apply(input);
         
         // Matches 'a' twice, fails on third 'a'.
         assertEquals(ResultType.PARTIAL, result.type(), "Repeat should return PARTIAL if it met min requirement but failed subsequently");

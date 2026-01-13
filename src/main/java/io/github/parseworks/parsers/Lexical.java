@@ -1,14 +1,11 @@
 package io.github.parseworks.parsers;
 
-import io.github.parseworks.FList;
 import io.github.parseworks.Input;
 import io.github.parseworks.Parser;
 import io.github.parseworks.Result;
 import io.github.parseworks.impl.result.NoMatch;
 
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -196,11 +193,11 @@ public class Lexical {
      * - Does NOT consume the needle (chain with thenSkip(string(needle)) if needed)
      * - O(n) using indexOf-like scanning when input is a CharSequence/char[] backed input
      */
-    public static Parser<Character, FList<Character>> takeUntil(String needle) {
+    public static Parser<Character, List<Character>> takeUntil(String needle) {
         Objects.requireNonNull(needle, "needle");
         if (needle.isEmpty()) {
             // Edge-case: empty delimiter – always succeed with empty list
-            return new Parser<>(in -> Result.success(in, new FList<>()));
+            return new Parser<>(in -> Result.success(in, Collections.emptyList()));
         }
         final char first = needle.charAt(0);
 
@@ -213,10 +210,10 @@ public class Lexical {
                 int idx = indexOf(data, needle, from);
                 if (idx < 0) {
                     // Not found: consume to EOF
-                    FList<Character> out = toFList(data, from, data.length());
+                    List<Character> out = toList(data, from, data.length());
                     return Result.success(csi.skip(data.length() - from), out);
                 } else {
-                    FList<Character> out = toFList(data, from, idx);
+                    List<Character> out = toList(data, from, idx);
                     return Result.success(csi.skip(idx - from), out);
                 }
             }
@@ -228,17 +225,17 @@ public class Lexical {
                 int idx = indexOf(data, needle, from);
                 if (idx < 0) {
                     // Not found: consume to EOF
-                    FList<Character> out = toFList(data, from, data.length);
+                    List<Character> out = toList(data, from, data.length);
                     return Result.success(cai.skip(data.length - from), out);
                 } else {
-                    FList<Character> out = toFList(data, from, idx);
+                    List<Character> out = toList(data, from, idx);
                     return Result.success(cai.skip(idx - from), out);
                 }
             }
 
             // Fallback: generic scan
             Input<Character> cur = in;
-            FList<Character> buf = new FList<>();
+            List<Character> buf = new ArrayList<>();
             while (!cur.isEof()) {
                 // quick pre-check by first char to avoid building sub-strings often
                 if (cur.current() == first) {
@@ -285,14 +282,14 @@ public class Lexical {
         return -1;
     }
 
-    private static FList<Character> toFList(CharSequence data, int start, int end) {
-        FList<Character> out = new FList<>();
+    private static List<Character> toList(CharSequence data, int start, int end) {
+        List<Character> out = new ArrayList<>();
         for (int i = start; i < end; i++) out.add(data.charAt(i));
         return out;
     }
 
-    private static FList<Character> toFList(char[] data, int start, int end) {
-        FList<Character> out = new FList<>();
+    private static List<Character> toList(char[] data, int start, int end) {
+        List<Character> out = new ArrayList<>();
         for (int i = start; i < end; i++) out.add(data[i]);
         return out;
     }

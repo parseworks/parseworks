@@ -3,7 +3,6 @@ package io.github.parseworks;
 import org.junit.jupiter.api.Test;
 
 import static io.github.parseworks.parsers.Lexical.chr;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**

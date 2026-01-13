@@ -8,9 +8,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.parsers.Combinators.*;
-import static io.github.parseworks.parsers.Numeric.numeric;
+import static io.github.parseworks.parsers.Combinators.isNot;
+import static io.github.parseworks.parsers.Combinators.not;
 import static io.github.parseworks.parsers.Lexical.trim;
+import static io.github.parseworks.parsers.Numeric.numeric;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ParserTest {
@@ -130,7 +131,7 @@ public class ParserTest {
 
     @Test
     public void testZeroOrMore() {
-        Parser<Character, List<Character>> parser = Lexical.chr(Character::isLetter).zeroOrMore().then(Lexical.chr(Character::isDigit).zeroOrMore()).map(FList::appendAll);
+        Parser<Character, List<Character>> parser = Lexical.chr(Character::isLetter).zeroOrMore().then(Lexical.chr(Character::isDigit).zeroOrMore()).map(Lists::appendAll);
         Input<Character> input = Input.of("abc123");
         Result<Character, List<Character>> result = parser.parse(input);
         assertTrue(result.matches());
@@ -215,9 +216,9 @@ public class ParserTest {
 
     @Test
     public void testZeroOrMoreSeparatedBy() {
-        Parser<Character, FList<Character>> parser = Lexical.chr(Character::isLetter).zeroOrManySeparatedBy(Lexical.chr(','));
+        Parser<Character, List<Character>> parser = Lexical.chr(Character::isLetter).zeroOrManySeparatedBy(Lexical.chr(','));
         Input<Character> input = Input.of("a,b,c");
-        Result<Character, FList<Character>> result = parser.parse(input);
+        Result<Character, List<Character>> result = parser.parse(input);
         assertTrue(result.matches());
         assertEquals(3, result.value().size());
     }
@@ -253,27 +254,27 @@ public class ParserTest {
 
     @Test
     public void testRepeat() {
-        Parser<Character, FList<Character>> parser = Lexical.chr('a').repeat(3);
+        Parser<Character, List<Character>> parser = Lexical.chr('a').repeat(3);
         Input<Character> input = Input.of("aaa");
-        Result<Character, FList<Character>> result = parser.parse(input);
+        Result<Character, List<Character>> result = parser.parse(input);
         assertTrue(result.matches());
         assertEquals(3, result.value().size());
     }
 
     @Test
     public void testRepeatAtLeast() {
-        Parser<Character, FList<Character>> parser = Lexical.chr('a').repeatAtLeast(2);
+        Parser<Character, List<Character>> parser = Lexical.chr('a').repeatAtLeast(2);
         Input<Character> input = Input.of("aaa");
-        Result<Character, FList<Character>> result = parser.parse(input);
+        Result<Character, List<Character>> result = parser.parse(input);
         assertTrue(result.matches());
         assertEquals(3, result.value().size());
     }
 
     @Test
     public void testRepeatBetween() {
-        Parser<Character, FList<Character>> parser = Lexical.chr('a').repeat(2, 4);
+        Parser<Character, List<Character>> parser = Lexical.chr('a').repeat(2, 4);
         Input<Character> input = Input.of("aaa");
-        Result<Character, FList<Character>> result = parser.parse(input);
+        Result<Character, List<Character>> result = parser.parse(input);
         assertTrue(result.matches());
         assertEquals(3, result.value().size());
     }
@@ -287,32 +288,32 @@ public class ParserTest {
         Parser<Character, Boolean> isDigit = digitParser.map(c -> true).orElse(false);
 
         // Create a parser that takes digits while they are present
-        Parser<Character, FList<Character>> takeWhileParser = digitParser.takeWhile(isDigit);
+        Parser<Character, List<Character>> takeWhileParser = digitParser.takeWhile(isDigit);
 
         // Test case 1: Only digits
-        Result<Character, FList<Character>> result1 = takeWhileParser.parse("12345");
+        Result<Character, List<Character>> result1 = takeWhileParser.parse("12345");
         assertTrue(result1.matches());
         assertEquals(5, result1.value().size());
         assertEquals(List.of('1', '2', '3', '4', '5'), result1.value());
 
         // Test case 2: Digits followed by letters
-        Result<Character, FList<Character>> result2 = takeWhileParser.parse("123abc");
+        Result<Character, List<Character>> result2 = takeWhileParser.parse("123abc");
         assertTrue(result2.matches());
         assertEquals(3, result2.value().size());
         assertEquals(List.of('1', '2', '3'), result2.value());
 
         // Test case 3: Starts with letters
-        Result<Character, FList<Character>> result3 = takeWhileParser.parse("abc123");
+        Result<Character, List<Character>> result3 = takeWhileParser.parse("abc123");
         assertTrue(result3.matches());
         assertEquals(0, result3.value().size()); // Empty list when no matches at start
 
         // Test case 4: Empty input
-        Result<Character, FList<Character>> result4 = takeWhileParser.parse("");
+        Result<Character, List<Character>> result4 = takeWhileParser.parse("");
         assertTrue(result4.matches());
         assertEquals(0, result4.value().size()); // Empty list for empty input
 
         // Test case 5: Mixed content with digits returning
-        Result<Character, FList<Character>> result5 = takeWhileParser.parse("123abc456");
+        Result<Character, List<Character>> result5 = takeWhileParser.parse("123abc456");
         assertTrue(result5.matches());
         assertEquals(3, result5.value().size());
         assertEquals(List.of('1', '2', '3'), result5.value());
@@ -320,59 +321,59 @@ public class ParserTest {
 
     @Test
     public void testRepeatAtMost() {
-        Parser<Character, FList<Character>> parser = Lexical.chr('a').repeatAtMost(3);
+        Parser<Character, List<Character>> parser = Lexical.chr('a').repeatAtMost(3);
 
         // Test case 1: Less than max
-        Result<Character, FList<Character>> result1 = parser.parse("aa");
+        Result<Character, List<Character>> result1 = parser.parse("aa");
         assertTrue(result1.matches());
         assertEquals(2, result1.value().size());
 
         // Test case 2: Exactly max
-        Result<Character, FList<Character>> result2 = parser.parse("aaa");
+        Result<Character, List<Character>> result2 = parser.parse("aaa");
         assertTrue(result2.matches());
         assertEquals(3, result2.value().size());
 
         // Test case 3: More than max (should only take max)
-        Result<Character, FList<Character>> result3 = parser.parse("aaaaa");
+        Result<Character, List<Character>> result3 = parser.parse("aaaaa");
         assertTrue(result3.matches());
         assertEquals(3, result3.value().size());
 
         // Test case 4: Zero matches
-        Result<Character, FList<Character>> result4 = parser.parse("bbb");
+        Result<Character, List<Character>> result4 = parser.parse("bbb");
         assertTrue(result4.matches());
         assertEquals(0, result4.value().size());
     }
 
     @Test
     public void testZeroOrMoreUntil() {
-        Parser<Character, FList<Character>> parser = Lexical.chr('a').zeroOrManyUntil(Lexical.chr(';'));
+        Parser<Character, List<Character>> parser = Lexical.chr('a').zeroOrManyUntil(Lexical.chr(';'));
 
         // Test case 1: Zero matches with terminator
-        Result<Character, FList<Character>> result1 = parser.parse(";");
+        Result<Character, List<Character>> result1 = parser.parse(";");
         assertTrue(result1.matches());
         assertEquals(0, result1.value().size());
 
         // Test case 2: Multiple matches with terminator
-        Result<Character, FList<Character>> result2 = parser.parse("aaa;");
+        Result<Character, List<Character>> result2 = parser.parse("aaa;");
         assertTrue(result2.matches());
         assertEquals(3, result2.value().size());
 
         // Test case 3: No terminator (should fail)
-        Result<Character, FList<Character>> result3 = parser.parse("aaa");
+        Result<Character, List<Character>> result3 = parser.parse("aaa");
         assertTrue(!result3.matches());
     }
 
     @Test
     public void testOneOrManyUntil() {
-        Parser<Character, FList<Character>> parser = Lexical.chr('a').oneOrMoreUntil(Lexical.chr(';'));
+        Parser<Character, List<Character>> parser = Lexical.chr('a').oneOrMoreUntil(Lexical.chr(';'));
 
         // Test case 1: Multiple matches with terminator
-        Result<Character, FList<Character>> result1 = parser.parse("aaa;");
+        Result<Character, List<Character>> result1 = parser.parse("aaa;");
         assertTrue(result1.matches());
         assertEquals(3, result1.value().size());
 
         // Test case 2: Zero matches with terminator (should fail)
-        Result<Character, FList<Character>> result2 = parser.parse(";");
+        Result<Character, List<Character>> result2 = parser.parse(";");
         assertTrue(!result2.matches());
     }
 
@@ -433,20 +434,20 @@ public class ParserTest {
 
     @Test
     public void testOneOrMoreSeparatedBy() {
-        Parser<Character, FList<Character>> parser = Lexical.chr('a').oneOrMoreSeparatedBy(Lexical.chr(','));
+        Parser<Character, List<Character>> parser = Lexical.chr('a').oneOrMoreSeparatedBy(Lexical.chr(','));
 
         // Test with multiple separated elements
-        Result<Character, FList<Character>> result1 = parser.parse("a,a,a");
+        Result<Character, List<Character>> result1 = parser.parse("a,a,a");
         assertTrue(result1.matches());
         assertEquals(3, result1.value().size());
 
         // Test with single element (no separators)
-        Result<Character, FList<Character>> result2 = parser.parse("a");
+        Result<Character, List<Character>> result2 = parser.parse("a");
         assertTrue(result2.matches());
         assertEquals(1, result2.value().size());
 
         // Test with no elements (should fail)
-        Result<Character, FList<Character>> result3 = parser.parse("");
+        Result<Character, List<Character>> result3 = parser.parse("");
         assertTrue(!result3.matches());
     }
 
@@ -485,7 +486,7 @@ public class ParserTest {
 
         // Test case 2: Input '5' - should fail because it doesn't start with 'a'
         Result<Character, Character> result2 = aNotDigitParser.parse("5");
-        assertTrue(!result2.matches());
+        assertFalse(result2.matches());
         //assertEquals("Parser to fail", result2.fullErrorMessage());
 
         // Test case 3: Input 'a5' - should fail because '5' is a digit
@@ -498,7 +499,7 @@ public class ParserTest {
 
         // Should fail on "ab" because abParser succeeds
         Result<Character, Character> result4 = aNotAbParser.parse("ab");
-        assertTrue(!result4.matches());
+        assertFalse(result4.matches());
 
         // Should succeed on "ac" because abParser fails
         Result<Character, Character> result5 = aNotAbParser.parse("ac");
@@ -567,7 +568,7 @@ public class ParserTest {
     public void testOneOrMoreSeparatedByEmptyInput() {
         // Define a parser for comma-separated integers
         Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
-        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.oneOrMoreSeparatedBy(Lexical.chr(','));
+        Parser<Character, List<Integer>> separatedByManyParser = integerParser.oneOrMoreSeparatedBy(Lexical.chr(','));
 
         // Test input\
         String input = "fish";
@@ -582,7 +583,7 @@ public class ParserTest {
     public void testOneOrMoreSeparatedBySingleElement() {
         // Define a parser for comma-separated integers
         Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
-        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.oneOrMoreSeparatedBy(Lexical.chr(','));
+        Parser<Character, List<Integer>> separatedByManyParser = integerParser.oneOrMoreSeparatedBy(Lexical.chr(','));
 
         // Test input
         String input = "7";
@@ -596,11 +597,11 @@ public class ParserTest {
     public void testOneOrMoreSeparatedByTrailingSeparator() {
         // Define a parser for comma-separated integers
         Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
-        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.oneOrMoreSeparatedBy(Lexical.chr(','));
+        Parser<Character, List<Integer>> separatedByManyParser = integerParser.oneOrMoreSeparatedBy(Lexical.chr(','));
 
         // Test input
         String input = "1,2,3,";
-        Result<Character, FList<Integer>> result = separatedByManyParser.parse(Input.of(input));
+        Result<Character, List<Integer>> result = separatedByManyParser.parse(Input.of(input));
 
         // Verify the result
         assertTrue(!result.matches());
@@ -610,11 +611,11 @@ public class ParserTest {
     public void testOneOrMoreSeparatedByMultipleSeparators() {
         // Define a parser for comma-separated integers
         Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
-        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.oneOrMoreSeparatedBy(Lexical.chr(','));
+        Parser<Character, List<Integer>> separatedByManyParser = integerParser.oneOrMoreSeparatedBy(Lexical.chr(','));
 
         // Test input
         String input = "1,,2,3";
-        Result<Character, FList<Integer>> result = separatedByManyParser.parse(Input.of(input));
+        Result<Character, List<Integer>> result = separatedByManyParser.parse(Input.of(input));
         //this would return the list on the case of an optional number.
         // Verify the result
         assertTrue(!result.matches(),"result should be an error");
@@ -624,11 +625,11 @@ public class ParserTest {
     public void testOneOrMoreSeparatedByNonNumericInput() {
         // Define a parser for comma-separated integers
         Parser<Character, Integer> integerParser = numeric.map(Character::getNumericValue);
-        Parser<Character, FList<Integer>> separatedByManyParser = integerParser.oneOrMoreSeparatedBy(Lexical.chr(','));
+        Parser<Character, List<Integer>> separatedByManyParser = integerParser.oneOrMoreSeparatedBy(Lexical.chr(','));
 
         // Test input
         String input = "a,b,c";
-        Result<Character, FList<Integer>> result = separatedByManyParser.parse(Input.of(input));
+        Result<Character, List<Integer>> result = separatedByManyParser.parse(Input.of(input));
 
         // Verify the result
         assertTrue(!result.matches());

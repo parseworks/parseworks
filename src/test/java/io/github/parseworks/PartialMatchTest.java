@@ -1,12 +1,10 @@
 package io.github.parseworks;
 
-import io.github.parseworks.impl.result.NoMatch;
 import io.github.parseworks.impl.result.PartialMatch;
 import io.github.parseworks.parsers.Lexical;
 import org.junit.jupiter.api.Test;
 
 import static io.github.parseworks.parsers.Combinators.attempt;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PartialMatchTest {

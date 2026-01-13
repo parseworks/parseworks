@@ -1,6 +1,6 @@
 package io.github.parseworks.parsers;
 
-import io.github.parseworks.FList;
+import io.github.parseworks.Lists;
 import io.github.parseworks.Parser;
 
 import java.util.List;
@@ -175,11 +175,11 @@ public class Numeric {
 
 
     private static final Parser<Character, Integer> unSignedIntegerNotZero = nonZeroDigitParser(
-            ds -> ds.foldLeft(0, (acc, x) -> acc * 10 + x)
+            ds -> Lists.foldLeft(ds, 0, (acc, x) -> acc * 10 + x)
     );
 
     private static final Parser<Character, Long> unsignedLongNotZero = nonZeroDigitParser(
-            ds -> ds.foldLeft(0L, (acc, x) -> acc * 10L + x)
+            ds -> Lists.foldLeft(ds, 0L, (acc, x) -> acc * 10L + x)
     );
 
     /**
@@ -458,10 +458,10 @@ public class Numeric {
      * @param <T>       the type of the parsed value
      * @return a parser that parses a non-zero digit followed by zero or more digits and converts the result
      */
-    private static <T> Parser<Character, T> nonZeroDigitParser(Function<FList<Integer>, T> converter) {
+    private static <T> Parser<Character, T> nonZeroDigitParser(Function<List<Integer>, T> converter) {
         return nonZeroDigit.then(numeric.zeroOrMore())
-                .map(d -> ds -> ds.prepend(d))
-                .map(ds -> ds.map(Character::getNumericValue))
+                .map(d -> (List<Character> ds) -> Lists.prepend(d, ds))
+                .map(ds -> Lists.map(ds, Character::getNumericValue))
                 .map(converter);
     }
 }

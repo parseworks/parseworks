@@ -1,15 +1,12 @@
 package io.github.parseworks.html;
 
-import io.github.parseworks.FList;
 import io.github.parseworks.Input;
+import io.github.parseworks.Lists;
 import io.github.parseworks.Parser;
 import io.github.parseworks.Result;
 import io.github.parseworks.parsers.Lexical;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static io.github.parseworks.parsers.Combinators.*;
 
@@ -118,13 +115,9 @@ public class SimpleHtmlParser {
     private static final Parser<Character, Void> WHITESPACE =
         SPACE.zeroOrMore().map(chars -> null);
 
-    // Helper function to convert FList<Character> to String
-    private static String charsToString(FList<Character> chars) {
-        StringBuilder sb = new StringBuilder();
-        for (Character c : chars) {
-            sb.append(c);
-        }
-        return sb.toString();
+    // Helper function to convert List<Character> to String
+    private static String charsToString(List<Character> chars) {
+        return Lists.join(chars);
     }
 
     private static final Parser<Character, String> NAME_IDENTIFIER = 
@@ -181,7 +174,7 @@ public class SimpleHtmlParser {
                                 QUOTED_STRING,
                                 Lexical.chr(c -> c != '>' && c != '"' && c != '\'' && c != ' ' && c != '\t' && c != '\n' && c != '\r')
                                     .oneOrMore() // avoid empty attr value
-                                    .map(FList::join)
+                                    .map(Lists::join)
                             ))
                             .optional()
                     )
@@ -272,7 +265,7 @@ public class SimpleHtmlParser {
      * @param input the HTML document to parse
      * @return the list of elements
      */
-    public static FList<Element> parseAll(String input) {
+    public static List<Element> parseAll(String input) {
         List<Element> elements = new ArrayList<>();
         Input<Character> currentInput = Input.of(input);
 
@@ -288,6 +281,6 @@ public class SimpleHtmlParser {
             currentInput = result.input();
         }
 
-        return new FList<>(elements);
+        return Collections.unmodifiableList(elements);
     }
 }

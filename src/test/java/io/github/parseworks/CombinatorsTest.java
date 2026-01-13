@@ -216,7 +216,7 @@ public class CombinatorsTest {
 
         Parser<Character, String> keyword = Lexical.string("if").or(Lexical.string("else")).or(Lexical.string("while"));
         Parser<Character, String> identifier = Lexical.regex("[a-zA-Z][a-zA-Z0-9]*");
-        Parser<Character, String> number = Numeric.numeric.oneOrMore().map(FList::join);
+        Parser<Character, String> number = Numeric.numeric.oneOrMore().map(Lists::join);
 
        Parser<Character, String> token = oneOf(Arrays.asList(
          keyword,

@@ -1,17 +1,18 @@
 package io.github.parseworks.examples;
 
-import io.github.parseworks.FList;
 import io.github.parseworks.Input;
+import io.github.parseworks.Lists;
 import io.github.parseworks.Parser;
 import io.github.parseworks.Result;
 import io.github.parseworks.parsers.Lexical;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.parsers.Combinators.*;
+import static io.github.parseworks.parsers.Combinators.oneOf;
 import static io.github.parseworks.parsers.Lexical.trim;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -90,15 +91,15 @@ public class UserGuideExamplesTest {
             .map(key -> value -> new KeyValue(key, value));
 
         // Parser for multiple key-value pairs separated by newlines
-        Parser<Character, FList<KeyValue>> configParser = keyValueParser
+        Parser<Character, List<KeyValue>> configParser = keyValueParser
             .oneOrMoreSeparatedBy(Lexical.chr('\n'));
 
         // Parse a configuration file
         String config = "server=localhost\nport=8080\nuser=admin";
-        Result<Character, FList<KeyValue>> result = configParser.parse(Input.of(config));
+        Result<Character, List<KeyValue>> result = configParser.parse(Input.of(config));
 
         assertTrue(result.matches());
-        FList<KeyValue> keyValues = result.value();
+        List<KeyValue> keyValues = result.value();
         assertEquals(3, keyValues.size());
         assertEquals("server", keyValues.get(0).getKey());
         assertEquals("localhost", keyValues.get(0).getValue());
@@ -122,7 +123,7 @@ public class UserGuideExamplesTest {
         // Parser for values (any string until the end of line)
         Parser<Character, String> valueParser = Lexical.chr(c -> c != '\n' && c != ',' && c != '}')
             .oneOrMore()
-            .map(FList::join)
+            .map(Lists::join)
             .expecting("value");
 
         // Parser for a key-value pair

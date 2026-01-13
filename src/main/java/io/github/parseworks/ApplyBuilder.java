@@ -7,7 +7,7 @@ import java.util.function.Function;
  * {@code ApplyBuilder} combines parsers via successive calls to {@code then} and {@code thenSkip}.
  * <p>
  * {@code ApplyBuilder} provides a fluent interface for combining parsers.
- * The left two parsers are combined by calling {@link io.github.parseworks.Parser#map Parser.map},
+ * The left two parsers are combined by calling {@link Parser#map Parser.map},
  * which returns an {@code ApplyBuilder} instance.
  * Each successive parser is incorporated by passing it to a call to {@code then} or {@code thenSkip}.
  * The chain of calls is concluded by calling {@code map} with a handler for the parse results.
@@ -21,20 +21,13 @@ import java.util.function.Function;
  * @author jason bailey
  * @version $Id: $Id
  */
-public class ApplyBuilder<I, A, B> {
-    private final Parser<I, A> pa;
-    private final Parser<I, B> pb;
-
-    ApplyBuilder(Parser<I, A> pa, Parser<I, B> pb) {
-        this.pa = pa;
-        this.pb = pb;
-    }
+public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
 
     /**
      * Creates a new {@code ApplyBuilder} instance with the given parsers.
      *
-     * @param pa the first parser
-     * @param pb the second parser
+     * @param pa  the first parser
+     * @param pb  the second parser
      * @param <I> the type of the input to the parsers
      * @param <A> the type of the result of the first parser
      * @param <B> the type of the result of the second parser
@@ -58,13 +51,13 @@ public class ApplyBuilder<I, A, B> {
         return new Parser<>(in -> {
             Result<I, Function<A, B>> functionResult = functionProvider.apply(in);
             if (!functionResult.matches()) {
-                return (Result<I, B>) functionResult.cast();
+                return functionResult.cast();
             }
             Function<A, B> func = functionResult.value();
             Input<I> in2 = functionResult.input();
             Result<I, A> valueResult = valueParser.apply(in2);
             if (!valueResult.matches()) {
-                return (Result<I, B>) Result.partial(valueResult.input(), (Failure<I, A>) valueResult);
+                return Result.partial(valueResult.input(), (Failure<I, A>) valueResult).cast();
             }
             return valueResult.map(func);
         });
@@ -109,8 +102,8 @@ public class ApplyBuilder<I, A, B> {
      * // Fails for input "abc" (not an integer)
      * }</pre>
      *
-     * @param f the function to apply to the parser's result
-     * @param pa the parser that provides the value to transform
+     * @param f   the function to apply to the parser's result
+     * @param pa  the parser that provides the value to transform
      * @param <I> the type of the input symbols
      * @param <A> the type of the original parser's result
      * @param <B> the type of the transformed result
@@ -166,8 +159,8 @@ public class ApplyBuilder<I, A, B> {
      * // Fails for input "^" (not a recognized operator)
      * }</pre>
      *
-     * @param pf the parser that provides the function to apply
-     * @param a the constant value to which the function will be applied
+     * @param pf  the parser that provides the function to apply
+     * @param a   the constant value to which the function will be applied
      * @param <I> the type of the input symbols
      * @param <A> the type of the constant value
      * @param <B> the type of the result after applying the function
@@ -206,7 +199,7 @@ public class ApplyBuilder<I, A, B> {
             }
             Result<I, B> rb = pb.apply(ra.input());
             if (!rb.matches()) {
-                return (Result<I, R>) Result.partial(rb.input(), (Failure<I, B>) rb);
+                return Result.partial(rb.input(), (Failure<I, B>) rb).cast();
             }
             return Result.success(rb.input(), f.apply(ra.value(), rb.value()));
         });

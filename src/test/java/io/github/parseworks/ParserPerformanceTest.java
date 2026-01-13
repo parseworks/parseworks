@@ -5,11 +5,12 @@ import io.github.parseworks.parsers.Lexical;
 import io.github.parseworks.parsers.Numeric;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static io.github.parseworks.parsers.Lexical.chr;
-import static io.github.parseworks.parsers.Combinators.oneOf;
 import static io.github.parseworks.parsers.Combinators.attempt;
+import static io.github.parseworks.parsers.Combinators.oneOf;
+import static io.github.parseworks.parsers.Lexical.chr;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,8 +19,8 @@ public class ParserPerformanceTest {
     @Test
     public void testRepetitionPerformance() {
         // Create a parser that matches letters followed by numbers
-        Parser<Character, FList<Character>> letterParser = chr(Character::isLetter).zeroOrMore();
-        Parser<Character, FList<Character>> digitParser = chr(Character::isDigit).zeroOrMore();
+        Parser<Character, List<Character>> letterParser = chr(Character::isLetter).zeroOrMore();
+        Parser<Character, List<Character>> digitParser = chr(Character::isDigit).zeroOrMore();
         
         // Generate test input with oneOrMore repetitions
         StringBuilder input = new StringBuilder();
@@ -29,11 +30,11 @@ public class ParserPerformanceTest {
         
         long startTime = System.nanoTime();
 
-        var parser = letterParser.then(digitParser).map(a -> a::appendAll);
+        var parser = letterParser.then(digitParser).map(Lists::appendAll);
 
         // Parse the input multiple times to measure performance
         for (int i = 0; i < 5; i++) {
-            Result<Character, FList<Character>> result = parser.parse(input.toString());
+            Result<Character, List<Character>> result = parser.parse(input.toString());
             assertTrue(result.matches(), "Parsing should succeed");
         }
         
@@ -48,7 +49,7 @@ public class ParserPerformanceTest {
     @Test
     public void testLargeInputPerformance() {
         // Whitespace and separators
-        Parser<Character, FList<Character>> ws = chr(Character::isWhitespace).zeroOrMore();
+        Parser<Character, List<Character>> ws = chr(Character::isWhitespace).zeroOrMore();
         Parser<Character, Character> commaOnly = chr(',');
         Parser<Character, Character> comma = ws.skipThen(commaOnly).thenSkip(ws); // optional spaces around comma
         Parser<Character, Character> eol = chr('\n');
@@ -59,7 +60,7 @@ public class ParserPerformanceTest {
         Parser<Character, String> quotedChunk = Combinators.oneOf(
             escapedQuote.map(s -> "\\\""),            // "" -> "
             notQuote.map(Object::toString)             // any non-quote char
-        ).oneOrMore().map(FList::join);
+        ).oneOrMore().map(Lists::join);
 
         Parser<Character, String> quotedField =
             chr('"').skipThen(quotedChunk).thenSkip(chr('"'));
@@ -68,7 +69,7 @@ public class ParserPerformanceTest {
         Parser<Character, String> unquotedFieldCore =
             chr(c -> c != ',' && c != '\n' && c != '\r')
                 .oneOrMore()
-                .map(FList::join);
+                .map(Lists::join);
 
         // Conditional: only allow the unquoted variant if the next char is NOT a quote
         Parser<Character, String> unquotedField = unquotedFieldCore.onlyIf(Combinators.not(chr('\"')));
@@ -97,16 +98,16 @@ public class ParserPerformanceTest {
         );
 
         // Row: fields separated by commas (with optional surrounding whitespace)
-        Parser<Character, FList<String>> row = field.oneOrMoreSeparatedBy(attempt(comma));
+        Parser<Character, List<String>> row = field.oneOrMoreSeparatedBy(attempt(comma));
 
         // CSV: rows separated by newlines
-        Parser<Character, FList<FList<String>>> csvParser = row.oneOrMoreSeparatedBy(eol);
+        Parser<Character, List<List<String>>> csvParser = row.oneOrMoreSeparatedBy(eol);
 
         // Generate a large CSV-like input
         String input = getInput();
 
         long startTime = System.nanoTime();
-        Result<Character, FList<FList<String>>> result = csvParser.parse(input);
+        Result<Character, List<List<String>>> result = csvParser.parse(input);
         long duration = System.nanoTime() - startTime;
         if (!result.matches()){
             System.out.println(result.error());

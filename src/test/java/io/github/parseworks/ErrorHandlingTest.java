@@ -1,7 +1,5 @@
 package io.github.parseworks;
 
-import io.github.parseworks.impl.result.NoMatch;
-import io.github.parseworks.Failure;
 import io.github.parseworks.parsers.Lexical;
 import org.junit.jupiter.api.Test;
 

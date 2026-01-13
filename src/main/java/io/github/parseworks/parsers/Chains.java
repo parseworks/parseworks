@@ -1,5 +1,6 @@
 package io.github.parseworks.parsers;
 
+import io.github.parseworks.Lists;
 import io.github.parseworks.Parser;
 import io.github.parseworks.impl.Pair;
 
@@ -59,7 +60,7 @@ public class Chains {
                 op.then(parser)
                     .map((f, y) -> x -> f.apply(x, y));
             return parser.then(plo.zeroOrMore())
-                .map((a, lf) -> lf.foldLeft(a, (acc, f) -> f.apply(acc)));
+                .map((a, lf) -> Lists.foldLeft(lf, a, (acc, f) -> f.apply(acc)));
         } else {
             return parser.then(op.then(parser).map(Pair::new).zeroOrMore())
                 .map((a, pairs) -> pairs.stream().reduce(a, (acc, tuple) -> tuple.left().apply(tuple.right(), acc), (a1, a2) -> a1));
