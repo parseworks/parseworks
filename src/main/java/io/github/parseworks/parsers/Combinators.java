@@ -277,9 +277,7 @@ public class Combinators {
      * @see Parser#or(Parser) for providing alternatives when failure occurs
      */
     public static <I, A> Parser<I, A> fail() {
-        return new Parser<>(in -> {
-            return Result.failure(in, "parser explicitly set to fail");
-        });
+        return new Parser<>(in -> Result.failure(in, "parser explicitly set to fail"));
     }
 
     /**
@@ -813,7 +811,6 @@ public class Combinators {
      * @param <A>    the type of the parsed value
      * @return an atomic version of the provided parser
      */
-    @SuppressWarnings("unchecked")
     public static <I, A> Parser<I, A> attempt(Parser<I, A> parser) {
         return new Parser<>(in -> {
             Result<I, A> res = parser.apply(in);
