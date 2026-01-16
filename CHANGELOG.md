@@ -36,6 +36,7 @@
 
 **Enhancements**
 - Improved overall parsing performance
+- Comprehensive Javadoc cleanup and example updates
 
 **New Features**
 - Plugin feature to provide specific implementations of a Parser
