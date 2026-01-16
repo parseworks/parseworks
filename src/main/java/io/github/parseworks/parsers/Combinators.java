@@ -48,7 +48,7 @@ public class Combinators {
      * Parser<Character, Character> anyChar = Combinators.any(Character.class);
      *
      * // Chaining so that we accept any character that is not a digit
-     * Parser<Character, Character> nondigit = any(Character.class).not(Character::isDigit);
+     * Parser<Character, Character> nonDigit = Combinators.not(Lexical.chr(Character::isDigit));
      * }</pre>
      *
      * @param type the class of the input elements (required for type safety due to type erasure)
@@ -364,14 +364,14 @@ public class Combinators {
      * Example usage:
      * <pre>{@code
      * // Parse any character that is not a digit
-     * Parser<Character, Character> notDigit = not(chr(Character::isDigit));
+     * Parser<Character, Character> notDigit = not(Lexical.chr(Character::isDigit));
      *
      * // Parse an identifier that doesn't start with a reserved word
      * Parser<Character, String> keyword = oneOf(
-     *     string("if"), string("else"), string("while")
+     *     Lexical.string("if"), Lexical.string("else"), Lexical.string("while")
      * );
      * Parser<Character, String> identifier = not(keyword).skipThen(
-     *     regex("[a-zA-Z][a-zA-Z0-9]*")
+     *     Lexical.regex("[a-zA-Z][a-zA-Z0-9]*")
      * );
      *
      * // Succeeds with 'a' for input "a"
@@ -394,7 +394,7 @@ public class Combinators {
                 String found = result.input().hasMore() ? String.valueOf(in.current()) : "end of input";
                 return Result.failure(in, "parser succeeded when we wanted it to fail");
             }
-            return Result.success(in, in.current());
+            return Result.success(in.next(), in.current());
 
         });
     }
@@ -487,7 +487,7 @@ public class Combinators {
      * // Parse one of three different types of token
      * Parser<Character, String> keyword = string("if").or(string("else")).or(string("while"));
      * Parser<Character, String> identifier = regex("[a-zA-Z][a-zA-Z0-9]*");
-     * Parser<Character, String> number = Numeric.numeric.oneOrMore().map(FList::joinChars);
+     * Parser<Character, String> number = Numeric.numeric.oneOrMore().map(Lists::join);
      *
      * // Combine into a single token parser using oneOf
      * Parser<Character, String> token = oneOf(Arrays.asList(

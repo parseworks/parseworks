@@ -402,9 +402,9 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse arithmetic expressions with left-associative subtraction
-     * Parser<Character, Integer> number = intr;
+     * Parser<Character, Integer> number = Numeric.integer;
      * Parser<Character, BinaryOperator<Integer>> subtract =
-     *     chr('-').as((a, b) -> a - b);
+     *     Lexical.chr('-').as((a, b) -> a - b);
      *
      * Parser<Character, Integer> expression = number.chainLeftMany(subtract);
      *
@@ -596,8 +596,8 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse zero or more digits
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, FList<Character>> digits = digit.zeroOrMore();
+     * Parser<Character, Character> digit = Lexical.chr(Character::isDigit);
+     * Parser<Character, List<Character>> digits = digit.zeroOrMore();
      *
      * // Succeeds with [1,2,3] for input "123"
      * // Succeeds with [] for input "abc" (empty list, no input consumed)
@@ -624,7 +624,7 @@ public class Parser<I, A> {
      *   <li>First applies this parser at the current input position</li>
      *   <li>If successful, adds the result to the collection and advances the input position</li>
      *   <li>Repeats until this parser fails or end of input is reached</li>
-     *   <li>Returns all collected results as an {@code FList}</li>
+     *   <li>Returns all collected results as a {@code List}</li>
      * </ol>
      * <p>
      * This method is similar to {@link #zeroOrMore()}, but requires at least one successful match
@@ -641,8 +641,8 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse one or more digits
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, FList<Character>> digits = digit.oneOrMore();
+     * Parser<Character, Character> digit = Lexical.chr(Character::isDigit);
+     * Parser<Character, List<Character>> digits = digit.oneOrMore();
      *
      * // Succeeds with [1,2,3] for input "123"
      * // Succeeds with [1,2,3] for input "123abc" (consuming only "123")
@@ -691,9 +691,9 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse all characters until a semicolon
-     * Parser<Character, Character> anyChar = any(Character.class);
-     * Parser<Character, Character> semicolon = chr(';');
-     * Parser<Character, FList<Character>> content = anyChar.oneOrMoreUntil(semicolon);
+     * Parser<Character, Character> anyChar = Combinators.any(Character.class);
+     * Parser<Character, Character> semicolon = Lexical.chr(';');
+     * Parser<Character, List<Character>> content = anyChar.oneOrMoreUntil(semicolon);
      *
      * // Succeeds with ['a','b','c'] for input "abc;" (consuming all input including semicolon)
      * // Fails for input ";" (no characters found before semicolon)
@@ -736,7 +736,7 @@ public class Parser<I, A> {
      *
      * // Parse an identifier only if it's not a keyword
      * Parser<Character, String> identifier = Lexical.word.onlyIf(
-     *     Lexical.string("if").or(Lexical.string("else")).not()
+     *     Combinators.not(Lexical.string("if").or(Lexical.string("else")))
      * );
      * }</pre>
      *
@@ -1233,7 +1233,7 @@ public class Parser<I, A> {
      * number of times in sequence. The parsing process works as follows:
      * <ol>
      *   <li>Attempts to apply this parser exactly {@code target} times in sequence</li>
-     *   <li>If successful for all iterations, returns all results collected in an {@code FList}</li>
+     *   <li>If successful for all iterations, returns all results collected in a {@code List}</li>
      *   <li>If this parser fails before reaching the target count, the entire parser fails</li>
      * </ol>
      * <p>
@@ -1252,8 +1252,8 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse exactly 3 digits
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, FList<Character>> threeDigits = digit.repeat(3);
+     * Parser<Character, Character> digit = Lexical.chr(Character::isDigit);
+     * Parser<Character, List<Character>> threeDigits = digit.repeat(3);
      *
      * // Succeeds with [1,2,3] for input "123"
      * // Succeeds with [1,2,3] for input "123abc" (consuming only "123")
@@ -1283,7 +1283,7 @@ public class Parser<I, A> {
      *   <li>Attempts to apply this parser repeatedly</li>
      *   <li>Requires at least {@code min} successful applications to succeed</li>
      *   <li>Will not attempt more than {@code max} applications, even if more matches are possible</li>
-     *   <li>Returns all results collected in an {@code FList}</li>
+     *   <li>Returns all results collected in a {@code List}</li>
      *   <li>If this parser fails before reaching the minimum count, the entire parser fails</li>
      * </ol>
      * <p>
@@ -1303,8 +1303,8 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse between 2 and 4 digits
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, FList<Character>> digits = digit.repeat(2, 4);
+     * Parser<Character, Character> digit = Lexical.chr(Character::isDigit);
+     * Parser<Character, List<Character>> digits = digit.repeat(2, 4);
      *
      * // Succeeds with [1,2,3,4] for input "1234"
      * // Succeeds with [1,2,3,4] for input "12345" (consuming only "1234")
@@ -1338,7 +1338,7 @@ public class Parser<I, A> {
      *   <li>Attempts to apply this parser at least {@code target} times in sequence</li>
      *   <li>If successful for the minimum number of iterations, continues applying this parser
      *       until it fails or the end of input is reached</li>
-     *   <li>Returns all results collected in an {@code FList}</li>
+     *   <li>Returns all results collected in a {@code List}</li>
      *   <li>If this parser fails before reaching the minimum count, the entire parser fails</li>
      * </ol>
      * <p>
@@ -1357,8 +1357,8 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse at least 2 digits
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, FList<Character>> twoOrMoreDigits = digit.repeatAtLeast(2);
+     * Parser<Character, Character> digit = Lexical.chr(Character::isDigit);
+     * Parser<Character, List<Character>> twoOrMoreDigits = digit.repeatAtLeast(2);
      *
      * // Succeeds with [1,2,3] for input "123"
      * // Succeeds with [1,2,3] for input "123abc" (consuming only "123")
@@ -1388,7 +1388,7 @@ public class Parser<I, A> {
      * <ol>
      *   <li>Attempts to apply this parser repeatedly, up to {@code max} times</li>
      *   <li>Stops applying this parser once it reaches the maximum count or the parser fails</li>
-     *   <li>Returns all successful results collected in an {@code FList}</li>
+     *   <li>Returns all successful results collected in a {@code List}</li>
      *   <li>Always succeeds, even if no successful matches are found (returning an empty list)</li>
      * </ol>
      * <p>
@@ -1407,8 +1407,8 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse up to 3 digits
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, FList<Character>> upToThreeDigits = digit.repeatAtMost(3);
+     * Parser<Character, Character> digit = Lexical.chr(Character::isDigit);
+     * Parser<Character, List<Character>> upToThreeDigits = digit.repeatAtMost(3);
      *
      * // Succeeds with [1,2,3] for input "123"
      * // Succeeds with [1,2,3] for input "1234" (consuming only "123")
@@ -1457,7 +1457,7 @@ public class Parser<I, A> {
      * // Parse a comma-separated list of numbers, allowing empty lists
      * Parser<Character, Integer> number = Numeric.integer;
      * Parser<Character, Character> comma = Lexical.chr(',');
-     * Parser<Character, FList<Integer>> optionalList = number.separatedByZeroOrMany(comma);
+     * Parser<Character, List<Integer>> optionalList = number.zeroOrManySeparatedBy(comma);
      *
      * // Succeeds with [1,2,3] for input "1,2,3"
      * // Succeeds with [] for input "" (empty list)
@@ -1543,9 +1543,9 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse a comma-separated list of numbers, requiring at least one number
-     * Parser<Character, Integer> number = intr;
-     * Parser<Character, Character> comma = chr(',');
-     * Parser<Character, FList<Integer>> numberList = number.separatedByMany(comma);
+     * Parser<Character, Integer> number = Numeric.integer;
+     * Parser<Character, Character> comma = Lexical.chr(',');
+     * Parser<Character, List<Integer>> numberList = number.oneOrMoreSeparatedBy(comma);
      *
      * // Succeeds with [1,2,3] for input "1,2,3"
      * // Succeeds with [42] for input "42"
@@ -1821,12 +1821,12 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse a comma-separated list of numbers terminated by a semicolon
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     * Parser<Character, Character> comma = chr(',');
-     * Parser<Character, Character> semicolon = chr(';');
+     * Parser<Character, Character> digit = Lexical.chr(Character::isDigit);
+     * Parser<Character, Character> comma = Lexical.chr(',');
+     * Parser<Character, Character> semicolon = Lexical.chr(';');
      *
      * // Collect digits until semicolon is found
-     * Parser<Character, FList<Character>> digitList = digit.zeroOrManyUntil(semicolon);
+     * Parser<Character, List<Character>> digitList = digit.zeroOrManyUntil(semicolon);
      *
      * // Succeeds with [1,2,3] for input "123;" (consuming all input including semicolon)
      * // Succeeds with [] for input ";" (consuming only the semicolon)
@@ -1869,14 +1869,14 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse exactly 3 digits
-     * Parser<Character, FList<Character>> threeDigits = digit.repeatInternal(3, 3, null);
+     * Parser<Character, List<Character>> threeDigits = digit.repeatInternal(3, 3, null);
      *
      * // Parse 1 to 5 letters
-     * Parser<Character, FList<Character>> letters = letter.repeatInternal(1, 5, null);
+     * Parser<Character, List<Character>> letters = letter.repeatInternal(1, 5, null);
      *
      * // Parse digits until a semicolon
-     * Parser<Character, FList<Character>> digitsUntilSemicolon =
-     *     digit.repeatInternal(0, Integer.MAX_VALUE, chr(';'));
+     * Parser<Character, List<Character>> digitsUntilSemicolon =
+     *     digit.repeatInternal(0, Integer.MAX_VALUE, Lexical.chr(';'));
      * }</pre>
      *
      * @param min      the minimum number of repetitions (inclusive)
@@ -2198,11 +2198,11 @@ public class Parser<I, A> {
      * Example:
      * <pre>{@code
      * Parser<Character, String> identifier =
-     *     letter().then(oneOrMore(alphaNum())).map(chars -> toString(chars))
+     *     Lexical.alpha.then(Lexical.alphaNumeric.oneOrMore()).map(Lists::join)
      *             .expecting("identifier");
      *
      * Result<Character, String> r = identifier.parse("123");
-     * // r.matches() is true, and the error message will include:
+     * // r.matches() is false, and the error message will include:
      * //   "Expected identifier ..."
      * }</pre>
      *
@@ -2239,22 +2239,22 @@ public class Parser<I, A> {
      * <p>
      * Example: parse a length-prefixed string (e.g., {@code 5:Hello}).
      * <pre>{@code
-     * Parser<Character, Integer> len = io.github.parseworks.parsers.Numeric.unsignedInteger;
-     * Parser<Character, String> colon = io.github.parseworks.parsers.Combinators.string(":");
+     * Parser<Character, Integer> len = Numeric.unsignedInteger;
+     * Parser<Character, String> colon = Lexical.string(":");
      * Parser<Character, String> payload = len
      *     .thenSkip(colon)
-     *     .flatMap(n -> io.github.parseworks.parsers.Combinators
+     *     .flatMap(n -> Combinators
      *         .any(Character.class)
      *         .repeat(n)
-     *         .map(io.github.parseworks.FList::joinChars)
+     *         .map(Lists::join)
      *     );
      * }</pre>
      * <p>
      * Example: branch to a different subparser based on a previously parsed tag.
      * <pre>{@code
-     * Parser<Character, String> tag = io.github.parseworks.parsers.Combinators.oneOf(
-     *     io.github.parseworks.parsers.Combinators.string("A"),
-     *     io.github.parseworks.parsers.Combinators.string("B")
+     * Parser<Character, String> tag = Combinators.oneOf(
+     *     Lexical.string("A"),
+     *     Lexical.string("B")
      * );
      * Parser<Character, Object> value = tag.flatMap(t ->
      *     t.equals("A") ? parseA() : parseB()

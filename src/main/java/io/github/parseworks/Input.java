@@ -77,8 +77,8 @@ public interface Input<I> {
 
     /**
      * Skip a number of positions in the input stream.
-     * @param offset
-     * @return
+     * @param offset the number of positions to skip
+     * @return a new input positioned at the offset
      */
     Input<I> skip(int offset);
 

@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 import static io.github.parseworks.parsers.Combinators.satisfy;
 
 /**
- * The {@code TextUtils} class provides a comprehensive set of parsers for common text parsing tasks.
+ * The {@code Lexical} class provides a comprehensive set of parsers for common text parsing tasks.
  * <p>
  * This utility class contains static parser definitions and methods for parsing:
  * <ul>
@@ -44,17 +44,17 @@ import static io.github.parseworks.parsers.Combinators.satisfy;
  * Example usage:
  * <pre>{@code
  * // Parse an integer
- * Parser<Character, Integer> parser = TextUtils.intr;
+ * Parser<Character, Integer> parser = Numeric.integer;
  * Result<Character, Integer> result = parser.parse("-123");
  * int value = result.value();  // -123
  *
  * // Parse a word
- * Parser<Character, String> wordParser = TextUtils.word;
+ * Parser<Character, String> wordParser = Lexical.word;
  * String word = wordParser.parse("Hello123").value();  // "Hello"
  *
  * // Combine parsers
  * Parser<Character, Pair<String, Integer>> nameAndAge =
- *     TextUtils.word.skip(whitespace).then(integer);
+ *     Lexical.word.skip(whitespace).then(Numeric.integer);
  * }</pre>
  *
  * This class works closely with {@link Combinators} which provides the fundamental
@@ -168,7 +168,7 @@ public class Lexical {
      * parser.parse("").value();          // Returns "" (empty string)
      *
      * // Use with other parsers
-     * Parser<Character, String> identifier = word.then(alphaNum.oneOrMore())
+     * Parser<Character, String> identifier = word.then(alphaNumeric.oneOrMore())
      *     .map((w, rest) -> w + rest.stream()
      *         .map(String::valueOf)
      *         .collect(Collectors.joining()));
@@ -673,13 +673,13 @@ public class Lexical {
      *   <li>If the predicate is not satisfied or at EOF, fails with an error message</li>
      * </ol>
      * <p>
-     * This parser is a specialized version of {@link #satisfy(String, Predicate)} for character input.
+     * This parser is a specialized version of {@link Combinators#satisfy(String, Predicate)} for character input.
      * It's a fundamental building block for text-based parsers, allowing character filtering based
      * on arbitrary conditions.
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>Delegates to {@link #satisfy(String, Predicate)} with a generic "character" expected type</li>
+     *   <li>Delegates to {@link Combinators#satisfy(String, Predicate)} with a generic "character" expected type</li>
      *   <li>Consumes exactly one character when successful</li>
      *   <li>Returns the matched character as the result</li>
      * </ul>
@@ -708,7 +708,7 @@ public class Lexical {
      *
      * @param predicate the condition that characters must satisfy
      * @return a parser that matches a single character based on the predicate
-     * @see #satisfy(String, Predicate) for the generic version of this parser
+     * @see Combinators#satisfy(String, Predicate) for the generic version of this parser
      * @see Lexical#chr(char) for matching a specific character
      * @see Lexical#oneOf(String) for matching against a set of characters
      */

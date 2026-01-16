@@ -7,13 +7,13 @@ import java.util.function.Function;
  * {@code ApplyBuilder} combines parsers via successive calls to {@code then} and {@code thenSkip}.
  * <p>
  * {@code ApplyBuilder} provides a fluent interface for combining parsers.
- * The left two parsers are combined by calling {@link Parser#map Parser.map},
+ * The left two parsers are combined by calling {@link Parser#then Parser.then},
  * which returns an {@code ApplyBuilder} instance.
  * Each successive parser is incorporated by passing it to a call to {@code then} or {@code thenSkip}.
  * The chain of calls is concluded by calling {@code map} with a handler for the parse results.
  * <p>
- * {@code ApplyBuilder} is a more readable way of using {@link ApplyBuilder#apply Parser.ap}.
- * For example, {@code pa.then(pb).then(pc).map(f)} is equivalent to {@code ap(ap(pa.map(f), pb), pc)}.
+ * {@code ApplyBuilder} is a more readable way of using {@link ApplyBuilder#apply(Parser, Parser)}.
+ * For example, {@code pa.then(pb).then(pc).map(f)} is equivalent to {@code apply(apply(pa.map(f), pb), pc)}.
  *
  * @param <I> the type of the input to the parsers
  * @param <A> the type of the result of the first parser
@@ -90,13 +90,13 @@ public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
      * Example usage:
      * <pre>{@code
      * // A parser that recognizes integers
-     * Parser<Character, Integer> intParser = intr;
+     * Parser<Character, Integer> intParser = Numeric.integer;
      *
      * // A function that doubles a number
      * Function<Integer, Integer> doubleIt = n -> n * 2;
      *
      * // Create a parser that recognizes integers and doubles them
-     * Parser<Character, Integer> doubledInt = Parser.apply(doubleIt, intParser);
+     * Parser<Character, Integer> doubledInt = ApplyBuilder.apply(doubleIt, intParser);
      *
      * // Succeeds with 84 for input "42"
      * // Fails for input "abc" (not an integer)
@@ -144,13 +144,13 @@ public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
      * <pre>{@code
      * // A parser that recognizes a function symbol and returns a math function
      * Parser<Character, Function<Integer, Integer>> opParser =
-     *     chr('+').as(n -> n + 1)
-     *     .or(chr('-').as(n -> n - 1))
-     *     .or(chr('*').as(n -> n * 2))
-     *     .or(chr('/').as(n -> n / 2));
+     *     Lexical.chr('+').as(n -> n + 1)
+     *     .or(Lexical.chr('-').as(n -> n - 1))
+     *     .or(Lexical.chr('*').as(n -> n * 2))
+     *     .or(Lexical.chr('/').as(n -> n / 2));
      *
      * // Apply that function to a constant value
-     * Parser<Character, Integer> appliedToTen = Parser.apply(opParser, 10);
+     * Parser<Character, Integer> appliedToTen = ApplyBuilder.apply(opParser, 10);
      *
      * // Succeeds with 11 for input "+"
      * // Succeeds with 9 for input "-"

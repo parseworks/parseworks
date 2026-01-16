@@ -36,12 +36,12 @@ public class Chains {
      * Example usage:
      * <pre>{@code
      * // Parse addition expressions with left associativity
-     * Parser<Character, Integer> number = intr;
+     * Parser<Character, Integer> number = Numeric.integer;
      * Parser<Character, BinaryOperator<Integer>> add =
-     *     chr('+').as((a, b) -> a + b);
+     *     Lexical.chr('+').as((a, b) -> a + b);
      *
      * Parser<Character, Integer> expression =
-     *     number.chain(add, Associativity.LEFT);
+     *     Chains.chain(number, add, Associativity.LEFT);
      *
      * // Parses "1+2+3" as (1+2)+3 = 6
      * }</pre>
@@ -85,7 +85,7 @@ public class Chains {
      * operations like addition, it's critical for non-commutative operations like
      * subtraction or exponentiation where different groupings produce different results.
      * <p>
-     * This enum is used in parser combinators like {@link Parser#chain(Parser, Associativity)}
+     * This enum is used in parser combinators like {@link Chains#chain(Parser, Parser, Associativity)}
      * to specify how repeated operations should be grouped during parsing.
      *
      * @see Parser#chainLeftMany(Parser) for left-associative parsing
@@ -99,7 +99,7 @@ public class Chains {
          * are performed first. This is the common associativity for:
          * <ul>
          *   <li>Arithmetic operators: addition, subtraction, multiplication, division</li>
-         *   <li>String concatenation in oneOrMore languages</li>
+         *   <li>String concatenation in some languages</li>
          * </ul>
          * <p>
          * Example: "5-3-2" with LEFT associativity is evaluated as "(5-3)-2" = 0

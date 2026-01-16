@@ -185,7 +185,7 @@ public class Numeric {
     /**
      * A parser that recognizes and parses an unsigned integer.
      * <p>
-     * The {@code uintr} parser matches either a single '0' character or a sequence starting with
+     * The {@code unsignedInteger} parser matches either a single '0' character or a sequence starting with
      * a non-zero digit (1-9) followed by zero or more digits (0-9), and converts the entire sequence
      * into an integer value. This parser handles all valid unsigned integer formats.
      * <p>
@@ -200,8 +200,8 @@ public class Numeric {
      * Implementation details:
      * <ul>
      *   <li>Combines two parsers with {@link Parser#or(Parser)} to handle both zero and non-zero cases</li>
-     *   <li>The {@code uintrZero} parser matches exactly the character '0' and returns 0</li>
-     *   <li>The {@code uintrNotZero} parser builds multi-digit integers starting with a non-zero digit</li>
+     *   <li>The {@code unsignedIntegerZero} (internally {@code uintrZero}) parser matches exactly the character '0' and returns 0</li>
+     *   <li>The {@code unSignedIntegerNotZero} (internally {@code uintrNotZero}) parser builds multi-digit integers starting with a non-zero digit</li>
      *   <li>Always returns a non-negative integer value</li>
      * </ul>
      * <p>
@@ -211,7 +211,7 @@ public class Numeric {
      * Example usage:
      * <pre>{@code
      * // Parse simple unsigned integers
-     * Parser<Character, Integer> parser = uintr;
+     * Parser<Character, Integer> parser = unsignedInteger;
      * parser.parse("123").value();      // Returns 123
      * parser.parse("0").value();        // Returns 0
      * parser.parse("01").value();       // Returns 0 (only consumes the '0')
@@ -235,7 +235,7 @@ public class Numeric {
     /**
      * A parser that recognizes and parses a signed integer.
      * <p>
-     * The {@code intr} parser matches an optional sign character ('+' or '-') followed by
+     * The {@code integer} parser matches an optional sign character ('+' or '-') followed by
      * an unsigned integer, and converts the entire sequence into a signed integer value.
      * This parser handles all valid integer formats including positive and negative numbers.
      * <p>
@@ -259,7 +259,7 @@ public class Numeric {
      * Example usage:
      * <pre>{@code
      * // Parse signed integers
-     * Parser<Character, Integer> parser = intr;
+     * Parser<Character, Integer> parser = integer;
      * parser.parse("123").value();      // Returns 123
      * parser.parse("+123").value();     // Returns 123
      * parser.parse("-123").value();     // Returns -123
@@ -286,7 +286,7 @@ public class Numeric {
     /**
      * A parser that recognizes and parses an unsigned long integer.
      * <p>
-     * The {@code ulng} parser matches either a single '0' character or a sequence starting with
+     * The {@code unsignedLong} parser matches either a single '0' character or a sequence starting with
      * a non-zero digit (1-9) followed by zero or more digits (0-9), and converts the entire sequence
      * into a long value. This parser handles all valid unsigned long integer formats.
      * <p>
@@ -301,8 +301,8 @@ public class Numeric {
      * Implementation details:
      * <ul>
      *   <li>Combines two parsers with {@link Parser#or(Parser)} to handle both zero and non-zero cases</li>
-     *   <li>The {@code ulngZero} parser matches exactly the character '0' and returns 0L</li>
-     *   <li>The {@code ulngNotZero} parser builds multi-digit long integers starting with a non-zero digit</li>
+     *   <li>The {@code unsignedLongZero} (internally {@code ulngZero}) parser matches exactly the character '0' and returns 0L</li>
+     *   <li>The {@code unsignedLongNotZero} (internally {@code ulngNotZero}) parser builds multi-digit long integers starting with a non-zero digit</li>
      *   <li>Always returns a non-negative long value</li>
      * </ul>
      * <p>
@@ -312,7 +312,7 @@ public class Numeric {
      * Example usage:
      * <pre>{@code
      * // Parse simple unsigned longs
-     * Parser<Character, Long> parser = ulng;
+     * Parser<Character, Long> parser = unsignedLong;
      * parser.parse("9223372036854775807").value();  // Returns 9223372036854775807L (Long.MAX_VALUE)
      * parser.parse("0").value();                    // Returns 0L
      * parser.parse("01").value();                   // Returns 0L (only consumes the '0')
@@ -331,7 +331,7 @@ public class Numeric {
     /**
      * A parser that recognizes and parses a signed long integer.
      * <p>
-     * The {@code lng} parser matches an optional sign character ('+' or '-') followed by
+     * The {@code longValue} parser matches an optional sign character ('+' or '-') followed by
      * an unsigned long integer, and converts the entire sequence into a signed long value.
      * This parser handles all valid long integer formats including positive and negative numbers.
      * <p>
@@ -355,7 +355,7 @@ public class Numeric {
      * Example usage:
      * <pre>{@code
      * // Parse signed longs
-     * Parser<Character, Long> parser = lng;
+     * Parser<Character, Long> parser = longValue;
      * parser.parse("9223372036854775807").value();  // Returns Long.MAX_VALUE
      * parser.parse("+42").value();                  // Returns 42L
      * parser.parse("-9223372036854775808").value(); // Returns Long.MIN_VALUE
@@ -389,11 +389,11 @@ public class Numeric {
     /**
      * A parser that parses a double-precision floating point number from character input.
      * <p>
-     * The {@code dble} parser combines a sign parser with an unsigned long parser to read
+     * The {@code doubleValue} parser combines a sign parser with an unsigned long parser to read
      * numeric values with optional signs. It operates as follows:
      * <ol>
      *   <li>First parses an optional sign (+ or -) using the {@code sign} parser</li>
-     *   <li>Then parses the numeric portion using the {@code ulng} parser</li>
+     *   <li>Then parses the numeric portion using the {@code unsignedLong} parser</li>
      *   <li>Combines these values to produce a signed double value</li>
      * </ol>
      * <p>
@@ -403,7 +403,7 @@ public class Numeric {
      * Example usage:
      * <pre>{@code
      * // Parse a double value
-     * Result<Character, Double> result = dble.parse("123.45");
+     * Result<Character, Double> result = doubleValue.parse("123.45");
      *
      * // Succeeds with 123.45 for input "123.45"
      * // Succeeds with -42.0 for input "-42"
