@@ -3,7 +3,9 @@ package io.github.parseworks.parsers;
 import io.github.parseworks.Input;
 import io.github.parseworks.Parser;
 import io.github.parseworks.Result;
+import io.github.parseworks.impl.result.Match;
 import io.github.parseworks.impl.result.NoMatch;
+import io.github.parseworks.impl.result.PartialMatch;
 
 import java.util.*;
 import java.util.function.Predicate;
@@ -133,7 +135,7 @@ public class Lexical {
             Result<Character, A> result = parser.apply(trimmedInput);
             if (result.matches()) {
                 trimmedInput = skipWhitespace(result.input());
-                return Result.success(trimmedInput, result.value());
+                return new Match<>(result.value(), trimmedInput);
             }
             return result;
         });
@@ -197,7 +199,7 @@ public class Lexical {
         Objects.requireNonNull(needle, "needle");
         if (needle.isEmpty()) {
             // Edge-case: empty delimiter – always succeed with empty list
-            return new Parser<>(in -> Result.success(in, Collections.emptyList()));
+            return new Parser<>(in -> new Match<>(Collections.emptyList(), in));
         }
         final char first = needle.charAt(0);
 
@@ -211,10 +213,10 @@ public class Lexical {
                 if (idx < 0) {
                     // Not found: consume to EOF
                     List<Character> out = toList(data, from, data.length());
-                    return Result.success(csi.skip(data.length() - from), out);
+                    return new Match<>(out, csi.skip(data.length() - from));
                 } else {
                     List<Character> out = toList(data, from, idx);
-                    return Result.success(csi.skip(idx - from), out);
+                    return new Match<>(out, csi.skip(idx - from));
                 }
             }
 
@@ -226,10 +228,10 @@ public class Lexical {
                 if (idx < 0) {
                     // Not found: consume to EOF
                     List<Character> out = toList(data, from, data.length);
-                    return Result.success(cai.skip(data.length - from), out);
+                    return new Match<>(out, cai.skip(data.length - from));
                 } else {
                     List<Character> out = toList(data, from, idx);
-                    return Result.success(cai.skip(idx - from), out);
+                    return new Match<>(out, cai.skip(idx - from));
                 }
             }
 
@@ -241,13 +243,13 @@ public class Lexical {
                 if (cur.current() == first) {
                     Result<Character, String> tryNeedle = string(needle).apply(cur);
                     if (tryNeedle.matches()) {
-                        return Result.success(cur, buf); // do not consume needle
+                        return new Match<>(buf, cur); // do not consume needle
                     }
                 }
                 buf.add(cur.current());
                 cur = cur.next();
             }
-            return Result.success(cur, buf);
+            return new Match<>(buf, cur);
         });
     }
 
@@ -352,16 +354,16 @@ public class Lexical {
 
             // Handle empty string case
             if (str.isEmpty()) {
-                return Result.success(currentInput, "");
+                return new Match<>("", currentInput);
             }
 
             // Check if we have enough characters left in the input
             for (int i = 0; i < str.length(); i++) {
                 if (currentInput.isEof()) {
                     if (i > 0) {
-                        return Result.partial(currentInput, new NoMatch<>(currentInput, str.substring(i)));
+                        return new PartialMatch<>(currentInput, new NoMatch<>(currentInput, str.substring(i)));
                     }
-                    return Result.failure(in, str);
+                    return new NoMatch<>(in, str);
                 }
 
                 char expected = str.charAt(i);
@@ -369,15 +371,15 @@ public class Lexical {
 
                 if (expected != actual) {
                     if (i > 0) {
-                        return Result.partial(currentInput, new NoMatch<>(currentInput, str.substring(i)));
+                        return new PartialMatch<>(currentInput, new NoMatch<>(currentInput, str.substring(i)));
                     }
-                    return Result.failure(in, str);
+                    return new NoMatch<>(in, str);
                 }
 
                 currentInput = currentInput.next();
             }
 
-            return Result.success(currentInput, str);
+            return new Match<>(str, currentInput);
         });
     }
 
@@ -514,9 +516,9 @@ public class Lexical {
             if (in.isEof()) {
                 Matcher emptyMatcher = pattern.matcher("");
                 if (emptyMatcher.lookingAt()) {
-                    return Result.success(in, emptyMatcher.group());
+                    return new Match<>(emptyMatcher.group(), in);
                 }
-                return Result.failure(in, regex);
+                return new NoMatch<>(in, regex);
             }
 
             StringBuilder buffer = new StringBuilder();
@@ -559,12 +561,12 @@ public class Lexical {
 
             // Return the best match found if any
             if (bestMatch != null) {
-                return Result.success(in.skip(bestMatch.length()), bestMatch);
+                return new Match<>(bestMatch, in.skip(bestMatch.length()));
             }
 
             // No match found
             //String preview = buffer.length() > 10 ? buffer.substring(0, 10) + "..." : buffer.toString();
-            return Result.failure(in, regex);
+            return new NoMatch<>(in, regex);
         });
     }
 

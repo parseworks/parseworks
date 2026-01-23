@@ -1,6 +1,7 @@
 package io.github.parseworks.parsers;
 
 import io.github.parseworks.*;
+import io.github.parseworks.impl.result.Match;
 import io.github.parseworks.impl.result.NoMatch;
 
 import java.util.ArrayList;
@@ -58,9 +59,9 @@ public class Combinators {
     public static <I> Parser<I, I> any(Class<I> type) {
         return new Parser<>(input -> {
             if (input.isEof()) {
-                return Result.failure(input, type.descriptorString()).cast();
+                return new NoMatch<I, I>(input, type.descriptorString()).cast();
             } else {
-                return Result.success(input.next(), input.current());
+                return new Match<>(input.current(), input.next());
             }
         });
     }
@@ -163,12 +164,12 @@ public class Combinators {
     public static <I> Parser<I, I> oneOf(I... items) {
         return new Parser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, "one of the expected values");
+                return new NoMatch<>(in, "one of the expected values");
             }
             I current = in.current();
             for (I item : items) {
                 if (Objects.equals(current, item)) {
-                    return Result.success(in.next(), current);
+                    return new Match<>(current, in.next());
                 }
             }
 
@@ -186,7 +187,7 @@ public class Combinators {
                 }
             }
 
-            return Result.failure(in, "one of [" + expectedItems + "]");
+            return new NoMatch<>(in, "one of [" + expectedItems + "]");
         });
     }
 
@@ -235,9 +236,9 @@ public class Combinators {
     public static <I> Parser<I, Void> eof() {
         return new Parser<>(input -> {
             if (input.isEof()) {
-                return Result.success(input, null);
+                return new Match<>(null, input);
             } else {
-                return Result.expectedEofError(input);
+                return new NoMatch<>(input, "end of input");
             }
         });
     }
@@ -277,7 +278,7 @@ public class Combinators {
      * @see Parser#or(Parser) for providing alternatives when failure occurs
      */
     public static <I, A> Parser<I, A> fail() {
-        return new Parser<>(in -> Result.failure(in, "parser explicitly set to fail"));
+        return new Parser<>(in -> new NoMatch<>(in, "parser explicitly set to fail"));
     }
 
     /**
@@ -332,7 +333,7 @@ public class Combinators {
      * @see #fail() for a generic NoMatch parser
      */
     public static <I, A> Parser<I, A> fail(String expected) {
-        return new Parser<>(in -> Result.failure(in, expected));
+        return new Parser<>(in -> new NoMatch<>(in, expected));
     }
 
     /**
@@ -390,9 +391,9 @@ public class Combinators {
             if (result.matches() || !result.input().hasMore()) {
                 // Provide more context about what was found that shouldn't have matched
                 String found = result.input().hasMore() ? "expected parser to fail" : "end of input";
-                return Result.failure(in, found);
+                return new NoMatch<>(in, found);
             }
-            return Result.success(in.next(), in.current());
+            return new Match<>(in.current(), in.next());
 
         });
     }
@@ -447,13 +448,13 @@ public class Combinators {
     public static <I> Parser<I, I> isNot(I value) {
         return new Parser<>(in -> {
             if (in.isEof()) {
-                return Result.unexpectedEofError(in, "any value except " + value);
+                return new NoMatch<>(in, "any value except " + value);
             }
             I item = in.current();
             if (Objects.equals(item, value)) {
-                return Result.failure(in, "any value except " + value);
+                return new NoMatch<>(in, "any value except " + value);
             } else {
-                return Result.success(in.next(), item);
+                return new Match<>(item, in.next());
             }
         });
     }
@@ -514,7 +515,7 @@ public class Combinators {
         }
         return new Parser<>(in -> {
             if (in.isEof()) {
-                return Result.unexpectedEofError(in, "eof before `oneOf` parser");
+                return new NoMatch<>(in, "eof before `oneOf` parser");
             }
             List<Failure<I, A>> failures = null;
 
@@ -535,7 +536,7 @@ public class Combinators {
                 failures.add((Failure<I, A>) result);
             }
             assert failures != null;
-            return Result.failure(failures);
+            return new NoMatch<>(failures);
         });
     }
 
@@ -647,7 +648,7 @@ public class Combinators {
                 results.add(result.value());
                 currentInput = result.input();
             }
-            return Result.success(currentInput, results);
+            return new Match<>(results, currentInput);
         });
     }
 
@@ -760,13 +761,13 @@ public class Combinators {
     public static <I> Parser<I, I> satisfy(String expectedType, Predicate<I> predicate) {
         return new Parser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, expectedType);
+                return new NoMatch<>(in, expectedType);
             }
             I item = in.current();
             if (predicate.test(item)) {
-                return Result.success(in.next(), item);
+                return new Match<>(item, in.next());
             } else {
-                return Result.failure(in, expectedType);
+                return new NoMatch<>(in, expectedType);
             }
         });
     }
@@ -789,13 +790,13 @@ public class Combinators {
     public static <I> Parser<I, I> is(I equivalence) {
         return new Parser<>(in -> {
             if (in.isEof()) {
-                return Result.failure(in, String.valueOf(equivalence));
+                return new NoMatch<>(in, String.valueOf(equivalence));
             }
             I item = in.current();
             if (Objects.equals(item, equivalence)) {
-                return Result.success(in.next(), item);
+                return new Match<>(item, in.next());
             } else {
-                return Result.failure(in, String.valueOf(equivalence));
+                return new NoMatch<>(in, String.valueOf(equivalence));
             }
         });
     }

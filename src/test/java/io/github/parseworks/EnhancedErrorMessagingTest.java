@@ -1,6 +1,7 @@
 package io.github.parseworks;
 
 import io.github.parseworks.impl.inputs.CharSequenceInput;
+import io.github.parseworks.impl.result.Match;
 import org.junit.jupiter.api.Test;
 
 import static io.github.parseworks.parsers.Lexical.string;
@@ -74,7 +75,7 @@ public class EnhancedErrorMessagingTest {
         // Create a parser that recovers from errors with a function
         Parser<Character, String> parser = string("hello")
             .recoverWith(failure -> 
-                Result.success(failure.input(), "default"));
+                new Match<>("default", failure.input()));
                 
         // Test successful parsing with the primary parser
         Result<Character, String> result1 = parser.parse("hello");

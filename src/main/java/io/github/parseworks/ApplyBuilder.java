@@ -1,5 +1,8 @@
 package io.github.parseworks;
 
+import io.github.parseworks.impl.result.Match;
+import io.github.parseworks.impl.result.PartialMatch;
+
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -58,7 +61,7 @@ public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
             Result<I, A> valueResult = valueParser.apply(in2);
             if (!valueResult.matches()) {
                 if (valueResult.input().position() > in.position()) {
-                    return Result.partial(valueResult.input(), (Failure<I, A>) valueResult).cast();
+                    return new PartialMatch<>(valueResult.input(), (Failure<I, A>) valueResult).cast();
                 }
                 return valueResult.cast();
             }
@@ -203,11 +206,11 @@ public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
             Result<I, B> rb = pb.apply(ra.input());
             if (!rb.matches()) {
                 if (rb.input().position() > in.position()) {
-                    return Result.partial(rb.input(), (Failure<I, B>) rb).cast();
+                    return new PartialMatch<>(rb.input(), (Failure<I, B>) rb).cast();
                 }
                 return rb.cast();
             }
-            return Result.success(rb.input(), f.apply(ra.value(), rb.value()));
+            return new Match<>(f.apply(ra.value(), rb.value()), rb.input());
         });
     }
 

@@ -1,7 +1,9 @@
 package io.github.parseworks;
 
 import io.github.parseworks.impl.IntObjectMap;
+import io.github.parseworks.impl.result.Match;
 import io.github.parseworks.impl.result.NoMatch;
+import io.github.parseworks.impl.result.PartialMatch;
 import io.github.parseworks.parsers.Chains;
 import io.github.parseworks.parsers.Lexical;
 
@@ -120,7 +122,7 @@ public class Parser<I, A> {
      * @see ApplyBuilder for combining multiple parsers with transformation functions
      */
     public static <I, A> Parser<I, A> pure(A value) {
-        return new Parser<>(in -> Result.success(in, value));
+        return new Parser<>(input -> new Match<>(value, input));
     }
 
     /**
@@ -200,11 +202,11 @@ public class Parser<I, A> {
             Result<I, B> res2 = pb.apply(res.input());
             if (!res2.matches()) {
                 if (res2.input().position() > in.position()) {
-                    return Result.partial(res2.input(), (Failure<I, A>) res2.cast());
+                    return new PartialMatch<>(res2.input(), (Failure<I, A>) res2.cast());
                 }
                 return res2.cast();
             }
-            return Result.success(res2.input(), res.value());
+            return new Match<>(res.value(), res2.input());
         });
     }
 
@@ -259,9 +261,8 @@ public class Parser<I, A> {
             Result<I, B> res2 = pb.apply(res.input());
             if (!res2.matches()) {
                 if (res2.input().position() > in.position()) {
-                    return Result.partial(res2.input(), (Failure<I, B>) res2);
+                    return new PartialMatch<>(res2.input(), (Failure<I, B>) res2);
                 }
-                return res2.cast();
             }
             return res2;
         });
@@ -935,7 +936,7 @@ public class Parser<I, A> {
         return new Parser<>(in -> {
             Result<I, A> result = this.apply(in);
             if (!result.matches()) {
-                return Result.success(in, other);
+                return new Match<>(other, in);
             }
             return result;
         });
@@ -1155,7 +1156,7 @@ public class Parser<I, A> {
         Result<I, A> result = this.apply(in);
         if (consumeAll && result.matches()) {
             if (!result.input().isEof()) {
-                return Result.partial(result.input(), new NoMatch<>(result.input(), "end of input"));
+                return new PartialMatch<>(result.input(), new NoMatch<>(result.input(), "end of input"));
             }
         }
         return result;
@@ -1688,7 +1689,7 @@ public class Parser<I, A> {
      *
      *     // Then try to parse a parenthesized expression
      *     if (input.atEnd() || input.value() != '(') {
-     *         return Result.failure(input, "Expected number or expression");
+     *         return new NoMatch<>(input, "Expected number or expression");
      *     }
      *
      *     // Parse: (expr + expr)
@@ -1700,7 +1701,7 @@ public class Parser<I, A> {
      *
      *     Result<Character, Character> opResult = plus.apply(leftResult.input());
      *     if (!opResult.matches()) {
-     *         return Result.failure(leftResult.input(), "Expected '+'");
+     *         return new NoMatch<>(leftResult.input(), "Expected '+'");
      *     }
      *
      *     Result<Character, Integer> rightResult = expr.apply(opResult.input());
@@ -1710,11 +1711,11 @@ public class Parser<I, A> {
      *
      *     Result<Character, Character> closeResult = closeParen.apply(rightResult.input());
      *     if (!closeResult.matches()) {
-     *         return Result.failure(rightResult.input(), "Expected ')'");
+     *         return new NoMatch<>(rightResult.input(), "Expected ')'");
      *     }
      *
      *     int resultValue = leftResult.value() + rightResult.value();
-     *     return Result.success(closeResult.input(), resultValue);
+     *     return new Match<>(resultValue, closeResult.input());
      * });
      *
      * // Now expr can parse recursive expressions like "5" or "(1+2)" or "((1+2)+3)"
@@ -1774,7 +1775,7 @@ public class Parser<I, A> {
                 Result<I, Boolean> conditionResult = condition.apply(currentInput);
                 if (!conditionResult.matches()) {
                     // Condition not met, stop collecting
-                    return Result.success(currentInput, Collections.unmodifiableList(results));
+                    return new Match<>(Collections.unmodifiableList(results), currentInput);
                 }
 
                 // Store the current position to check for advancement
@@ -1784,7 +1785,7 @@ public class Parser<I, A> {
                 Result<I, A> elementResult = this.apply(currentInput);
                 if (!elementResult.matches()) {
                     // Failed to parse an element, stop collecting
-                    return Result.success(currentInput, Collections.unmodifiableList(results));
+                    return new Match<>(Collections.unmodifiableList(results), currentInput);
                 }
 
                 // Add parsed element to results
@@ -1793,11 +1794,11 @@ public class Parser<I, A> {
 
                 // Check if we've advanced the position - if not, break to avoid infinite loop
                 if (currentInput.position() == currentPosition) {
-                    return Result.success(currentInput, Collections.unmodifiableList(results));
+                    return new Match<>(Collections.unmodifiableList(results), currentInput);
                 }
             }
 
-            return Result.success(currentInput, Collections.unmodifiableList(results));
+            return new Match<>(Collections.unmodifiableList(results), currentInput);
         });
     }
 
@@ -1911,22 +1912,21 @@ public class Parser<I, A> {
                     if (termRes.matches()) {
                         if (count < min) {
                             // Provide more context about the error
-                            return Result.failure(
+                            return new NoMatch<>(
                                 current, 
                                 "expected at least " + min + " items (found only " + count + " before terminator)");
                         }
-                        return Result.success(termRes.input(), Collections.unmodifiableList(buffer));
+                        return new Match<>(Collections.unmodifiableList(buffer), termRes.input());
                     }
                 }
                 // End-of-input or max reached
                 if (current.isEof() || count >= max) {
                     if (count >= min && until == null) {
-                        return Result.success(current, Collections.unmodifiableList(buffer));
+                        return new Match<>(Collections.unmodifiableList(buffer), current);
                     }
                     // Provide more context about the error
                     String reason = current.isEof() ? "end of input reached" : "maximum repetitions reached";
-                    return Result.failure( current,min + " repetitions ("+ reason + ")"
-                    );
+                    return new NoMatch<>(current, min + " repetitions (" + reason + ")");
                 }
                 // Parse an item
                 Result<I, A> res = this.apply(current);
@@ -1942,11 +1942,11 @@ public class Parser<I, A> {
                     }
 
                     if (count >= min) {
-                        return Result.success(current, Collections.unmodifiableList(buffer));
+                        return new Match<>(Collections.unmodifiableList(buffer), current);
                     }
                     
                     if (current.position() > in.position()) {
-                        return Result.partial(current, new NoMatch<>(current,
+                        return new PartialMatch<>(current, new NoMatch<>(current,
                                 "at least " + min + " repetition(s)",
                                 (NoMatch<?, ?>) res
                         ));
@@ -1961,7 +1961,7 @@ public class Parser<I, A> {
                 }
                 if (current.position() == res.input().position()) {
                     // Provide more context about the error when parser doesn't consume input
-                    return Result.failure(
+                    return new NoMatch<>(
                         current, 
                         "parser to consume input during repetition"
                     );
@@ -2025,15 +2025,15 @@ public class Parser<I, A> {
      * // Create a custom parser that recognizes a specific pattern
      * Parser<Character, String> customParser = new Parser<>(input -> {
      *     if (input.atEnd()) {
-     *         return Result.failure(input, "Unexpected end of input");
+     *         return new NoMatch<>(input, "Unexpected end of input");
      *     }
      *
      *     // Check for a specific pattern
      *     if (input.value() == 'a' && input.value(1) == 'b') {
-     *         return Result.success(input.advance(2), "ab");
+     *         return new Match<>("ab", input.advance(2));
      *     }
      *
-     *     return Result.failure(input, "Expected 'ab'");
+     *     return new NoMatch<>(input, "Expected 'ab'");
      * });
      * }</pre>
      *
@@ -2121,14 +2121,14 @@ public class Parser<I, A> {
 
             // Check for infinite recursion
             if (config.get(lastPosition) == this) {
-                return Result.recursionError(in);
+                return new NoMatch<>(in, "no infinite recursion");
             }
 
             config.put(lastPosition, this);
             try {
                 return applyHandler.apply(in);
             } catch (RuntimeException e) {
-                return Result.internalError(in);
+                return new NoMatch<>(in, "parser to function correctly");
             } finally {
                 // Remove the parser from the context after parsing
                 config.remove(lastPosition);
@@ -2289,11 +2289,11 @@ public class Parser<I, A> {
             Parser<I, B> next = f.apply(r.value());
             if (next == null) {
                 // be defensive to help users diagnose nulls
-                return Result.internalError(r.input()).cast();
+                return new NoMatch<I, B>(r.input(), "parser to function correctly").cast();
             }
             Result<I, B> rb = next.apply(r.input());
             if (!rb.matches()) {
-                return Result.partial(rb.input(), (Failure<I, B>) rb);
+                return new PartialMatch<>(rb.input(), (Failure<I, B>) rb);
             }
             return rb;
         });

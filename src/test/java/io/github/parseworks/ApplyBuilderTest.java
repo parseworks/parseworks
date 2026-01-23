@@ -1,5 +1,7 @@
 package io.github.parseworks;
 
+import io.github.parseworks.impl.result.Match;
+import io.github.parseworks.impl.result.NoMatch;
 import org.junit.jupiter.api.Test;
 
 import static io.github.parseworks.parsers.Lexical.regex;
@@ -204,9 +206,9 @@ public class ApplyBuilderTest {
     private Parser<Character, Character> charParser(char expected) {
         return new Parser<>(input -> {
             if (input.isEof() || input.current() != expected) {
-                return Result.failure(input, String.valueOf(expected));
+                return new NoMatch<>(input, String.valueOf(expected));
             }
-            return Result.success(input.next(), expected);
+            return new Match<>(expected, input.next());
         });
     }
     
@@ -215,11 +217,11 @@ public class ApplyBuilderTest {
             Input<Character> current = input;
             for (int i = 0; i < expected.length(); i++) {
                 if (current.isEof() || current.current() != expected.charAt(i)) {
-                    return Result.failure(input, expected);
+                    return new NoMatch<>(input, expected);
                 }
                 current = current.next();
             }
-            return Result.success(current, expected);
+            return new Match<>(expected, current);
         });
     }
     
