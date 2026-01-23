@@ -112,11 +112,11 @@ Combine basic parsers to create more complex ones:
 
 ```java
 // Parser for a number (one or more digits)
-Parser<Character, Integer> number = digit.many()
+Parser<Character, Integer> number = digit.oneOrMore()
     .map(digits -> {
         int result = 0;
-        for (int digit : digits) {
-            result = result * 10 + digit;
+        for (int d : digits) {
+            result = result * 10 + d;
         }
         return result;
     });
@@ -140,29 +140,27 @@ Parser<Character, Expression> factor = Parser.ref();
 
 // Define the factor parser (numbers or parenthesized expressions)
 factor.set(
-    number.map(NumberExpression::new)
+    number.map(n -> (Expression) new NumberExpression(n))
         .or(chr('(').skipThen(expr).thenSkip(chr(')')))
 );
 
 // Define the term parser (factors with multiplication/division)
 term.set(
-    factor.chainLeft(
+    factor.chainLeftOneOrMore(
         oneOf(
             chr('*').as((a, b) -> new BinaryExpression(a, Operator.MULTIPLY, b)),
             chr('/').as((a, b) -> new BinaryExpression(a, Operator.DIVIDE, b))
-        ),
-        null
+        )
     )
 );
 
 // Define the expression parser (terms with addition/subtraction)
 expr.set(
-    term.chainLeft(
+    term.chainLeftOneOrMore(
         oneOf(
             chr('+').as((a, b) -> new BinaryExpression(a, Operator.ADD, b)),
             chr('-').as((a, b) -> new BinaryExpression(a, Operator.SUBTRACT, b))
-        ),
-        null
+        )
     )
 );
 ```
@@ -229,8 +227,8 @@ Parser<Character, Map<String, Object>> jsonObject = chr('{')
         jsonString
             .thenSkip(chr(':'))
             .then(jsonValue)
-            .map(key -> value -> new AbstractMap.SimpleEntry<>(key, value))
-            .manySeparatedBy(chr(','))
+            .map(key -> value -> (Map.Entry<String, Object>) new AbstractMap.SimpleEntry<>(key, value))
+            .zeroOrMoreSeparatedBy(chr(','))
     )
     .thenSkip(chr('}'))
     .map(entries -> {
@@ -276,11 +274,11 @@ public void testNumberParser() {
     Parser<Character, Integer> parser = number;
     
     // Test valid inputs
-    assertEquals(42, parser.parse(Input.of("42")).get());
-    assertEquals(0, parser.parse(Input.of("0")).get());
+    assertEquals(42, parser.parse(Input.of("42")).value());
+    assertEquals(0, parser.parse(Input.of("0")).value());
     
     // Test invalid inputs
-    assertTrue(parser.parse(Input.of("abc")).isError());
+    assertFalse(parser.parse(Input.of("abc")).matches());
 }
 ```
 
@@ -294,11 +292,11 @@ public void testExpressionParser() {
     Parser<Character, Expression> parser = expr;
     
     // Test simple expressions
-    Expression result1 = parser.parse(Input.of("1+2")).get();
+    Expression result1 = parser.parse(Input.of("1+2")).value();
     assertEquals(3, result1.evaluate());
     
     // Test complex expressions
-    Expression result2 = parser.parse(Input.of("1+2*3")).get();
+    Expression result2 = parser.parse(Input.of("1+2*3")).value();
     assertEquals(7, result2.evaluate());
 }
 ```
@@ -310,56 +308,12 @@ Use these techniques for debugging parsers:
 1. **Add tracing**: Add logging to see what's happening during parsing
 2. **Use custom error messages**: Provide meaningful error messages for failures
 3. **Test incrementally**: Build and test your parser incrementally
-4. **Visualize the parse tree**: Create a visualization of the parse tree for complex inputs
+4. **Use expecting**: Use the `expecting` method to provide custom error messages for expected inputs
+5. **Visualize the parse tree**: Create a visualization of the parse tree for complex inputs
 
 ## Performance Considerations
 
-Performance is important for parsers, especially for large inputs:
-
-### Parser Reuse
-
-Reuse parsers instead of creating new ones for each parse operation:
-
-```java
-// Define parsers once
-private static final Parser<Character, String> KEYWORD_IF = string("if");
-private static final Parser<Character, String> KEYWORD_ELSE = string("else");
-
-// Reuse them in multiple places
-Parser<Character, String> keyword = oneOf(KEYWORD_IF, KEYWORD_ELSE);
-```
-
-### Avoiding Excessive Backtracking
-
-Excessive backtracking can lead to performance issues:
-
-```java
-// Inefficient: Tries to parse a long string, then backtracks to try a shorter one
-Parser<Character, String> inefficient = string("longerString").or(string("short"));
-
-// More efficient: Tries the shorter match first, which is more specific
-Parser<Character, String> efficient = string("short").or(string("longerString"));
-```
-
-### Memory Considerations
-
-Be mindful of memory usage, especially for large inputs:
-
-```java
-// Memory-intensive: Collects all characters into a list
-Parser<Character, FList<Character>> memoryIntensive = any(Character.class).many();
-
-// More memory-efficient: Processes characters one by one
-Parser<Character, Integer> memoryEfficient = any(Character.class).many()
-    .map(chars -> {
-        int count = 0;
-        for (Character c : chars) {
-            // Process each character individually
-            count++;
-        }
-        return count;
-    });
-```
+#TODO#
 
 ## Case Studies
 
@@ -383,15 +337,15 @@ factor.set(oneOf(number, parenExpr));
 // Define the term parser (factors with multiplication/division)
 Parser<Character, BinaryOperator<Integer>> mulOp = chr('*').map(op -> (a, b) -> a * b);
 Parser<Character, BinaryOperator<Integer>> divOp = chr('/').map(op -> (a, b) -> a / b);
-term.set(factor.chainLeft(oneOf(mulOp, divOp), 0));
+term.set(factor.chainLeftZeroOrMore(oneOf(mulOp, divOp), 0));
 
 // Define the expression parser (terms with addition/subtraction)
 Parser<Character, BinaryOperator<Integer>> addOp = chr('+').map(op -> (a, b) -> a + b);
 Parser<Character, BinaryOperator<Integer>> subOp = chr('-').map(op -> (a, b) -> a - b);
-expr.set(term.chainLeft(oneOf(addOp, subOp), 0));
+expr.set(term.chainLeftZeroOrMore(oneOf(addOp, subOp), 0));
 
 // Parse and evaluate an expression
-int result = expr.parse(Input.of("3+(2*4)-5")).get();
+int result = expr.parse(Input.of("3+(2*4)-5")).value();
 System.out.println(result);  // Output: 6
 ```
 
@@ -409,9 +363,9 @@ Parser<Character, List<Object>> jsonArray = Parser.ref();
 Parser<Character, String> jsonString = chr('"')
     .skipThen(
         oneOf(
-            chr('\\').then(any(Character.class)),
+            chr('\\').skipThen(any(Character.class)),
             chr(c -> c != '"' && c != '\\')
-        ).many()
+        ).zeroOrMore()
     )
     .thenSkip(chr('"'))
     .map(chars -> {
@@ -449,9 +403,9 @@ Parser<Character, Object> jsonNull = string("null").as(null);
 // Parser for JSON arrays
 jsonArray.set(
     chr('[')
-        .skipThen(jsonValue.manySeparatedBy(chr(',')))
+        .skipThen(jsonValue.zeroOrMoreSeparatedBy(chr(',')))
         .thenSkip(chr(']'))
-        .map(values -> new ArrayList<>(values))
+        .map(values -> (List<Object>) new ArrayList<>(values))
 );
 
 // Parser for JSON objects
@@ -461,8 +415,8 @@ jsonObject.set(
             jsonString
                 .thenSkip(chr(':'))
                 .then(jsonValue)
-                .map(key -> value -> new AbstractMap.SimpleEntry<>(key, value))
-                .manySeparatedBy(chr(','))
+                .map(key -> value -> (Map.Entry<String, Object>) new AbstractMap.SimpleEntry<>(key, value))
+                .zeroOrMoreSeparatedBy(chr(','))
         )
         .thenSkip(chr('}'))
         .map(entries -> {
@@ -488,8 +442,5 @@ jsonValue.set(
 
 // Parse JSON data
 String json = "{\"name\":\"John\",\"age\":30,\"isStudent\":false,\"grades\":[95,87,92]}";
-Object result = jsonValue.parse(Input.of(json)).get();
-System.out.println(result);
+Object result = jsonValue.parse(Input.of(json)).value();
 ```
-
-By following the principles and techniques outlined in this guide, you can design and implement parsers for a wide range of applications, from simple configuration files to complex programming languages.

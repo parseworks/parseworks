@@ -97,7 +97,7 @@ A common "gotcha": `takeWhile` requires a **parser** that returns `Boolean`, not
 ```java
 // Correct: passing a parser
 Parser<Character, Boolean> isAlpha = chr(Character::isLetter).as(true);
-Parser<Character, List<Character>> word = any().takeWhile(isAlpha);
+Parser<Character, List<Character>> word = any(Character.class).takeWhile(isAlpha);
 
 // Cleaner alternative:
 Parser<Character, List<Character>> word2 = chr(Character::isLetter).zeroOrMore();
@@ -315,31 +315,12 @@ Parser<Character, List<Object>> jsonArray = Parser.ref();
 Parser<Character, String> jsonString = chr('"')
     .skipThen(
         oneOf(
-            chr('\\').then(any(Character.class)),
+            chr('\\').skipThen(any(Character.class)),
             chr(c -> c != '"' && c != '\\')
         ).zeroOrMore()
     )
     .thenSkip(chr('"'))
-    .map(chars -> {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < chars.size(); i++) {
-            Character c = chars.get(i);
-            if (c == '\\' && i + 1 < chars.size()) {
-                Character next = chars.get(++i);
-                switch (next) {
-                    case '"': sb.append('"'); break;
-                    case '\\': sb.append('\\'); break;
-                    case 'n': sb.append('\n'); break;
-                    case 'r': sb.append('\r'); break;
-                    case 't': sb.append('\t'); break;
-                    default: sb.append(next);
-                }
-            } else {
-                sb.append(c);
-            }
-        }
-        return sb.toString();
-    });
+    .map(Lists::join);
 
 // Parser for JSON numbers
 Parser<Character, Double> jsonNumber = regex("-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?")
@@ -357,7 +338,7 @@ jsonArray.set(
     chr('[')
         .skipThen(jsonValue.zeroOrMoreSeparatedBy(chr(',')))
         .thenSkip(chr(']'))
-        .map(values -> new ArrayList<>(values))
+        .map(values -> (List<Object>) new ArrayList<>(values))
 );
 
 // Parser for JSON objects
@@ -367,7 +348,7 @@ jsonObject.set(
             jsonString
                 .thenSkip(chr(':'))
                 .then(jsonValue)
-                .map(key -> value -> new AbstractMap.SimpleEntry<>(key, value))
+                .map(key -> value -> (Map.Entry<String, Object>) new AbstractMap.SimpleEntry<>(key, value))
                 .zeroOrMoreSeparatedBy(chr(','))
         )
         .thenSkip(chr('}'))
@@ -383,12 +364,12 @@ jsonObject.set(
 // Set the JSON value parser to handle all JSON value types
 jsonValue.set(
     oneOf(
-        jsonString,
-        jsonNumber,
-        jsonBoolean,
+        jsonString.map(s -> (Object) s),
+        jsonNumber.map(n -> (Object) n),
+        jsonBoolean.map(b -> (Object) b),
         jsonNull,
-        jsonArray,
-        jsonObject
+        jsonArray.map(a -> (Object) a),
+        jsonObject.map(o -> (Object) o)
     )
 );
 ```
@@ -431,13 +412,13 @@ Parser<Character, UnaryOperator<Integer>> binExpr = chr('(')
     .skipThen(expr)
     .then(binOp)
     .then(expr.thenSkip(chr(')')))
-    .map(left -> op -> right -> x -> op.op().apply(left.apply(x), right.apply(x)));
+    .map(left -> op -> right -> (Integer x) -> op.op().apply(left.apply(x), right.apply(x)));
 
 // Set the expression parser to handle variables, numbers, and binary expressions
 expr.set(oneOf(var, num, binExpr));
 
 // Use the parser to evaluate expressions with variables
-UnaryOperator<Integer> evaluator = expr.parse(Input.of("(x*(x+1))")).get();
+UnaryOperator<Integer> evaluator = expr.parse(Input.of("(x*(x+1))")).value();
 int result = evaluator.apply(5);  // Evaluates the expression with x = 5
 System.out.println(result);  // Output: 30
 ```
@@ -518,13 +499,7 @@ Parser<Character, Integer> number = regex("\\d+").map(Integer::parseInt);
 Parser<Character, String> stringLiteral = chr('"')
     .skipThen(chr(c -> c != '"').zeroOrMore())
     .thenSkip(chr('"'))
-    .map(chars -> {
-        StringBuilder sb = new StringBuilder();
-        for (Character c : chars) {
-            sb.append(c);
-        }
-        return sb.toString();
-    });
+    .map(Lists::join);
 
 // Parser for print statements
 Parser<Character, Statement> printStatement = string("print")
@@ -554,7 +529,7 @@ Parser<Character, Statement> ifStatement = string("if")
             .thenSkip(chr('}'))
             .optional()
     )
-    .map(cond -> thenStmts -> elseStmts -> 
+    .map(cond -> thenStmts -> (Optional<List<Statement>> elseStmts) -> 
         new IfStatement(cond, thenStmts, elseStmts.orElse(Collections.emptyList()))
     );
 

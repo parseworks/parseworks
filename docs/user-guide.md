@@ -102,7 +102,7 @@ Parser<Character, String> helloWorld = string("hello")
     .then(string("world"))
     .map(h -> w -> h + " " + w);
 
-System.out.println(helloWorld.parse(Input.of("hello world")).get());
+System.out.println(helloWorld.parse(Input.of("hello world")).value());
 ```
 
 ### 3. Handling Structured Data
@@ -125,18 +125,18 @@ Parser<Character, KV> kvParser = Lexical.regex("[a-z]+")
 
 ```java
 // Parser for multiple key-value pairs separated by newlines
-Parser<Character, List<KeyValue>> configParser = keyValueParser
+Parser<Character, List<KV>> configParser = kvParser
     .oneOrMoreSeparatedBy(Lexical.chr('\n'));
 
 // Parse a configuration file
 String config = "server=localhost\nport=8080\nuser=admin";
-Result<Character, List<KeyValue>> result = configParser.parse(Input.of(config));
+Result<Character, List<KV>> result = configParser.parse(Input.of(config));
 
 // Process the result
 result.handle(
     match -> {
         System.out.println("Configuration loaded:");
-        match.value().forEach(kv -> System.out.println("  " + kv.getKey() + ": " + kv.getValue()));
+        match.value().forEach(kv -> System.out.println("  " + kv.k + ": " + kv.v));
         return null;
     },
     noMatch -> {
@@ -305,12 +305,12 @@ Parser<Character, List<Object>> jsonArray = Parser.ref();
 Parser<Character, String> jsonString = Lexical.chr('"')
     .skipThen(
         Combinators.oneOf(
-            Combinators.satisfy("<escaped-char>", c -> c == '\\').then(Combinators.any()),
-            Combinators.satisfy("<string-char>", c -> c != '"' && c != '\\')
+            Combinators.satisfy("<escaped-char>", (Character c) -> c == '\\').skipThen(Combinators.any(Character.class)),
+            Combinators.satisfy("<string-char>", (Character c) -> c != '"' && c != '\\')
         ).zeroOrMore()
     )
     .thenSkip(Lexical.chr('"'))
-    .map(List::joinChars); // Simplified for this example
+    .map(Lists::join);
 
 // Parser for JSON numbers
 Parser<Character, Double> jsonNumber = Lexical.regex("-?[0-9]+(\\.[0-9]+)?")
@@ -330,14 +330,14 @@ jsonArray.set(
     Lexical.chr('[')
         .skipThen(Lexical.trim(jsonValue).zeroOrMoreSeparatedBy(Lexical.trim(Lexical.chr(','))))
         .thenSkip(Lexical.chr(']'))
-        .map(List::toList)
+        .map(values -> (List<Object>) new ArrayList<>(values))
 );
 
 // Parser for JSON objects
 Parser<Character, Map.Entry<String, Object>> jsonProperty = jsonString
     .thenSkip(Lexical.trim(Lexical.chr(':')))
     .then(jsonValue)
-    .map(key -> value -> new AbstractMap.SimpleEntry<>(key, value));
+    .map(key -> value -> (Map.Entry<String, Object>) new AbstractMap.SimpleEntry<>(key, value));
 
 jsonObject.set(
     Lexical.chr('{')
@@ -355,12 +355,12 @@ jsonObject.set(
 // Any JSON value
 jsonValue.set(
     Combinators.oneOf(
-        jsonString,
-        jsonNumber,
-        jsonBoolean,
+        jsonString.map(s -> (Object) s),
+        jsonNumber.map(n -> (Object) n),
+        jsonBoolean.map(b -> (Object) b),
         jsonNull,
-        jsonObject,
-        jsonArray
+        jsonObject.map(o -> (Object) o),
+        jsonArray.map(a -> (Object) a)
     )
 );
 ```

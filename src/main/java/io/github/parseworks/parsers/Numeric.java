@@ -217,9 +217,9 @@ public class Numeric {
      * parser.parse("01").value();       // Returns 0 (only consumes the '0')
      *
      * // Use in combination with other parsers
-     * Parser<Character, Integer> hex = chr('0').then(chr('x').skipThen(
-     *     regex("[0-9a-fA-F]+").map(s -> Integer.parseInt(s, 16))
-     * ));
+     * Parser<Character, Integer> hexParser = Lexical.chr('0').then(Lexical.chr('x').skipThen(
+     *     Lexical.regex("[0-9a-fA-F]+").map(s -> Integer.parseInt(s, 16))
+     * )).map((c, h) -> h);
      *
      * // Invalid inputs
      * parser.parse("").matches();   // false, empty input
@@ -444,6 +444,11 @@ public class Numeric {
      * hexadecimal digits (0-9, a-f, A-F) and converts the sequence into an integer value.
      * <p>
      * Example: "0x1A" parses to 26
+     * <pre>{@code
+     * Parser<Character, Integer> hexParser = Lexical.chr('0').then(Lexical.chr('x').skipThen(
+     *     Lexical.regex("[0-9a-fA-F]+").map(s -> Integer.parseInt(s, 16))
+     * )).map((c, h) -> h);
+     * }</pre>
      */
     public static final Parser<Character, Integer> hex = Lexical.string("0x").or(Lexical.string("0X"))
             .skipThen(Lexical.regex("[0-9a-fA-F]+")
