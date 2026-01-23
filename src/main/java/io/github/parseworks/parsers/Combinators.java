@@ -1,6 +1,7 @@
 package io.github.parseworks.parsers;
 
 import io.github.parseworks.*;
+import io.github.parseworks.impl.result.NoMatch;
 import io.github.parseworks.impl.result.PartialMatch;
 
 import java.util.ArrayList;
@@ -815,7 +816,7 @@ public class Combinators {
         return new Parser<>(in -> {
             Result<I, A> res = parser.apply(in);
             if (res.matches()) return res;
-            return new PartialMatch<>(in, (Failure<I, A>) res);
+            return new NoMatch<>(in, ((Failure<I, A>) res).expected(), (Failure<I, A>) res);
         });
     }
 

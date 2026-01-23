@@ -92,7 +92,7 @@ public class PartialMatchTest {
         Result<Character, String> result = abcd.apply(testInput);
         
         assertFalse(result.matches());
-        assertEquals(ResultType.PARTIAL, result.type());
+        assertEquals(ResultType.NO_MATCH, result.type());
         assertEquals(6, result.input().position(), "Should backtrack to 6");
     }
 }

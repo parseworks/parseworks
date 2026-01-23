@@ -1,6 +1,6 @@
 package io.github.parseworks;
 
-import io.github.parseworks.impl.result.PartialMatch;
+import io.github.parseworks.impl.result.NoMatch;
 import org.junit.jupiter.api.Test;
 
 import static io.github.parseworks.parsers.Combinators.attempt;
@@ -18,8 +18,8 @@ public class AtomicPartialMatchTest {
         Result<Character, String> result = p.apply(input);
         
         assertFalse(result.matches());
-        assertEquals(ResultType.PARTIAL, result.type(), "Attempt parser should return a partial match");
+        assertEquals(ResultType.NO_MATCH, result.type(), "Attempt parser should return a NoMatch");
         assertEquals(0, result.input().position(), "Attempt parser should backtrack to the start");
-        assertTrue(result instanceof PartialMatch, "Result should be an instance of PartialMatch");
+        assertTrue(result instanceof NoMatch, "Result should be an instance of NoMatch");
     }
 }
