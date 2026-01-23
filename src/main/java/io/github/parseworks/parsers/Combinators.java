@@ -389,8 +389,8 @@ public class Combinators {
             Result<I, A> result = parser.apply(in);
             if (result.matches() || !result.input().hasMore()) {
                 // Provide more context about what was found that shouldn't have matched
-                String found = result.input().hasMore() ? String.valueOf(in.current()) : "end of input";
-                return Result.failure(in, "parser succeeded when we wanted it to fail");
+                String found = result.input().hasMore() ? "expected parser to fail" : "end of input";
+                return Result.failure(in, found);
             }
             return Result.success(in.next(), in.current());
 
