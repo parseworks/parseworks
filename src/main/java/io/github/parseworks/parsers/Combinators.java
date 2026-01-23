@@ -2,7 +2,6 @@ package io.github.parseworks.parsers;
 
 import io.github.parseworks.*;
 import io.github.parseworks.impl.result.NoMatch;
-import io.github.parseworks.impl.result.PartialMatch;
 
 import java.util.ArrayList;
 import java.util.Arrays;
