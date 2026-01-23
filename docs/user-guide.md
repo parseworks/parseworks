@@ -125,12 +125,12 @@ Parser<Character, KV> kvParser = Lexical.regex("[a-z]+")
 
 ```java
 // Parser for multiple key-value pairs separated by newlines
-Parser<Character, FList<KeyValue>> configParser = keyValueParser
+Parser<Character, List<KeyValue>> configParser = keyValueParser
     .oneOrMoreSeparatedBy(Lexical.chr('\n'));
 
 // Parse a configuration file
 String config = "server=localhost\nport=8080\nuser=admin";
-Result<Character, FList<KeyValue>> result = configParser.parse(Input.of(config));
+Result<Character, List<KeyValue>> result = configParser.parse(Input.of(config));
 
 // Process the result
 result.handle(
@@ -235,7 +235,7 @@ Parser<Character, BinaryOperator<Integer>> divOp = trim(Lexical.chr('/'))
 
 // Term handles multiplication and division
 term.set(
-    factor.chainLeft(oneOf(mulOp, divOp), 0)
+    factor.chainLeftZeroOrMore(oneOf(mulOp, divOp), 0)
 );
 ```
 
@@ -252,7 +252,7 @@ Parser<Character, BinaryOperator<Integer>> subOp = trim(Lexical.chr('-'))
 
 // Expression handles addition and subtraction
 expr.set(
-    term.chainLeft(oneOf(addOp, subOp), 0)
+    term.chainLeftZeroOrMore(oneOf(addOp, subOp), 0)
 );
 ```
 
@@ -307,10 +307,10 @@ Parser<Character, String> jsonString = Lexical.chr('"')
         Combinators.oneOf(
             Combinators.satisfy("<escaped-char>", c -> c == '\\').then(Combinators.any()),
             Combinators.satisfy("<string-char>", c -> c != '"' && c != '\\')
-        ).zeroOrMany()
+        ).zeroOrMore()
     )
     .thenSkip(Lexical.chr('"'))
-    .map(FList::joinChars); // Simplified for this example
+    .map(List::joinChars); // Simplified for this example
 
 // Parser for JSON numbers
 Parser<Character, Double> jsonNumber = Lexical.regex("-?[0-9]+(\\.[0-9]+)?")
@@ -328,9 +328,9 @@ Parser<Character, Object> jsonNull = Lexical.string("null").as(null);
 // Parser for JSON arrays
 jsonArray.set(
     Lexical.chr('[')
-        .skipThen(Lexical.trim(jsonValue).zeroOrManySeparatedBy(Lexical.trim(Lexical.chr(','))))
+        .skipThen(Lexical.trim(jsonValue).zeroOrMoreSeparatedBy(Lexical.trim(Lexical.chr(','))))
         .thenSkip(Lexical.chr(']'))
-        .map(FList::toList)
+        .map(List::toList)
 );
 
 // Parser for JSON objects
@@ -341,7 +341,7 @@ Parser<Character, Map.Entry<String, Object>> jsonProperty = jsonString
 
 jsonObject.set(
     Lexical.chr('{')
-        .skipThen(Lexical.trim(jsonProperty).zeroOrManySeparatedBy(Lexical.trim(Lexical.chr(','))))
+        .skipThen(Lexical.trim(jsonProperty).zeroOrMoreSeparatedBy(Lexical.trim(Lexical.chr(','))))
         .thenSkip(Lexical.chr('}'))
         .map(entries -> {
             Map<String, Object> map = new HashMap<>();
@@ -395,13 +395,11 @@ Here are some tips for optimizing parser performance:
 - **chr(char c)**: Creates a parser that recognizes the given character
 - **oneOf(Parser... parsers)**: Creates a parser that tries each parser in sequence until one succeeds
 - **oneOrMore()**: Creates a parser that applies the parser one or more times
-- **many()**: Alias for `oneOrMore()`
-- **zeroOrMany()**: Creates a parser that applies the parser zero or more times
+- **zeroOrMore()**: Creates a parser that applies the parser zero or more times
 - **optional()**: Creates a parser that optionally applies the parser
 - **between(Parser open, Parser close)**: Creates a parser that applies the parser between the open and close parsers
 - **oneOrMoreSeparatedBy(Parser separator)**: Creates a parser that applies the parser one or more times, separated by the separator parser
-- **manySeparatedBy(Parser separator)**: Alias for `oneOrMoreSeparatedBy()`
-- **zeroOrManySeparatedBy(Parser separator)**: Creates a parser that applies the parser zero or more times, separated by the separator parser
+- **zeroOrMoreSeparatedBy(Parser separator)**: Creates a parser that applies the parser zero or more times, separated by the separator parser
 
 ### Result Handling
 

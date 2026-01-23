@@ -66,7 +66,7 @@ public class AssociativityTest {
     @Test
     public void testLeftAssociative() {
         BinaryOperator<Integer> add = Integer::sum;
-        Parser<Character, Integer> leftAssocParser = number.chainLeft(chr('+').as(add), 0);
+        Parser<Character, Integer> leftAssocParser = number.chainLeftZeroOrMore(chr('+').as(add), 0);
 
         String input = "1+2+3";
         Result<Character, Integer> result = leftAssocParser.parse(Input.of(input));

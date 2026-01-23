@@ -469,14 +469,15 @@ public class Combinators {
      * <ol>
      *   <li>Parsers in the list are tried in order, from first to last</li>
      *   <li>When a parser succeeds, its result is returned and no further parsers are tried</li>
-     *   <li>If a parser fails, the next parser in the list is tried with the original input</li>
-     *   <li>If all parsers fail, the composite parser fails</li>
+     *   <li>If a parser returns a {@code PARTIAL} failure, it is returned immediately and no further alternatives are tried.</li>
+     *   <li>If a parser fails with {@code NO_MATCH}, the next parser in the list is tried with the original input</li>
+     *   <li>If all parsers fail with {@code NO_MATCH}, a combined failure is returned containing all branch failures</li>
      * </ol>
      * <p>
      * Important implementation details:
      * <ul>
      *   <li>This implements ordered choice - parsers are tried in the order they appear in the list</li>
-     *   <li>When a parser fails, no input is consumed before trying the next parser</li>
+     *   <li>When a parser fails with {@code NO_MATCH}, no input is consumed before trying the next parser</li>
      *   <li>If the list is empty, the resulting parser always fails</li>
      *   <li>All parsers in the list must have the same input and output types</li>
      * </ul>
@@ -532,7 +533,7 @@ public class Combinators {
                 if (failures == null){
                     failures = new ArrayList<>();
                 }
-                failures.add((Failure<I, A>)result);
+                failures.add((Failure<I, A>) result);
             }
             assert failures != null;
             return Result.failure(failures);
@@ -816,7 +817,7 @@ public class Combinators {
         return new Parser<>(in -> {
             Result<I, A> res = parser.apply(in);
             if (res.matches()) return res;
-            return new NoMatch<>(in, ((Failure<I, A>) res).expected(), (Failure<I, A>) res);
+            return new NoMatch<>(in, "parse attempt", (Failure<?, ?>) res);
         });
     }
 

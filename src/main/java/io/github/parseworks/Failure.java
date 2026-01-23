@@ -37,7 +37,55 @@ public interface Failure<I, A> extends Result<I, A> {
      *
      * @return the error message
      */
-    String error();
+    @Override
+    default String error() {
+        List<Failure<I, A>> failures;
+        var combinedFailures = this.combinedFailures();
+        if (combinedFailures != null && !combinedFailures.isEmpty()) {
+            failures = combinedFailures;
+        } else {
+            failures = List.of(this);
+        }
+
+        Failure<I, A> first = failures.get(0);
+        Input<I> errorInput = first.input();
+
+        if (errorInput == null) {
+            for (Failure<I, A> f : failures) {
+                if (f.input() != null) {
+                    errorInput = f.input();
+                    break;
+                }
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        if (this.type() == ResultType.PARTIAL) {
+            sb.append("Partial match failed: ");
+        } else {
+            sb.append("Error:");
+        }
+        TextInput text = (errorInput instanceof TextInput ti) ? ti : null;
+
+        if (text != null) {
+            sb.append(" line ").append(text.line())
+                .append(" position ").append(text.column())
+                .append('\n')
+                .append(text.getFormattedSnippet(1, 1));
+        } else if (errorInput != null) {
+            sb.append(" at position ").append(errorInput.position()).append('\n');
+        } else {
+            sb.append(" at unknown position\n");
+        }
+
+        sb.append("Reasons at this location:\n");
+        failures.stream()
+            .map(f -> f.error(0))
+            .distinct()
+            .forEach(sb::append);
+
+        return sb.toString();
+    }
 
     /**
      * Returns a human-friendly error message for this failure with indentation based on depth.
@@ -45,5 +93,39 @@ public interface Failure<I, A> extends Result<I, A> {
      * @param depth the depth of the failure in the chain
      * @return the indented error message
      */
-    String error(int depth);
+    default String error(int depth) {
+        String indent = "  ".repeat(depth);
+        StringBuilder builder = new StringBuilder(indent);
+        builder.append("- ");
+        if (depth > 0) builder.append("caused by: ");
+        var expected = this.expected();
+        if (expected != null && !expected.isEmpty()) {
+            builder.append("expected ").append(expected);
+        } else {
+            builder.append("expected correct input");
+        }
+
+        String foundValue = null;
+        var input = this.input();
+        if (input != null && input.hasMore()) {
+            foundValue = String.valueOf(input.current());
+        }
+
+        if (foundValue != null) {
+            builder.append(" found ").append(foundValue);
+        } else if (input != null && !input.hasMore()) {
+            builder.append(" reached end of input");
+        } else {
+            builder.append(" found unknown input");
+        }
+
+        builder.append("\n");
+        var cause = this.cause();
+        if (cause != null) {
+            builder.append(cause.error(depth + 1));
+        }
+
+        return builder.toString();
+    }
+
 }

@@ -359,7 +359,7 @@ public class Lexical {
             for (int i = 0; i < str.length(); i++) {
                 if (currentInput.isEof()) {
                     if (i > 0) {
-                        return Result.partial(currentInput, new NoMatch<>(currentInput, str));
+                        return Result.partial(currentInput, new NoMatch<>(currentInput, str.substring(i)));
                     }
                     return Result.failure(in, str);
                 }
@@ -369,7 +369,7 @@ public class Lexical {
 
                 if (expected != actual) {
                     if (i > 0) {
-                        return Result.partial(currentInput, new NoMatch<>(currentInput, str));
+                        return Result.partial(currentInput, new NoMatch<>(currentInput, str.substring(i)));
                     }
                     return Result.failure(in, str);
                 }

@@ -37,16 +37,6 @@ public record PartialMatch<I, A>(
     }
 
     @Override
-    public String error() {
-        return "Partial match failed: " + cause.error();
-    }
-
-    @Override
-    public String error(int depth) {
-        return cause.error(depth);
-    }
-
-    @Override
     public ResultType type() {
         return ResultType.PARTIAL;
     }

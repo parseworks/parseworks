@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class CalculatorParserTest {
 
     public static Parser<Character, Integer> term = Parser.ref();
-    public static Parser<Character, Integer> expression = term.chainLeft(operator(), 0);
+    public static Parser<Character, Integer> expression = term.chainLeftZeroOrMore(operator(), 0);
     public static Parser<Character, Integer> term2 = Combinators.oneOf(List.of(
             number(),
             expression.between('(', ')')));

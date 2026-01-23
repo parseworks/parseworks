@@ -330,10 +330,10 @@ public class Parser<I, A> {
     /**
      * Creates a parser for left-associative operator expressions that succeeds even when no operands are found.
      * <p>
-     * The {@code chainLeftZeroOrMany} method extends {@link #chainLeftMany(Parser)} to handle the case
+     * The {@code chainLeftZeroOrMany} method extends {@link #chainLeftOneOrMore(Parser)} to handle the case
      * where no operands are present in the input by providing a default value. It processes the input as follows:
      * <ol>
-     *   <li>First attempts to parse a left-associative operator expression using {@code chainLeftMany}</li>
+     *   <li>First attempts to parse a left-associative operator expression using {@code chainLeftOneOrMore}</li>
      *   <li>If successful, returns the parsed expression value</li>
      *   <li>If parsing fails (no valid expression found), returns the provided default value</li>
      * </ol>
@@ -344,7 +344,7 @@ public class Parser<I, A> {
      * <p>
      * Implementation details:
      * <ul>
-     *   <li>Combines {@link #chainLeftMany(Parser)} with {@link #or(Parser)} and {@link #pure(Object)}</li>
+     *   <li>Combines {@link #chainLeftOneOrMore(Parser)} with {@link #or(Parser)} and {@link #pure(Object)}</li>
      *   <li>No input is consumed if the expression cannot be parsed</li>
      *   <li>Always succeeds, either with the parsed result or the default value</li>
      * </ul>
@@ -368,12 +368,12 @@ public class Parser<I, A> {
      * @param a  the default value to return if no expression can be parsed
      * @return a parser that handles left-associative expressions or returns the default value
      * @throws IllegalArgumentException if the operator parser is null
-     * @see #chainLeftMany(Parser) for the version that requires at least one operand
-     * @see #chainRight(Parser, Object) for the right-associative equivalent
+     * @see #chainLeftOneOrMore(Parser) for the version that requires at least one operand
+     * @see #chainRightZeroOrMore(Parser, Object) for the right-associative equivalent
      * @see Chains.Associativity for associativity options
      */
-    public Parser<I, A> chainLeft(Parser<I, BinaryOperator<A>> op, A a) {
-        return this.chainLeftMany(op).or(pure(a));
+    public Parser<I, A> chainLeftZeroOrMore(Parser<I, BinaryOperator<A>> op, A a) {
+        return this.chainLeftOneOrMore(op).or(pure(a));
     }
 
     /**
@@ -406,7 +406,7 @@ public class Parser<I, A> {
      * Parser<Character, BinaryOperator<Integer>> subtract =
      *     Lexical.chr('-').as((a, b) -> a - b);
      *
-     * Parser<Character, Integer> expression = number.chainLeftMany(subtract);
+     * Parser<Character, Integer> expression = number.chainLeftOneOrMore(subtract);
      *
      * // Parses "5-3-2" as (5-3)-2 = 0
      * // Parses "7" as simply 7
@@ -417,10 +417,10 @@ public class Parser<I, A> {
      * @return a parser that handles left-associative expressions with at least one operand
      * @throws IllegalArgumentException if the operator parser is null
      * @see io.github.parseworks.parsers.Chains#chain(Parser, Parser, Chains.Associativity) for the more general method with explicit associativity
-     * @see #chainLeft(Parser, Object) for a version that provides a default value
+     * @see #chainLeftZeroOrMore(Parser, Object) for a version that provides a default value
      * @see #chainRightOneOrMore(Parser) for the right-associative equivalent
      */
-    public Parser<I, A> chainLeftMany(Parser<I, BinaryOperator<A>> op) {
+    public Parser<I, A> chainLeftOneOrMore(Parser<I, BinaryOperator<A>> op) {
         return chain(this, op, Chains.Associativity.LEFT);
     }
 
@@ -466,10 +466,10 @@ public class Parser<I, A> {
      * @return a parser that handles right-associative expressions or returns the default value
      * @throws IllegalArgumentException if the operator parser is null
      * @see #chainRightOneOrMore(Parser) for the version that requires at least one operand
-     * @see #chainLeft(Parser, Object) for the left-associative equivalent
+     * @see #chainLeftZeroOrMore(Parser, Object) for the left-associative equivalent
      * @see Chains.Associativity for associativity options
      */
-    public Parser<I, A> chainRight(Parser<I, BinaryOperator<A>> op, A a) {
+    public Parser<I, A> chainRightZeroOrMore(Parser<I, BinaryOperator<A>> op, A a) {
         return this.chainRightOneOrMore(op).or(pure(a));
     }
 
@@ -562,8 +562,8 @@ public class Parser<I, A> {
      * @return a parser that handles right-associative expressions with at least one operand
      * @throws IllegalArgumentException if the operator parser is null
      * @see io.github.parseworks.parsers.Chains#chain(Parser, Parser, Chains.Associativity) for the more general method with explicit associativity
-     * @see #chainRight(Parser, Object) for a version that provides a default value
-     * @see #chainLeftMany(Parser) for the left-associative equivalent
+     * @see #chainRightZeroOrMore(Parser, Object) for a version that provides a default value
+     * @see #chainLeftOneOrMore(Parser) for the left-associative equivalent
      */
     public Parser<I, A> chainRightOneOrMore(Parser<I, BinaryOperator<A>> op) {
         return chain(this, op, Chains.Associativity.RIGHT);
@@ -703,7 +703,7 @@ public class Parser<I, A> {
      * @param until the parser that signals when to stop collecting elements
      * @return a parser that applies this parser one or more times until the terminator succeeds
      * @throws IllegalArgumentException if the until parameter is null
-     * @see #zeroOrManyUntil(Parser) for a version that succeeds even with zero matches
+     * @see #zeroOrMoreUntil(Parser) for a version that succeeds even with zero matches
      * @see #oneOrMore() for a version that collects until this parser fails
      * @see #repeatInternal(int, int, Parser) for the underlying implementation
      */
@@ -1457,7 +1457,7 @@ public class Parser<I, A> {
      * // Parse a comma-separated list of numbers, allowing empty lists
      * Parser<Character, Integer> number = Numeric.integer;
      * Parser<Character, Character> comma = Lexical.chr(',');
-     * Parser<Character, List<Integer>> optionalList = number.zeroOrManySeparatedBy(comma);
+     * Parser<Character, List<Integer>> optionalList = number.zeroOrMoreSeparatedBy(comma);
      *
      * // Succeeds with [1,2,3] for input "1,2,3"
      * // Succeeds with [] for input "" (empty list)
@@ -1473,7 +1473,7 @@ public class Parser<I, A> {
      * @see #zeroOrMore() for collecting repeated elements without separators
      * @see #repeat(int, int) for collecting a specific range of elements
      */
-    public <SEP> Parser<I, List<A>> zeroOrManySeparatedBy(Parser<I, SEP> sep) {
+    public <SEP> Parser<I, List<A>> zeroOrMoreSeparatedBy(Parser<I, SEP> sep) {
         return this.oneOrMoreSeparatedBy(sep).map(l -> l).or(pure(Collections.emptyList()));
     }
 
@@ -1557,7 +1557,7 @@ public class Parser<I, A> {
      * @param <SEP> the type of the separator parse result (which is discarded)
      * @return a parser that parses one or more elements separated by the given separator
      * @throws IllegalArgumentException if the separator parser is null
-     * @see #zeroOrManySeparatedBy(Parser) for a version that allows empty sequences
+     * @see #zeroOrMoreSeparatedBy(Parser) for a version that allows empty sequences
      * @see #oneOrMore() for collecting repeated elements without separators
      * @see #repeat(int, int) for collecting a specific range of elements
      */
@@ -1839,7 +1839,7 @@ public class Parser<I, A> {
      * @see #oneOrMoreUntil(Parser) for a version that requires at least one match
      * @see #zeroOrMore() for a version that collects until this parser fails
      */
-    public Parser<I, List<A>> zeroOrManyUntil(Parser<I, ?> terminator) {
+    public Parser<I, List<A>> zeroOrMoreUntil(Parser<I, ?> terminator) {
         return repeatInternal(0, Integer.MAX_VALUE, terminator);
     }
 
@@ -2088,7 +2088,7 @@ public class Parser<I, A> {
      *     chr('+').as((a, b) -> a + b);
      *
      * // Now initialize the expression parser with a definition that references itself
-     * expr.set(number.or(parens).chainLeftMany(addOp));
+     * expr.set(number.or(parens).chainLeftOneOrMore(addOp));
      *
      * // Can now parse recursive expressions like "1+(2+3)"
      * }</pre>
@@ -2287,7 +2287,7 @@ public class Parser<I, A> {
             }
             Result<I, B> rb = next.apply(r.input());
             if (!rb.matches()) {
-                return (Result<I, B>) Result.partial(rb.input(), (Failure<I, B>) rb);
+                return Result.partial(rb.input(), (Failure<I, B>) rb);
             }
             return rb;
         });

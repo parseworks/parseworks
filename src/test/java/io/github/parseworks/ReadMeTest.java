@@ -45,7 +45,7 @@ public class ReadMeTest {
                 success -> "Match: no way!",
                 failure -> "Error: " + failure.error()
         );
-        assertTrue(response2.contains("Error: line 1 position 3"));
+        assertTrue(response2.contains("Error: Partial match failed:  line 1 position 3"));
     }
 
     @Test

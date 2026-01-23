@@ -41,23 +41,23 @@ Build on the concepts from the [user guide](user-guide.md) and explore advanced 
 
 ### Chain Operations
 
-Handling operator precedence and associativity is common in expression parsing. `chainLeft` and `chainRight` simplify this by applying a binary operator between parsed elements.
+Handling operator precedence and associativity is common in expression parsing. `chainLeftZeroOrMore` and `chainRightZeroOrMore` simplify this by applying a binary operator between parsed elements.
 
-#### left-associativity with `chainLeft`
+#### left-associativity with `chainLeftZeroOrMore`
 Useful for addition, subtraction, etc., where `1+2+3` should be `(1+2)+3`.
 
 ```java
-Parser<Character, Integer> addition = number.chainLeft(
+Parser<Character, Integer> addition = number.chainLeftZeroOrMore(
     chr('+').as(Integer::sum),
     0
 );
 ```
 
-#### right-associativity with `chainRight`
+#### right-associativity with `chainRightZeroOrMore`
 Useful for exponentiation, where `2^3^2` should be `2^(3^2)`.
 
 ```java
-Parser<Character, Integer> power = number.chainRight(
+Parser<Character, Integer> power = number.chainRightZeroOrMore(
     chr('^').as((a, b) -> (int)Math.pow(a, b)),
     1
 );
@@ -88,7 +88,7 @@ While `zeroOrMore` and `oneOrMore` are common, you often need stricter bounds.
 
 - `repeat(n)`: Exactly `n` times.
 - `repeat(min, max)`: Between `min` and `max` times.
-- `manyUntil(end)`: Consume items until the `end` parser matches.
+- `zeroOrMoreUntil(end)`: Consume items until the `end` parser matches.
 
 ### `takeWhile` and `until`
 
@@ -97,10 +97,10 @@ A common "gotcha": `takeWhile` requires a **parser** that returns `Boolean`, not
 ```java
 // Correct: passing a parser
 Parser<Character, Boolean> isAlpha = chr(Character::isLetter).as(true);
-Parser<Character, FList<Character>> word = any().takeWhile(isAlpha);
+Parser<Character, List<Character>> word = any().takeWhile(isAlpha);
 
 // Cleaner alternative:
-Parser<Character, FList<Character>> word2 = chr(Character::isLetter).zeroOrMore();
+Parser<Character, List<Character>> word2 = chr(Character::isLetter).zeroOrMore();
 ```
 
 ### Negation and Validation
@@ -247,7 +247,7 @@ Parser<Character, BinaryOperator<Integer>> divOp = chr('/')
     .as((a, b) -> a / b);
 
 term.set(
-    factor.chainLeft(oneOf(mulOp, divOp), 0)
+    factor.chainLeftZeroOrMore(oneOf(mulOp, divOp), 0)
 );
 
 // Expression handles addition and subtraction (lower precedence)
@@ -257,7 +257,7 @@ Parser<Character, BinaryOperator<Integer>> subOp = chr('-')
     .as((a, b) -> a - b);
 
 expr.set(
-    term.chainLeft(oneOf(addOp, subOp), 0)
+    term.chainLeftZeroOrMore(oneOf(addOp, subOp), 0)
 );
 ```
 
@@ -317,7 +317,7 @@ Parser<Character, String> jsonString = chr('"')
         oneOf(
             chr('\\').then(any(Character.class)),
             chr(c -> c != '"' && c != '\\')
-        ).many()
+        ).zeroOrMore()
     )
     .thenSkip(chr('"'))
     .map(chars -> {
@@ -355,7 +355,7 @@ Parser<Character, Object> jsonNull = string("null").as(null);
 // Parser for JSON arrays
 jsonArray.set(
     chr('[')
-        .skipThen(jsonValue.manySeparatedBy(chr(',')))
+        .skipThen(jsonValue.zeroOrMoreSeparatedBy(chr(',')))
         .thenSkip(chr(']'))
         .map(values -> new ArrayList<>(values))
 );
@@ -368,7 +368,7 @@ jsonObject.set(
                 .thenSkip(chr(':'))
                 .then(jsonValue)
                 .map(key -> value -> new AbstractMap.SimpleEntry<>(key, value))
-                .manySeparatedBy(chr(','))
+                .zeroOrMoreSeparatedBy(chr(','))
         )
         .thenSkip(chr('}'))
         .map(entries -> {
@@ -516,7 +516,7 @@ Parser<Character, Integer> number = regex("\\d+").map(Integer::parseInt);
 
 // Parser for strings
 Parser<Character, String> stringLiteral = chr('"')
-    .skipThen(chr(c -> c != '"').many())
+    .skipThen(chr(c -> c != '"').zeroOrMore())
     .thenSkip(chr('"'))
     .map(chars -> {
         StringBuilder sb = new StringBuilder();
@@ -569,7 +569,7 @@ statement.set(
 
 // Set the statements parser
 statements.set(
-    statement.many().map(stmts -> {
+    statement.zeroOrMore().map(stmts -> {
         List<Statement> result = new ArrayList<>();
         for (Statement stmt : stmts) {
             result.add(stmt);
@@ -649,7 +649,7 @@ class ExpressionModule implements ParserModule<Expression> {
     
     @Override
     public Parser<Character, Expression> getParser() {
-        return termModule.getParser().chainLeft(
+        return termModule.getParser().chainLeftZeroOrMore(
             oneOf(
                 chr('+').as((a, b) -> new BinaryExpression(a, Operator.ADD, b)),
                 chr('-').as((a, b) -> new BinaryExpression(a, Operator.SUBTRACT, b))
@@ -668,7 +668,7 @@ class TermModule implements ParserModule<Expression> {
     
     @Override
     public Parser<Character, Expression> getParser() {
-        return factorModule.getParser().chainLeft(
+        return factorModule.getParser().chainLeftZeroOrMore(
             oneOf(
                 chr('*').as((a, b) -> new BinaryExpression(a, Operator.MULTIPLY, b)),
                 chr('/').as((a, b) -> new BinaryExpression(a, Operator.DIVIDE, b))

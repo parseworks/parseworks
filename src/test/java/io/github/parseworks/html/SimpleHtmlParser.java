@@ -136,7 +136,7 @@ public class SimpleHtmlParser {
             Lexical.chr('"').skipThen(Lexical.chr(c -> c != '"').zeroOrMore()).thenSkip(Lexical.chr('"'))
         ).map(SimpleHtmlParser::charsToString);
 
-    private static final Parser<Character,Map<String,String>> COMMENT_BODY = any(Character.class).zeroOrManyUntil(Lexical.string("--")).map(
+    private static final Parser<Character,Map<String,String>> COMMENT_BODY = any(Character.class).zeroOrMoreUntil(Lexical.string("--")).map(
             data ->{
                 Map<String,String> result = new HashMap<>();
                 result.put("data",charsToString(data));

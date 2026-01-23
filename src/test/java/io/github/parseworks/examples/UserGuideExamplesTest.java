@@ -216,7 +216,7 @@ public class UserGuideExamplesTest {
 
         // Term handles multiplication and division
         term.set(
-            factor.chainLeft(oneOf(mulOp, divOp), 0)
+            factor.chainLeftZeroOrMore(oneOf(mulOp, divOp), 0)
         );
 
         // Parser for addition operator
@@ -229,7 +229,7 @@ public class UserGuideExamplesTest {
 
         // Expression handles addition and subtraction
         expr.set(
-            term.chainLeft(oneOf(addOp, subOp), 0)
+            term.chainLeftZeroOrMore(oneOf(addOp, subOp), 0)
         );
 
         // Parse and evaluate expressions

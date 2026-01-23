@@ -205,7 +205,7 @@ public class ParserTest {
     public void testChainl() {
         Parser<Character, Integer> number = Numeric.number;
         Parser<Character, BinaryOperator<Integer>> plus = Lexical.chr('-').map(op -> (a, b) -> a - b);
-        Parser<Character, Integer> parser = number.chainLeftMany(plus);
+        Parser<Character, Integer> parser = number.chainLeftOneOrMore(plus);
         Input<Character> input = Input.of("1-2-3");
         Result<Character, Integer> result = parser.parse(input);
         assertTrue(result.matches());
@@ -216,7 +216,7 @@ public class ParserTest {
 
     @Test
     public void testZeroOrMoreSeparatedBy() {
-        Parser<Character, List<Character>> parser = Lexical.chr(Character::isLetter).zeroOrManySeparatedBy(Lexical.chr(','));
+        Parser<Character, List<Character>> parser = Lexical.chr(Character::isLetter).zeroOrMoreSeparatedBy(Lexical.chr(','));
         Input<Character> input = Input.of("a,b,c");
         Result<Character, List<Character>> result = parser.parse(input);
         assertTrue(result.matches());
@@ -346,7 +346,7 @@ public class ParserTest {
 
     @Test
     public void testZeroOrMoreUntil() {
-        Parser<Character, List<Character>> parser = Lexical.chr('a').zeroOrManyUntil(Lexical.chr(';'));
+        Parser<Character, List<Character>> parser = Lexical.chr('a').zeroOrMoreUntil(Lexical.chr(';'));
 
         // Test case 1: Zero matches with terminator
         Result<Character, List<Character>> result1 = parser.parse(";");
@@ -457,16 +457,16 @@ public class ParserTest {
         Parser<Character, BinaryOperator<Integer>> plus = Lexical.chr('+').map(op -> Integer::sum);
 
         // Test chainLeftZeroOrMany
-        Parser<Character, Integer> leftParser = number.chainLeft(plus, 0);
+        Parser<Character, Integer> leftParser = number.chainLeftZeroOrMore(plus, 0);
         Result<Character, Integer> leftResult = leftParser.parse("");
         assertTrue(leftResult.matches());
         assertEquals(0, leftResult.value());  // Should return default value for empty input
 
         // Test chainRightZeroOrMany
-        Parser<Character, Integer> rightParser = number.chainRight(plus, 0);
+        Parser<Character, Integer> rightParser = number.chainRightZeroOrMore(plus, 0);
         Result<Character, Integer> rightResult = rightParser.parse("");
         assertTrue(rightResult.matches());
-        assertEquals(0, rightResult.value());  // Should return default value for empty input
+        assertEquals(0, rightResult.value());  // Should return the default value for empty input
     }
 
     @Test

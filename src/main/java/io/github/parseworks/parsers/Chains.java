@@ -31,7 +31,7 @@ public class Chains {
      * </ul>
      * <p>
      * This method serves as the foundation for more specific chainXxx methods like
-     * {@link Parser#chainLeftMany(Parser)} and {@link Parser#chainRightOneOrMore(Parser)}.
+     * {@link Parser#chainLeftOneOrMore(Parser)} and {@link Parser#chainRightOneOrMore(Parser)}.
      * <p>
      * Example usage:
      * <pre>{@code
@@ -50,7 +50,7 @@ public class Chains {
      * @param associativity the associativity rule to apply (LEFT or RIGHT)
      * @return a parser that handles operator expressions with the specified associativity
      * @throws IllegalArgumentException if any parameter is null
-     * @see Parser#chainLeftMany(Parser) for a specialized left-associative version
+     * @see Parser#chainLeftOneOrMore(Parser) for a specialized left-associative version
      * @see Parser#chainRightOneOrMore(Parser) for a specialized right-associative version
      * @see Associativity for the associativity options
      */
@@ -88,7 +88,7 @@ public class Chains {
      * This enum is used in parser combinators like {@link Chains#chain(Parser, Parser, Associativity)}
      * to specify how repeated operations should be grouped during parsing.
      *
-     * @see Parser#chainLeftMany(Parser) for left-associative parsing
+     * @see Parser#chainLeftOneOrMore(Parser) for left-associative parsing
      * @see Parser#chainRightOneOrMore(Parser) for right-associative parsing
      */
     public enum Associativity {
