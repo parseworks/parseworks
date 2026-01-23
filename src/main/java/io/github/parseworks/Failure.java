@@ -1,6 +1,7 @@
 package io.github.parseworks;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Represents a failure result in a parser combinator.
@@ -97,8 +98,15 @@ public interface Failure<I, A> extends Result<I, A> {
         String indent = "  ".repeat(depth);
         StringBuilder builder = new StringBuilder(indent);
         builder.append("- ");
-        if (depth > 0) builder.append("caused by: ");
         var expected = this.expected();
+        var cause = this.cause();
+
+        // If this failure has the same expectation as its cause, skip this level to reduce nesting
+        if (cause != null && Objects.equals(expected, cause.expected())) {
+            return cause.error(depth);
+        }
+
+        if (depth > 0) builder.append("caused by: ");
         if (expected != null && !expected.isEmpty()) {
             builder.append("expected ").append(expected);
         } else {
@@ -120,7 +128,6 @@ public interface Failure<I, A> extends Result<I, A> {
         }
 
         builder.append("\n");
-        var cause = this.cause();
         if (cause != null) {
             builder.append(cause.error(depth + 1));
         }
