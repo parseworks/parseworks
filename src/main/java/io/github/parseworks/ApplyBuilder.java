@@ -57,7 +57,10 @@ public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
             Input<I> in2 = functionResult.input();
             Result<I, A> valueResult = valueParser.apply(in2);
             if (!valueResult.matches()) {
-                return Result.partial(valueResult.input(), (Failure<I, A>) valueResult).cast();
+                if (valueResult.input().position() > in.position()) {
+                    return Result.partial(valueResult.input(), (Failure<I, A>) valueResult).cast();
+                }
+                return valueResult.cast();
             }
             return valueResult.map(func);
         });
@@ -199,7 +202,10 @@ public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
             }
             Result<I, B> rb = pb.apply(ra.input());
             if (!rb.matches()) {
-                return Result.partial(rb.input(), (Failure<I, B>) rb).cast();
+                if (rb.input().position() > in.position()) {
+                    return Result.partial(rb.input(), (Failure<I, B>) rb).cast();
+                }
+                return rb.cast();
             }
             return Result.success(rb.input(), f.apply(ra.value(), rb.value()));
         });

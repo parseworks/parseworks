@@ -199,7 +199,10 @@ public class Parser<I, A> {
             if (!res.matches()) return res;
             Result<I, B> res2 = pb.apply(res.input());
             if (!res2.matches()) {
-                return Result.partial(res2.input(), (Failure<I, A>) res2.cast());
+                if (res2.input().position() > in.position()) {
+                    return Result.partial(res2.input(), (Failure<I, A>) res2.cast());
+                }
+                return res2.cast();
             }
             return Result.success(res2.input(), res.value());
         });
@@ -255,7 +258,10 @@ public class Parser<I, A> {
             if (!res.matches()) return res.cast();
             Result<I, B> res2 = pb.apply(res.input());
             if (!res2.matches()) {
-                return Result.partial(res2.input(), (Failure<I, B>) res2);
+                if (res2.input().position() > in.position()) {
+                    return Result.partial(res2.input(), (Failure<I, B>) res2);
+                }
+                return res2.cast();
             }
             return res2;
         });
