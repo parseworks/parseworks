@@ -5,9 +5,9 @@
 *   **Immutable Input** solves a number of problems having to do with consumption. When we pass an input object to a parser and it fails, we generally don't have to worry about whether partial consumption has occurred, because the Input object we passed in doesn't change.
     *   *Note*: Some input sources (like `ReaderInput`) wrap mutable streams and are single-pass only. For full backtracking support and high-fidelity error reporting, random-access inputs like `CharSequenceInput` are preferred.
 *   **Backtracking Control**: The library distinguishes between a total failure to match (`NO_MATCH`) and a failure that occurred after some input was already consumed (`PARTIAL`).
-    *   Sequential combinators like `then`, `skipThen`, and `thenSkip` will return a `PARTIAL` match if they fail after the first part has already succeeded.
-    *   Parsers that attempt multiple options, such as `oneOf` or `or`, will stop and report a `PARTIAL` failure immediately, assuming that if a parser started matching, it's the intended branch.
-    *   If all branches in `oneOf` fail without any `PARTIAL` match, it will collect all failures into a "Combined Failure" result which lists out all the branch failures.
+    *   Sequential combinators like `then`, `skipThen`, and `thenSkip` will return a `PARTIAL` failure if they fail after the first part has already succeeded.
+    *   Parsers that attempt multiple options, such as `oneOf` or `or`, will stop and report a `PARTIAL` failure immediately if a branch fails after consuming input, assuming that if a parser started matching, it's the intended branch.
+    *   If all branches in `oneOf` fail with `NO_MATCH` (no input consumed), it will collect all failures into a "Combined Failure" result which lists out all the branch failures.
 *   **The `attempt` and `expecting` Methods**:
     *   `expecting(label)` provides a wrapper on the parser that replaces the default error message with a domain-specific label. This allows us to provide a cleaner series of error messages while preserving the original failure as the cause.
     *   The `attempt` combinator explicitly sets the input index of a failure to the initial input index so that it appears to have consumed no input from the perspective of the parent parser, thereby enabling backtracking for that specific operation.
