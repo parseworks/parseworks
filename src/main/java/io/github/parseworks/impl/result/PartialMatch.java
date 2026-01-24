@@ -60,13 +60,13 @@ public record PartialMatch<I, A>(
     @Override
     @SuppressWarnings("unchecked")
     public <B> Result<I, B> cast() {
-        return new PartialMatch<>(input, (Failure<I, B>) cause.cast());
+        return (Result<I, B>) this;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <B> Result<I, B> map(Function<A, B> mapper) {
-        return new PartialMatch<>(input, (Failure<I, B>) cause.map(null)); // NoMatch.map ignores mapper
+        return (Result<I, B>) this;
     }
 
     @Override
