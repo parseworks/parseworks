@@ -47,8 +47,11 @@ Handling operator precedence and associativity is common in expression parsing. 
 Useful for addition, subtraction, etc., where `1+2+3` should be `(1+2)+3`.
 
 ```java
+// Define a number parser
+Parser<Character, Integer> number = regex("\\d+").map(Integer::parseInt);
+
 Parser<Character, Integer> addition = number.chainLeftZeroOrMore(
-    chr('+').as(Integer::sum),
+    chr('+').as((a, b) -> a + b),
     0
 );
 ```
@@ -68,6 +71,7 @@ Parser<Character, Integer> power = number.chainRightZeroOrMore(
 For nested structures (JSON, expressions), use `Parser.ref()`. This creates a placeholder that you `set()` later, allowing the parser to refer to itself.
 
 ```java
+Parser<Character, Integer> number = regex("\\d+").map(Integer::parseInt);
 Parser<Character, Expr> expr = Parser.ref();
 
 // Parens: ( expr )
@@ -76,7 +80,7 @@ Parser<Character, Expr> parens = chr('(')
     .thenSkip(chr(')'));
 
 // A factor is a number OR a parenthesized expression
-Parser<Character, Expr> factor = number.or(parens);
+Parser<Character, Expr> factor = number.map(Literal::new).or(parens);
 
 // Close the loop
 expr.set(factor); 
@@ -88,32 +92,40 @@ While `zeroOrMore` and `oneOrMore` are common, you often need stricter bounds.
 
 - `repeat(n)`: Exactly `n` times.
 - `repeat(min, max)`: Between `min` and `max` times.
-- `zeroOrMoreUntil(end)`: Consume items until the `end` parser matches.
+- `repeatAtLeast(n)`: At least `n` times.
+- `repeatAtMost(n)`: At most `n` times.
+- `zeroOrMoreUntil(terminator)`: Consume items until the `terminator` parser matches.
 
-### `takeWhile` and `until`
+### `takeWhile` and `zeroOrMoreUntil`
 
 A common "gotcha": `takeWhile` requires a **parser** that returns `Boolean`, not a simple lambda predicate. This is because the condition itself might need to look ahead or consume input.
 
 ```java
-// Correct: passing a parser
+// Correct: passing a parser that returns Boolean
 Parser<Character, Boolean> isAlpha = chr(Character::isLetter).as(true);
 Parser<Character, List<Character>> word = any(Character.class).takeWhile(isAlpha);
 
-// Cleaner alternative:
+// Cleaner alternative if you just want to match characters:
 Parser<Character, List<Character>> word2 = chr(Character::isLetter).zeroOrMore();
+```
+
+`zeroOrMoreUntil` is useful for consuming items until a specific terminator is reached:
+
+```java
+// Parse everything until a semicolon
+Parser<Character, List<Character>> content = any(Character.class).zeroOrMoreUntil(chr(';'));
 ```
 
 ### Negation and Validation
 
 #### not
 
-The `not` method creates a parser that succeeds if the provided parser fails:
+The `not` method creates a parser that succeeds if the provided parser fails, and fails if it succeeds. It does **not** consume any input (it's a zero-width assertion).
 
 ```java
 // Parse any character that is not a digit
-Parser<Character, Character> notDigit = chr(c -> !Character.isDigit(c));
-// Alternative using not:
-Parser<Character, Character> notDigit2 = not(chr(Character::isDigit));
+// We use not() to check the condition, then any() to actually consume the character
+Parser<Character, Character> notDigit = not(chr(Character::isDigit)).skipThen(any(Character.class));
 ```
 
 #### isNot
@@ -198,18 +210,20 @@ Parser<Character, Integer> numberOrZero = number.orElse(0);
 
 #### Using optional
 
-The `optional` method creates a parser that optionally applies the parser:
+The `optional` method creates a parser that optionally applies the parser. It returns an `Optional<A>`:
 
 ```java
 // Parse an optional sign followed by a number
-Parser<Character, Integer> signedNumber = chr('-').optional().then(number)
-    .map(sign -> num -> sign.isPresent() ? -num : num);
+// then() returns an ApplyBuilder, which allows combining results
+Parser<Character, Integer> signedNumber = chr('-').optional()
+    .then(number)
+    .map(optSign -> num -> optSign.isPresent() ? -num : num);
 ```
 
 ## Performance Tips
 
 1. **Static Reuse**: Define common parsers (keywords, delimiters) as `static final` fields. Creating parsers on-the-fly inside a loop is a major performance killer.
-2. **Deterministic Choices**: In `oneOf`, ensure your alternatives are as distinct as possible. If they overlap, put the longest/most specific one first.
+2. **Deterministic Choices**: In `oneOf`, ensure your alternatives are as distinct as possible. Overlapping of terms can result in early termination, as the parser will assume that the partial parse indicates an error.
 3. **Be careful with `trim()`**: It's convenient but adds lookahead/backtracking. Apply it at the "token" level rather than around every single character parser.
 4. **Regular Expressions**: `Lexical.regex` is backed by standard Java `Pattern`. It's fast for tokenization but avoid complex, nested groups if a simple `chr()` loop would suffice.
 
@@ -285,18 +299,13 @@ expr.set(
 
 ### Handling Ambiguity
 
-Ambiguity in grammars can lead to unexpected parsing results. parseWorks uses ordered choice, which means the first matching parser wins:
+Ambiguity in grammars can lead to unexpected parsing results. parseWorks uses ordered choice (via `or` or `oneOf`), which means the first matching parser wins:
 
 ```java
 // This parser will always choose the first matching alternative
-Parser<Character, String> ambiguous = string("if").or(string("ifelse"));
+Parser<Character, String> ambiguous = oneOf(string("if"), string("ifelse"));
 
 // For input "ifelse", it will parse "if" and leave "else" unparsed
-
-// To resolve ambiguity, order parsers from most specific to least specific:
-Parser<Character, String> unambiguous = string("ifelse").or(string("if"));
-
-// Now for input "ifelse", it will correctly parse the entire string
 ```
 
 ## Advanced Examples
@@ -694,7 +703,7 @@ Parser<Character, String> specific = regex("[a-zA-Z]+");
 
 #### Order of Alternatives
 
-The order of alternatives in `oneOf` can affect the parsing result:
+The order of alternatives in `oneOf` (and `or`) can affect the parsing result:
 
 ```java
 // This will always parse "if" and never "ifelse"
@@ -717,6 +726,26 @@ Parser<Character, Integer> tracedParser = number.map(n -> {
     return n;
 });
 ```
+#### Log to output
+
+The `logSystemOut` method allows you to log the parsing process to the system output, which is invaluable for debugging complex combinators:
+
+```java
+Parser<Character, String> myParser = string("foo").or(string("bar")).logSystemOut();
+```
+
+#### Use `expecting` to redefine error messages
+
+The `expecting` method allows you to provide a more user-friendly name for a parser, which will be used in error messages when the parser fails to match.
+
+```java
+Parser<Character, String> identifier = regex("[a-zA-Z]+")
+    .expecting("an identifier (letters only)");
+
+// If this fails, the error message will say "Expected an identifier (letters only)" 
+// instead of a generic message or the regex pattern.
+```
+
 
 #### Custom Error Messages
 
