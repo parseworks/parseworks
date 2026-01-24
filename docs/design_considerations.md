@@ -13,6 +13,9 @@
     *   The `attempt` combinator explicitly sets the input index of a failure to the initial input index so that it appears to have consumed no input from the perspective of the parent parser, thereby enabling backtracking for that specific operation.
 *   **Predictability**: This design ensures that errors are reported at the deepest point of failure in the most promising branch, rather than falling back to less relevant alternatives when a grammar has already partially matched a specific construct.
 
+### Error Handling
+An error object should never need to concatenate strings or preprocess input to create the error. This should be done lazily to avoid unnecessary computation and improve performance. Additionally, error messages should be concise and informative, providing enough context to understand the failure without overwhelming the user with unnecessary details. To that end, there are multiple Failure types corresponding to different situations where we need to provide a more concise error message.
+
 ### API Design
 *   **Builder Pattern**: Complex sequences are handled via `ApplyBuilder`, providing a fluent API for combining multiple results (e.g., `p1.then(p2).then(p3).map((v1, v2, v3) -> ...)`). This avoids deeply nested tuples and keeps the code readable.
 *   **Fluent Interface**: Most combinators are available as instance methods on the `Parser` class, allowing for a readable, "left-to-right" parsing specification (e.g., `parser.zeroOrMore().optional()`).
