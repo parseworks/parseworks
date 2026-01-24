@@ -21,7 +21,7 @@ Maven (latest release):
 <dependency>
    <groupId>io.github.parseworks</groupId>
    <artifactId>parseworks</artifactId>
-   <version>2.2.0</version>
+   <version>3.0.0-ALPHA</version>
 </dependency>
 ```
 
