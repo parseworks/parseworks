@@ -4,11 +4,11 @@
 
     <groupId>io.github.parseworks</groupId>
     <artifactId>parseworks</artifactId>
-    <version>2.2.1-SNAPSHOT</version>
+    <version>3.0.0-ALPHA-SNAPSHOT</version>
 
     <name>${project.groupId}:${project.artifactId}</name>
     <description>
-        A LLR(*) Parser Combinator Library for Java
+        A Parser Combinator Library for Java
     </description>
     <url>https://github.com/parseworks/parseworks</url>
 

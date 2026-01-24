@@ -1,15 +1,15 @@
 package io.github.parseworks;
 
+import io.github.parseworks.parsers.Combinators;
 import org.junit.jupiter.api.Test;
 
-import java.io.CharArrayReader;
 import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
 
-import static io.github.parseworks.Combinators.chr;
-import static io.github.parseworks.Combinators.oneOf;
-import static io.github.parseworks.NumericParsers.integer;
-import static io.github.parseworks.NumericParsers.number;
+import static io.github.parseworks.parsers.Lexical.chr;
+import static io.github.parseworks.parsers.Numeric.integer;
+import static io.github.parseworks.parsers.Numeric.number;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ReadMeTest {
@@ -21,39 +21,31 @@ public class ReadMeTest {
                 chr('a')).then(expr).then(chr('b')).map(a -> e -> b -> a + e + b);
 
         expr.set(temp);
-        char[] charData = { 'A', 'B', 'C', 'D' };
-
-        // Construct Input from a char array
-        Input<Character> chrArrInput = Input.of(charData);
-        // Construct Input from a String
-        Input<Character> strInput = Input.of("ABCD");
-        // Construct Input from a Reader
-        Input<Character> rdrInput = Input.of(new CharArrayReader(charData));
 
         Result<Character, String> result = expr.parse(Input.of("ABCD"));
         // Handle success or failure
         var response = result.handle(
-                Result::get,
+                Result::value,
                 failure -> "Error: " + failure.error()
         );
 
-        assertTrue(response.contains("Error: Position 0: Expected equivalence but found A"), "Message was " + response);
+        assertTrue(response.contains("line 1"), "Message was " + response);
 
         // This is a test class for the README.md file.
         // It is used to validate the code snippets in the README.md file.
         Parser<Character, Integer> sum =
                 number.thenSkip(chr('+')).then(number).map(Integer::sum);
 
-        int sumResult = sum.parse(Input.of("1+2")).get();
-        assertTrue(sumResult == 3); // 3
+        int sumResult = sum.parse(Input.of("1+2")).value();
+        assertEquals(3, sumResult); // 3
 
         //sum.parse(Input.of("1+z")).errorOptional().ifPresent(System.out::println);
 
         var response2 = sum.parse(Input.of("1+z")).handle(
-                success -> "Success: no way!",
+                success -> "Match: no way!",
                 failure -> "Error: " + failure.error()
         );
-        assertTrue(response2.contains("Error: Position 2: Expected <number> but found z"));
+        assertTrue(response2.contains("Error: Partial match failed:  line 1 position 3"));
     }
 
     @Test
@@ -70,7 +62,7 @@ public class ReadMeTest {
 
         Parser<Character, UnaryOperator<Integer>> var = chr('x').map(x -> v -> v);
         Parser<Character, UnaryOperator<Integer>> num = integer.map(i -> v -> i);
-        Parser<Character, BinOp> binOp = oneOf(
+        Parser<Character, BinOp> binOp = Combinators.oneOf(
                 chr('+').as(BinOp.ADD),
                 chr('-').as(BinOp.SUB),
                 chr('*').as(BinOp.MUL),
@@ -83,9 +75,9 @@ public class ReadMeTest {
                 .then(expr.thenSkip(chr(')')))
                 .map(left -> op -> right -> x ->  op.op().apply(left.apply(x), right.apply(x)));
 
-        expr.set(oneOf(var, num, binExpr));
+        expr.set(Combinators.oneOf(var, num, binExpr));
         /// comment line
-        UnaryOperator<Integer> eval = expr.parse(Input.of("(x*((x/2)+x))")).get();
+        UnaryOperator<Integer> eval = expr.parse(Input.of("(x*((x/2)+x))")).value();
         int result = eval.apply(4);
         assert result == 24;
 

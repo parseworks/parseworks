@@ -1,11 +1,13 @@
 package io.github.parseworks;
 
+import io.github.parseworks.parsers.Combinators;
 import org.junit.jupiter.api.Test;
 
 import java.util.function.BinaryOperator;
 
-import static io.github.parseworks.Combinators.chr;
-import static io.github.parseworks.NumericParsers.doubleValue;
+import static io.github.parseworks.parsers.Lexical.chr;
+import static io.github.parseworks.parsers.Lexical.trim;
+import static io.github.parseworks.parsers.Numeric.doubleValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -18,29 +20,31 @@ public class ArithmeticParserTest {
      */
     public static Parser<Character, Double> term = Parser.ref();
 
+    public static Parser<Character, Double> trimmedTerm = trim(term);
+
     /**
      * A parser for arithmetic expressions, supporting addition and subtraction.
      */
-    public static Parser<Character, Double> expression = term
+    public static Parser<Character, Double> expression = trimmedTerm
             .then(Combinators.oneOf(
                     chr('+').as(Double::sum),
                     chr('-').as((BinaryOperator<Double>) (left, right) -> left - right)
-            )).then(term).map((left, op, right) -> op.apply(left, right)).or(term).trim();
+            )).then(trimmedTerm).map((left, op, right) -> op.apply(left, right)).or(trimmedTerm);
 
     /**
      * A parser for factors in arithmetic expressions, supporting nested expressions and double values.
      */
-    public static Parser<Character, Double> factor = Combinators.oneOf(
+    public static Parser<Character, Double> factor = trim(Combinators.oneOf(
             doubleValue,
             expression.between('(', ')')
-    ).trim();
+    ));
 
     static {
         term.set(factor
                 .then(Combinators.oneOf(
                         chr('*').as((left, right) -> left * right),
                         chr('/').as((BinaryOperator<Double>) (left, right) -> left / right)
-                )).then(factor).map(left -> op -> right -> op.apply(left, right)).or(factor).trim());
+                )).then(factor).map(left -> op -> right -> op.apply(left, right)).or(trim(factor)));
     }
 
     /**
@@ -49,7 +53,7 @@ public class ArithmeticParserTest {
     @Test
     public void mathTest() {
         String input = "3 + 5 * (2 * -8)";
-        double result = expression.parse(Input.of(input)).get();
+        double result = expression.parse(Input.of(input)).value();
         assertEquals(-77, result, "Parsing failed for expression: " + input);
     }
 }

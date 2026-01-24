@@ -1,12 +1,15 @@
-package io.github.parseworks;
+package io.github.parseworks.parsers;
+
+import io.github.parseworks.Lists;
+import io.github.parseworks.Parser;
 
 import java.util.List;
 import java.util.function.Function;
 
-import static io.github.parseworks.Combinators.*;
 import static io.github.parseworks.Parser.pure;
+import static io.github.parseworks.parsers.Combinators.satisfy;
 
-public class NumericParsers {
+public class Numeric {
 
     /**
      * Creates a parser that matches any digit character except '0'.
@@ -36,12 +39,12 @@ public class NumericParsers {
      * <pre>{@code
      * // Parse a non-zero digit
      * Parser<Character, Character> firstDigit = nonZeroDigit;
-     * firstDigit.parse("123").get();  // Returns '1'
-     * firstDigit.parse("0123").isSuccess();  // false, starts with '0'
+     * firstDigit.parse("123").value();  // Returns '1'
+     * firstDigit.parse("0123").matches();  // false, starts with '0'
      *
      * // Parse a number that doesn't start with zero
      * Parser<Character, Integer> naturalNumber = nonZeroDigit
-     *     .then(numeric.many())
+     *     .then(numeric.oneOrMore())
      *     .map((first, rest) -> {
      *         String numStr = first + rest.stream()
      *             .map(String::valueOf)
@@ -50,7 +53,7 @@ public class NumericParsers {
      *     });
      *
      * // Parse multiple non-zero digits
-     * Parser<Character, List<Character>> nonZeroDigits = nonZeroDigit.many();
+     * Parser<Character, List<Character>> nonZeroDigits = nonZeroDigit.oneOrMore();
      * }</pre>
      *
      * @see #numeric for parsing any digit (0-9)
@@ -87,12 +90,12 @@ public class NumericParsers {
      * <pre>{@code
      * // Parse a single digit
      * Parser<Character, Character> digitParser = numeric;
-     * digitParser.parse("5abc").get();  // Returns '5'
-     * digitParser.parse("abc").isSuccess();  // false, doesn't start with a digit
+     * digitParser.parse("5abc").value();  // Returns '5'
+     * digitParser.parse("abc").matches();  // false, doesn't start with a digit
      *
      * // Parse multiple digits
-     * Parser<Character, List<Character>> digits = numeric.many();
-     * digits.parse("123abc").get();  // Returns List containing '1', '2', '3'
+     * Parser<Character, List<Character>> digits = numeric.oneOrMore();
+     * digits.parse("123abc").value();  // Returns List containing '1', '2', '3'
      *
      * // Convert parsed digits to an integer
      * Parser<Character, Integer> digitAsInt = numeric.map(c -> Character.getNumericValue(c));
@@ -140,17 +143,17 @@ public class NumericParsers {
      * Parser<Character, Integer> signedNumber = sign.then(uintr)
      *     .map((signValue, number) -> signValue ? number : -number);
      *
-     * signedNumber.parse("+123").get();  // Returns 123
-     * signedNumber.parse("-123").get();  // Returns -123
-     * signedNumber.parse("123").get();   // Returns 123 (default positive)
+     * signedNumber.parse("+123").value();  // Returns 123
+     * signedNumber.parse("-123").value();  // Returns -123
+     * signedNumber.parse("123").value();   // Returns 123 (default positive)
      * }</pre>
      *
      * @see #integer for parsing signed integers
      * @see #doubleValue for parsing floating-point numbers that use this sign parser
      */
     public static final Parser<Character, Boolean> sign = Combinators.oneOf(
-            chr('+').as(true),
-            chr('-').as(false),
+            Lexical.chr('+').as(true),
+            Lexical.chr('-').as(false),
             pure(true)
     );
 
@@ -160,7 +163,7 @@ public class NumericParsers {
      * This parser is used to handle the case where an unsigned integer is simply '0'.
      * It is a fundamental building block for parsing unsigned integers.
      */
-    private static final Parser<Character, Integer> unsignedIntegerZero = chr('0').as(0);
+    private static final Parser<Character, Integer> unsignedIntegerZero = Lexical.chr('0').as(0);
 
     /**
      * A parser that matches a single '0' character and returns 0L.
@@ -168,21 +171,21 @@ public class NumericParsers {
      * This parser is used to handle the case where an unsigned long integer is simply '0'.
      * It is a fundamental building block for parsing unsigned long integers.
      */
-    private static final Parser<Character, Long> unsignedLongZero = chr('0').as( 0L);
+    private static final Parser<Character, Long> unsignedLongZero = Lexical.chr('0').as( 0L);
 
 
     private static final Parser<Character, Integer> unSignedIntegerNotZero = nonZeroDigitParser(
-            ds -> ds.foldLeft(0, (acc, x) -> acc * 10 + x)
+            ds -> Lists.foldLeft(ds, 0, (acc, x) -> acc * 10 + x)
     );
 
     private static final Parser<Character, Long> unsignedLongNotZero = nonZeroDigitParser(
-            ds -> ds.foldLeft(0L, (acc, x) -> acc * 10L + x)
+            ds -> Lists.foldLeft(ds, 0L, (acc, x) -> acc * 10L + x)
     );
 
     /**
      * A parser that recognizes and parses an unsigned integer.
      * <p>
-     * The {@code uintr} parser matches either a single '0' character or a sequence starting with
+     * The {@code unsignedInteger} parser matches either a single '0' character or a sequence starting with
      * a non-zero digit (1-9) followed by zero or more digits (0-9), and converts the entire sequence
      * into an integer value. This parser handles all valid unsigned integer formats.
      * <p>
@@ -197,8 +200,8 @@ public class NumericParsers {
      * Implementation details:
      * <ul>
      *   <li>Combines two parsers with {@link Parser#or(Parser)} to handle both zero and non-zero cases</li>
-     *   <li>The {@code uintrZero} parser matches exactly the character '0' and returns 0</li>
-     *   <li>The {@code uintrNotZero} parser builds multi-digit integers starting with a non-zero digit</li>
+     *   <li>The {@code unsignedIntegerZero} (internally {@code uintrZero}) parser matches exactly the character '0' and returns 0</li>
+     *   <li>The {@code unSignedIntegerNotZero} (internally {@code uintrNotZero}) parser builds multi-digit integers starting with a non-zero digit</li>
      *   <li>Always returns a non-negative integer value</li>
      * </ul>
      * <p>
@@ -208,19 +211,19 @@ public class NumericParsers {
      * Example usage:
      * <pre>{@code
      * // Parse simple unsigned integers
-     * Parser<Character, Integer> parser = uintr;
-     * parser.parse("123").get();      // Returns 123
-     * parser.parse("0").get();        // Returns 0
-     * parser.parse("01").get();       // Returns 0 (only consumes the '0')
+     * Parser<Character, Integer> parser = unsignedInteger;
+     * parser.parse("123").value();      // Returns 123
+     * parser.parse("0").value();        // Returns 0
+     * parser.parse("01").value();       // Returns 0 (only consumes the '0')
      *
      * // Use in combination with other parsers
-     * Parser<Character, Integer> hex = chr('0').then(chr('x').skipThen(
-     *     regex("[0-9a-fA-F]+").map(s -> Integer.parseInt(s, 16))
-     * ));
+     * Parser<Character, Integer> hexParser = Lexical.chr('0').then(Lexical.chr('x').skipThen(
+     *     Lexical.regex("[0-9a-fA-F]+").map(s -> Integer.parseInt(s, 16))
+     * )).map((c, h) -> h);
      *
      * // Invalid inputs
-     * parser.parse("").isSuccess();   // false, empty input
-     * parser.parse("abc").isSuccess(); // false, doesn't start with a digit
+     * parser.parse("").matches();   // false, empty input
+     * parser.parse("abc").matches(); // false, doesn't start with a digit
      * }</pre>
      *
      * @see #integer for parsing signed integers
@@ -232,7 +235,7 @@ public class NumericParsers {
     /**
      * A parser that recognizes and parses a signed integer.
      * <p>
-     * The {@code intr} parser matches an optional sign character ('+' or '-') followed by
+     * The {@code integer} parser matches an optional sign character ('+' or '-') followed by
      * an unsigned integer, and converts the entire sequence into a signed integer value.
      * This parser handles all valid integer formats including positive and negative numbers.
      * <p>
@@ -256,17 +259,17 @@ public class NumericParsers {
      * Example usage:
      * <pre>{@code
      * // Parse signed integers
-     * Parser<Character, Integer> parser = intr;
-     * parser.parse("123").get();      // Returns 123
-     * parser.parse("+123").get();     // Returns 123
-     * parser.parse("-123").get();     // Returns -123
-     * parser.parse("0").get();        // Returns 0
-     * parser.parse("-0").get();       // Returns 0
+     * Parser<Character, Integer> parser = integer;
+     * parser.parse("123").value();      // Returns 123
+     * parser.parse("+123").value();     // Returns 123
+     * parser.parse("-123").value();     // Returns -123
+     * parser.parse("0").value();        // Returns 0
+     * parser.parse("-0").value();       // Returns 0
      *
      * // Invalid inputs
-     * parser.parse("").isSuccess();   // false, empty input
-     * parser.parse("abc").isSuccess(); // false, doesn't start with a digit or sign
-     * parser.parse("12.3").get();     // Returns 12, consumes only the integer part
+     * parser.parse("").matches();   // false, empty input
+     * parser.parse("abc").matches(); // false, doesn't start with a digit or sign
+     * parser.parse("12.3").value();     // Returns 12, consumes only the integer part
      * }</pre>
      *
      * @see #sign for parsing optional sign characters
@@ -277,13 +280,13 @@ public class NumericParsers {
             .map((sign, i) -> sign ? i : -i);
 
 
-    private static final Parser<Character, Integer> exponent = (chr('e').or(chr('E')))
+    private static final Parser<Character, Integer> exponent = (Lexical.chr('e').or(Lexical.chr('E')))
             .skipThen(integer);
 
     /**
      * A parser that recognizes and parses an unsigned long integer.
      * <p>
-     * The {@code ulng} parser matches either a single '0' character or a sequence starting with
+     * The {@code unsignedLong} parser matches either a single '0' character or a sequence starting with
      * a non-zero digit (1-9) followed by zero or more digits (0-9), and converts the entire sequence
      * into a long value. This parser handles all valid unsigned long integer formats.
      * <p>
@@ -298,8 +301,8 @@ public class NumericParsers {
      * Implementation details:
      * <ul>
      *   <li>Combines two parsers with {@link Parser#or(Parser)} to handle both zero and non-zero cases</li>
-     *   <li>The {@code ulngZero} parser matches exactly the character '0' and returns 0L</li>
-     *   <li>The {@code ulngNotZero} parser builds multi-digit long integers starting with a non-zero digit</li>
+     *   <li>The {@code unsignedLongZero} (internally {@code ulngZero}) parser matches exactly the character '0' and returns 0L</li>
+     *   <li>The {@code unsignedLongNotZero} (internally {@code ulngNotZero}) parser builds multi-digit long integers starting with a non-zero digit</li>
      *   <li>Always returns a non-negative long value</li>
      * </ul>
      * <p>
@@ -309,14 +312,14 @@ public class NumericParsers {
      * Example usage:
      * <pre>{@code
      * // Parse simple unsigned longs
-     * Parser<Character, Long> parser = ulng;
-     * parser.parse("9223372036854775807").get();  // Returns 9223372036854775807L (Long.MAX_VALUE)
-     * parser.parse("0").get();                    // Returns 0L
-     * parser.parse("01").get();                   // Returns 0L (only consumes the '0')
+     * Parser<Character, Long> parser = unsignedLong;
+     * parser.parse("9223372036854775807").value();  // Returns 9223372036854775807L (Long.MAX_VALUE)
+     * parser.parse("0").value();                    // Returns 0L
+     * parser.parse("01").value();                   // Returns 0L (only consumes the '0')
      *
      * // Invalid inputs
-     * parser.parse("").isSuccess();               // false, empty input
-     * parser.parse("abc").isSuccess();            // false, doesn't start with a digit
+     * parser.parse("").matches();               // false, empty input
+     * parser.parse("abc").matches();            // false, doesn't start with a digit
      * }</pre>
      *
      * @see #longValue for parsing signed long integers
@@ -328,7 +331,7 @@ public class NumericParsers {
     /**
      * A parser that recognizes and parses a signed long integer.
      * <p>
-     * The {@code lng} parser matches an optional sign character ('+' or '-') followed by
+     * The {@code longValue} parser matches an optional sign character ('+' or '-') followed by
      * an unsigned long integer, and converts the entire sequence into a signed long value.
      * This parser handles all valid long integer formats including positive and negative numbers.
      * <p>
@@ -352,17 +355,17 @@ public class NumericParsers {
      * Example usage:
      * <pre>{@code
      * // Parse signed longs
-     * Parser<Character, Long> parser = lng;
-     * parser.parse("9223372036854775807").get();  // Returns Long.MAX_VALUE
-     * parser.parse("+42").get();                  // Returns 42L
-     * parser.parse("-9223372036854775808").get(); // Returns Long.MIN_VALUE
-     * parser.parse("0").get();                    // Returns 0L
-     * parser.parse("-0").get();                   // Returns 0L
+     * Parser<Character, Long> parser = longValue;
+     * parser.parse("9223372036854775807").value();  // Returns Long.MAX_VALUE
+     * parser.parse("+42").value();                  // Returns 42L
+     * parser.parse("-9223372036854775808").value(); // Returns Long.MIN_VALUE
+     * parser.parse("0").value();                    // Returns 0L
+     * parser.parse("-0").value();                   // Returns 0L
      *
      * // Invalid inputs
-     * parser.parse("").isSuccess();               // false, empty input
-     * parser.parse("abc").isSuccess();            // false, doesn't start with a digit or sign
-     * parser.parse("42.5").get();                 // Returns 42L, consumes only the integer part
+     * parser.parse("").matches();               // false, empty input
+     * parser.parse("abc").matches();            // false, doesn't start with a digit or sign
+     * parser.parse("42.5").value();                 // Returns 42L, consumes only the integer part
      * }</pre>
      *
      * @see #sign for parsing optional sign characters
@@ -373,7 +376,7 @@ public class NumericParsers {
     public static final Parser<Character, Long> longValue = sign.then(unsignedLong)
             .map((sign, i) -> sign ? i : -i);
 
-    private static final Parser<Character, Double> floating = numeric.zeroOrMany()
+    private static final Parser<Character, Double> floating = numeric.zeroOrMore()
             .map(digits -> {
                 double result = 0.0;
                 double factor = 0.1;
@@ -386,11 +389,11 @@ public class NumericParsers {
     /**
      * A parser that parses a double-precision floating point number from character input.
      * <p>
-     * The {@code dble} parser combines a sign parser with an unsigned long parser to read
+     * The {@code doubleValue} parser combines a sign parser with an unsigned long parser to read
      * numeric values with optional signs. It operates as follows:
      * <ol>
      *   <li>First parses an optional sign (+ or -) using the {@code sign} parser</li>
-     *   <li>Then parses the numeric portion using the {@code ulng} parser</li>
+     *   <li>Then parses the numeric portion using the {@code unsignedLong} parser</li>
      *   <li>Combines these values to produce a signed double value</li>
      * </ol>
      * <p>
@@ -400,7 +403,7 @@ public class NumericParsers {
      * Example usage:
      * <pre>{@code
      * // Parse a double value
-     * Result<Character, Double> result = dble.parse("123.45");
+     * Result<Character, Double> result = doubleValue.parse("123.45");
      *
      * // Succeeds with 123.45 for input "123.45"
      * // Succeeds with -42.0 for input "-42"
@@ -413,7 +416,7 @@ public class NumericParsers {
      * @see #unsignedLong for the parser that handles the numeric portion
      */
     public static final Parser<Character, Double> doubleValue = sign.then(unsignedLong)
-            .then((chr('.').skipThen(floating)).optional())
+            .then((Lexical.chr('.').skipThen(floating)).optional())
             .then(exponent.optional())
             .map((sn, i, f, exp) -> {
                 double r = i.doubleValue();
@@ -426,7 +429,7 @@ public class NumericParsers {
                 return sn ? r : -r;
             });
 
-    public static final Parser<Character, Integer> number = numeric.many().map(chars -> {
+    public static final Parser<Character, Integer> number = numeric.oneOrMore().map(chars -> {
         int result = 0;
         for (Character c : chars) {
             result = result * 10 + Character.getNumericValue(c);
@@ -441,9 +444,14 @@ public class NumericParsers {
      * hexadecimal digits (0-9, a-f, A-F) and converts the sequence into an integer value.
      * <p>
      * Example: "0x1A" parses to 26
+     * <pre>{@code
+     * Parser<Character, Integer> hexParser = Lexical.chr('0').then(Lexical.chr('x').skipThen(
+     *     Lexical.regex("[0-9a-fA-F]+").map(s -> Integer.parseInt(s, 16))
+     * )).map((c, h) -> h);
+     * }</pre>
      */
-    public static final Parser<Character, Integer> hex = string("0x").or(string("0X"))
-            .skipThen(regex("[0-9a-fA-F]+")
+    public static final Parser<Character, Integer> hex = Lexical.string("0x").or(Lexical.string("0X"))
+            .skipThen(Lexical.regex("[0-9a-fA-F]+")
                     .map(hexStr -> Integer.parseInt(hexStr, 16)));
 
     /**
@@ -455,10 +463,10 @@ public class NumericParsers {
      * @param <T>       the type of the parsed value
      * @return a parser that parses a non-zero digit followed by zero or more digits and converts the result
      */
-    private static <T> Parser<Character, T> nonZeroDigitParser(Function<FList<Integer>, T> converter) {
-        return nonZeroDigit.then(numeric.zeroOrMany())
-                .map(d -> ds -> ds.prepend(d))
-                .map(ds -> ds.map(Character::getNumericValue))
+    private static <T> Parser<Character, T> nonZeroDigitParser(Function<List<Integer>, T> converter) {
+        return nonZeroDigit.then(numeric.zeroOrMore())
+                .map(d -> (List<Character> ds) -> Lists.prepend(d, ds))
+                .map(ds -> Lists.map(ds, Character::getNumericValue))
                 .map(converter);
     }
 }

@@ -1,15 +1,12 @@
 package io.github.parseworks;
 
-import io.github.parseworks.impl.Failure;
-import io.github.parseworks.impl.Success;
-
 import java.util.Optional;
 import java.util.function.Function;
 
 /**
  * The `Result` interface represents the outcome of applying a parser to an input.
- * It can either be a success, containing the parsed value and the remaining input,
- * or a failure, containing an error message and the input at which the failure occurred.
+ * It can either be a Match result, containing the parsed value and the remaining input,
+ * or a NoMatch result, containing an error message and the input at which the failure occurred.
  *
  * @param <I> the type of the input symbols
  * @param <A> the type of the parsed value
@@ -18,69 +15,35 @@ import java.util.function.Function;
  */
 public interface Result<I, A> {
 
-    ThreadLocal<Failure> failureProvider = ThreadLocal.withInitial(() -> new Failure<>(null, "", null));
-
     /**
-     * Creates a successful result with the given value and remaining input.
+     * Returns the type of this result.
      *
-     * @param next  the remaining input
-     * @param value the parsed value
-     * @param <I>   the type of the input symbols
-     * @param <A>   the type of the parsed value
-     * @return a successful result
+     * @return the result type
      */
-    static <I, A> Result<I, A> success(Input<I> next, A value) {
-        return new Success<>(value, next);
-    }
-    
+    ResultType type();
+
     /**
-     * Creates a failure result due to an unexpected end of input.
+     * Returns true if this result is a Match.
      *
-     * @param input   the input at which the failure occurred
-     * @param expected the error message
-     * @param <I>     the type of the input symbols
-     * @param <A>     the type of the parsed value
-     * @return a failure result
+     * @return true if this result is a Match
      */
-    @SuppressWarnings("unchecked")
-    static <I, A> Result<I, A> failure(Input<I> input, String expected, String found) {
-        return new Failure<>(input, expected, found);
-    }
-
-    @SuppressWarnings("unchecked")
-    static <I, A> Result<I, A> failure(Input<I> input, String expected) {
-        return new Failure<>(input, expected, null);
-    }
+    boolean matches();
 
     /**
-     * Returns true if this result is a success.
-     *
-     * @return true if this result is a success
-     */
-    boolean isSuccess();
-
-    /**
-     * Returns true if this result is an error.
-     *
-     * @return true if this result is an error
-     */
-     boolean isError();
-
-    /**
-     * Returns the parsed value if this result is a success.
-     * Throws an exception if this result is a failure.
+     * Returns the parsed value if this result is a Match.
+     * Throws an exception if this result is a NoMatch.
      *
      * @return the parsed value
-     * @throws java.lang.RuntimeException if this result is a failure
+     * @throws java.lang.RuntimeException if this result is a NoMatch
      */
-     A get();
+     A value();
 
     /**
      * Returns the remaining input after parsing.
      *
      * @return the remaining input
      */
-     Input<I> next();
+     Input<I> input();
 
     /**
      * Casts this result to a result of a different type.
@@ -100,36 +63,36 @@ public interface Result<I, A> {
      <B> Result<I, B> map(java.util.function.Function<A, B> mapper);
 
     /**
-     * Returns the error message if this result is a failure.
+     * Returns the error message if this result is a NoMatch.
      *
-     * @return the error message, or an empty string if this result is a success
+     * @return the error message, or an empty string if this result is a Match
      */
      String error();
 
     /**
-     * Returns an Optional containing the parsed value if this result is a success.
-     * If this result is a failure, returns an empty Optional.
+     * Returns an Optional containing the parsed value if this result is a Match.
+     * If this result is a NoMatch, returns an empty Optional.
      *
-     * @return an Optional containing the parsed value, or an empty Optional if this result is a failure
+     * @return an Optional containing the parsed value, or an empty Optional if this result is a NoMatch
      */
     default Optional<A> toOptional() {
-        return isSuccess() ? Optional.of(get()) : Optional.empty();
+        return matches() ? Optional.of(value()) : Optional.empty();
     }
 
     /**
-     * Returns an Optional containing the error message if this result is a failure.
-     * If this result is a success, returns an empty Optional.
+     * Returns an Optional containing the error message if this result is a NoMatch.
+     * If this result is a Match, returns an empty Optional.
      *
-     * @return an Optional containing the error message, or an empty Optional if this result is a success
+     * @return an Optional containing the error message, or an empty Optional if this result is a Match
      */
     default Optional<String> errorOptional() {
-        return isError() ? Optional.of(error()) : Optional.empty();
+        return !matches() ? Optional.of(error()) : Optional.empty();
     }
 
     /**
      * Apply one of two functions to this value.
-     * @param success   the function to be applied to a successful value
-     * @param failure   the function to be applied to a failure value
+     * @param success   the function to be applied to a Match result
+     * @param failure   the function to be applied to a NoMatch result
      * @param <B>       the function return type
      * @return          the result of applying either function
      */
