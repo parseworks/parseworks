@@ -4,7 +4,7 @@
 
     <groupId>io.github.parseworks</groupId>
     <artifactId>parseworks</artifactId>
-    <version>3.0.0-ALPHA</version>
+    <version>3.0.0-ALPHAv2-SNAPSHOT</version>
 
     <name>${project.groupId}:${project.artifactId}</name>
     <description>
@@ -25,7 +25,7 @@
         <connection>scm:git:git://github.com/parseworks/parseworks.git</connection>
         <developerConnection>scm:git:git@github.com:parseworks/parseworks.git</developerConnection>
         <url>https://github.com/parseworks/parseworks/tree/main</url>
-      <tag>v3.0.0-ALPHA</tag>
+      <tag>HEAD</tag>
   </scm>
 
     <licenses>
