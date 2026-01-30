@@ -5,18 +5,14 @@
 2. [Advanced Parser Combinators](#advanced-parser-combinators)
    1. [Chain Operations](#chain-operations)
    2. [Recursive Parsers](#recursive-parsers)
-   3. [Repetition and Sequences](#repetition-and-sequences)
-   4. [Conditional Parsing](#conditional-parsing)
+   3. [Repetition Nuances](#repetition-nuances)
+   4. [`takeWhile` and `zeroOrMoreUntil`](#takewhile-and-zeroormoreuntil)
    5. [Negation and Validation](#negation-and-validation)
 3. [Error Handling Strategies](#error-handling-strategies)
    1. [Custom Error Messages](#custom-error-messages)
    2. [Error Types](#error-types)
    3. [Recovery Strategies](#recovery-strategies)
-4. [Performance Optimization](#performance-optimization)
-   1. [Parser Reuse](#parser-reuse)
-   2. [Avoiding Excessive Backtracking](#avoiding-excessive-backtracking)
-   3. [Optimizing Regular Expressions](#optimizing-regular-expressions)
-   4. [Memory Considerations](#memory-considerations)
+4. [Performance Tips](#performance-tips)
 5. [Working with Complex Grammars](#working-with-complex-grammars)
    1. [Operator Precedence](#operator-precedence)
    2. [Left vs. Right Recursion](#left-vs-right-recursion)
@@ -24,7 +20,6 @@
 6. [Advanced Examples](#advanced-examples)
    1. [JSON Parser](#json-parser)
    2. [Expression Evaluator with Variables](#expression-evaluator-with-variables)
-   3. [Custom DSL Parser](#custom-dsl-parser)
 7. [Integration Patterns](#integration-patterns)
    1. [Combining with Other Libraries](#combining-with-other-libraries)
    2. [Testing Strategies](#testing-strategies)
@@ -48,7 +43,7 @@ Useful for addition, subtraction, etc., where `1+2+3` should be `(1+2)+3`.
 
 ```java
 // Define a number parser
-Parser<Character, Integer> number = regex("\\d+").map(Integer::parseInt);
+Parser<Character, Integer> number = Lexical.digit.oneOrMore().map(Lists::join).map(Integer::parseInt);
 
 Parser<Character, Integer> addition = number.chainLeftZeroOrMore(
     chr('+').as((a, b) -> a + b),
@@ -71,7 +66,7 @@ Parser<Character, Integer> power = number.chainRightZeroOrMore(
 For nested structures (JSON, expressions), use `Parser.ref()`. This creates a placeholder that you `set()` later, allowing the parser to refer to itself.
 
 ```java
-Parser<Character, Integer> number = regex("\\d+").map(Integer::parseInt);
+Parser<Character, Integer> number = Lexical.digit.oneOrMore().map(Lists::join).map(Integer::parseInt);
 Parser<Character, Expr> expr = Parser.ref();
 
 // Parens: ( expr )
@@ -86,7 +81,7 @@ Parser<Character, Expr> factor = number.map(Literal::new).or(parens);
 expr.set(factor); 
 ```
 
-### Repetition Nuances
+### Repetition Nuances {#repetition-nuances}
 
 While `zeroOrMore` and `oneOrMore` are common, you often need stricter bounds.
 
@@ -96,7 +91,7 @@ While `zeroOrMore` and `oneOrMore` are common, you often need stricter bounds.
 - `repeatAtMost(n)`: At most `n` times.
 - `zeroOrMoreUntil(terminator)`: Consume items until the `terminator` parser matches.
 
-### `takeWhile` and `zeroOrMoreUntil`
+### `takeWhile` and `zeroOrMoreUntil` {#takewhile-and-zeroormoreuntil}
 
 A common "gotcha": `takeWhile` requires a **parser** that returns `Boolean`, not a simple lambda predicate. This is because the condition itself might need to look ahead or consume input.
 
@@ -116,7 +111,7 @@ Parser<Character, List<Character>> word2 = chr(Character::isLetter).zeroOrMore()
 Parser<Character, List<Character>> content = any(Character.class).zeroOrMoreUntil(chr(';'));
 ```
 
-### Negation and Validation
+### Negation and Validation {#negation-and-validation}
 
 #### not
 
@@ -172,7 +167,7 @@ Parser<Character, String> customError = fail("Expected a specific pattern");
 Parser<Character, Integer> numberOrError = number.orElse(fail("Expected a number"));
 ```
 
-#### Error Types
+### Error Types
 
 parseWorks provides different ways to fail:
 
@@ -220,7 +215,7 @@ Parser<Character, Integer> signedNumber = chr('-').optional()
     .map(optSign -> num -> optSign.isPresent() ? -num : num);
 ```
 
-## Performance Tips
+## Performance Tips {#performance-tips}
 
 1. **Static Reuse**: Define common parsers (keywords, delimiters) as `static final` fields. Creating parsers on-the-fly inside a loop is a major performance killer.
 2. **Deterministic Choices**: In `oneOf`, ensure your alternatives are as distinct as possible. Overlapping of terms can result in early termination, as the parser will assume that the partial parse indicates an error.
@@ -310,7 +305,7 @@ Parser<Character, String> ambiguous = oneOf(string("if"), string("ifelse"));
 
 ## Advanced Examples
 
-### JSON Parser
+### JSON Parser {#json-parser}
 
 Here's a simplified example of a JSON parser:
 
@@ -383,7 +378,7 @@ jsonValue.set(
 );
 ```
 
-### Expression Evaluator with Variables
+### Expression Evaluator with Variables {#expression-evaluator-with-variables}
 
 Here's an example of an expression evaluator that can handle variables:
 
@@ -701,7 +696,28 @@ Parser<Character, String> nonGreedy = regex(".*?");
 Parser<Character, String> specific = regex("[a-zA-Z]+");
 ```
 
-#### Order of Alternatives
+### Avoiding Regex for Common Patterns
+
+While `regex()` is powerful, it carries overhead and can be less readable for simple patterns. parseWorks provides efficient alternatives:
+
+- **Identifiers**: Use `Lexical.identifier` instead of `regex("[a-zA-Z_][a-zA-Z0-9_]*")`.
+- **Hexadecimal**: Use `Numeric.hex` instead of `regex("[0-9a-fA-F]+")`.
+- **Custom character sets**: Use `satisfy()` with predicates.
+
+```java
+// Instead of regex:
+Parser<Character, String> id = regex("[a-zA-Z_][a-zA-Z0-9_]*");
+
+// Use the built-in non-regex version:
+Parser<Character, String> id = Lexical.identifier;
+
+// Or build your own:
+Parser<Character, String> myPattern = satisfy("<start>", Character::isLetter)
+    .then(satisfy("<part>", Character::isLetterOrDigit).zeroOrMore())
+    .map((first, rest) -> first + Lists.join(rest));
+```
+
+### Order of Alternatives
 
 The order of alternatives in `oneOf` (and `or`) can affect the parsing result:
 
@@ -739,11 +755,11 @@ Parser<Character, String> myParser = string("foo").or(string("bar")).logSystemOu
 The `expecting` method allows you to provide a more user-friendly name for a parser, which will be used in error messages when the parser fails to match.
 
 ```java
-Parser<Character, String> identifier = regex("[a-zA-Z]+")
-    .expecting("an identifier (letters only)");
+Parser<Character, String> identifier = Lexical.identifier
+    .expecting("an identifier");
 
-// If this fails, the error message will say "Expected an identifier (letters only)" 
-// instead of a generic message or the regex pattern.
+// If this fails, the error message will say "Expected an identifier" 
+// instead of a generic message or the underlying pattern.
 ```
 
 
@@ -762,7 +778,7 @@ Build your parser incrementally, testing each part as you go:
 
 ```java
 // Start with simple parsers
-Parser<Character, String> identifier = regex("[a-zA-Z][a-zA-Z0-9]*");
+Parser<Character, String> identifier = Lexical.identifier;
 assertTrue(identifier.parse(Input.of("abc123")).matches());
 
 // Add more complex parsers
