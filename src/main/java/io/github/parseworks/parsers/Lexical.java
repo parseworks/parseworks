@@ -1,8 +1,10 @@
 package io.github.parseworks.parsers;
 
 import io.github.parseworks.Input;
+import io.github.parseworks.Lists;
 import io.github.parseworks.Parser;
 import io.github.parseworks.Result;
+import io.github.parseworks.impl.inputs.CharArrayInput;
 import io.github.parseworks.impl.result.Match;
 import io.github.parseworks.impl.result.NoMatch;
 import io.github.parseworks.impl.result.PartialMatch;
@@ -179,13 +181,7 @@ public class Lexical {
      * @see #alpha for parsing single letter characters
      * @see #alphaNumeric for parsing alphanumeric characters
      */
-    public static final Parser<Character, String> word = alpha.oneOrMore().map(chars -> {
-        StringBuilder sb = new StringBuilder(chars.size());
-        for (Character c : chars) {
-            sb.append(c);
-        }
-        return sb.toString();
-    });
+    public static final Parser<Character, String> word = alpha.oneOrMore().map(Lists::join);
 
     public static final Parser<Character,Character> whitespace = satisfy("<whitespace>", Character::isWhitespace);
 
@@ -221,7 +217,7 @@ public class Lexical {
             }
 
             // Fast path for CharArrayInput
-            if (in instanceof io.github.parseworks.impl.inputs.CharArrayInput cai) {
+            if (in instanceof CharArrayInput cai) {
                 char[] data = cai.data();
                 int from = cai.position();
                 int idx = indexOf(data, needle, from);
@@ -555,7 +551,7 @@ public class Lexical {
                     break;
                 }
 
-                // Continue reading next character
+                // Continue reading the next character
                 current = next;
             }
 

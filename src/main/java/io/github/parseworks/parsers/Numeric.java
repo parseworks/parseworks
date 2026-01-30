@@ -8,6 +8,7 @@ import java.util.function.Function;
 
 import static io.github.parseworks.Parser.pure;
 import static io.github.parseworks.parsers.Combinators.satisfy;
+import static io.github.parseworks.parsers.Lexical.chr;
 
 public class Numeric {
 
@@ -152,8 +153,8 @@ public class Numeric {
      * @see #doubleValue for parsing floating-point numbers that use this sign parser
      */
     public static final Parser<Character, Boolean> sign = Combinators.oneOf(
-            Lexical.chr('+').as(true),
-            Lexical.chr('-').as(false),
+            chr('+').as(true),
+            chr('-').as(false),
             pure(true)
     );
 
@@ -163,7 +164,7 @@ public class Numeric {
      * This parser is used to handle the case where an unsigned integer is simply '0'.
      * It is a fundamental building block for parsing unsigned integers.
      */
-    private static final Parser<Character, Integer> unsignedIntegerZero = Lexical.chr('0').as(0);
+    private static final Parser<Character, Integer> unsignedIntegerZero = chr('0').as(0);
 
     /**
      * A parser that matches a single '0' character and returns 0L.
@@ -171,7 +172,7 @@ public class Numeric {
      * This parser is used to handle the case where an unsigned long integer is simply '0'.
      * It is a fundamental building block for parsing unsigned long integers.
      */
-    private static final Parser<Character, Long> unsignedLongZero = Lexical.chr('0').as( 0L);
+    private static final Parser<Character, Long> unsignedLongZero = chr('0').as( 0L);
 
 
     private static final Parser<Character, Integer> unSignedIntegerNotZero = nonZeroDigitParser(
@@ -280,7 +281,7 @@ public class Numeric {
             .map((sign, i) -> sign ? i : -i);
 
 
-    private static final Parser<Character, Integer> exponent = (Lexical.chr('e').or(Lexical.chr('E')))
+    private static final Parser<Character, Integer> exponent = (chr('e').or(chr('E')))
             .skipThen(integer);
 
     /**
@@ -416,7 +417,7 @@ public class Numeric {
      * @see #unsignedLong for the parser that handles the numeric portion
      */
     public static final Parser<Character, Double> doubleValue = sign.then(unsignedLong)
-            .then((Lexical.chr('.').skipThen(floating)).optional())
+            .then((chr('.').skipThen(floating)).optional())
             .then(exponent.optional())
             .map((sn, i, f, exp) -> {
                 double r = i.doubleValue();
@@ -437,22 +438,21 @@ public class Numeric {
         return result;
     });
 
+    private static final Parser<Character, String> hexDigits = satisfy("<hexDigit>",
+            (Character c) -> (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
+            .oneOrMore()
+            .map(Lists::join)
+            .expecting("hex value");
+
     /**
      * A parser that recognizes and parses a hexadecimal integer.
      * <p>
      * The {@code hex} parser matches a "0x" or "0X" prefix followed by one or more
      * hexadecimal digits (0-9, a-f, A-F) and converts the sequence into an integer value.
-     * <p>
-     * Example: "0x1A" parses to 26
-     * <pre>{@code
-     * Parser<Character, Integer> hexParser = Lexical.chr('0').then(Lexical.chr('x').skipThen(
-     *     Lexical.regex("[0-9a-fA-F]+").map(s -> Integer.parseInt(s, 16))
-     * )).map((c, h) -> h);
-     * }</pre>
      */
-    public static final Parser<Character, Integer> hex = Lexical.string("0x").or(Lexical.string("0X"))
-            .skipThen(Lexical.regex("[0-9a-fA-F]+")
-                    .map(hexStr -> Integer.parseInt(hexStr, 16)));
+    public static final Parser<Character, Integer>  hex = chr('0').skipThen(chr('x').or(chr('X')))
+        .skipThen(hexDigits)
+        .map(hexStr -> Integer.parseInt(hexStr, 16));
 
     /**
      * A parser that parses a non-zero digit followed by zero or more digits.
