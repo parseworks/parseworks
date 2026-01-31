@@ -1,9 +1,6 @@
 package io.github.parseworks.parsers;
 
-import io.github.parseworks.Input;
-import io.github.parseworks.Lists;
-import io.github.parseworks.Parser;
-import io.github.parseworks.Result;
+import io.github.parseworks.*;
 import io.github.parseworks.impl.inputs.CharArrayInput;
 import io.github.parseworks.impl.result.Match;
 import io.github.parseworks.impl.result.NoMatch;
@@ -355,23 +352,13 @@ public class Lexical {
 
             // Check if we have enough characters left in the input
             for (int i = 0; i < str.length(); i++) {
-                if (currentInput.isEof()) {
+                if (currentInput.isEof() || str.charAt(i) != currentInput.current() ) {
+                    Failure<Character, String> noMatch = new NoMatch<>(currentInput, str.substring(i,i+1));
                     if (i > 0) {
-                        return new PartialMatch<>(currentInput, new NoMatch<>(currentInput, str.substring(i)));
+                        return new PartialMatch<>(currentInput, noMatch);
                     }
-                    return new NoMatch<>(in, str);
+                    return noMatch;
                 }
-
-                char expected = str.charAt(i);
-                char actual = currentInput.current();
-
-                if (expected != actual) {
-                    if (i > 0) {
-                        return new PartialMatch<>(currentInput, new NoMatch<>(currentInput, str.substring(i)));
-                    }
-                    return new NoMatch<>(in, str);
-                }
-
                 currentInput = currentInput.next();
             }
 
