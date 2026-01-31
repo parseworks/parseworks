@@ -1932,10 +1932,12 @@ public class Parser<I, A> {
                 Result<I, A> res = this.apply(current);
                 if (!res.matches()) {
                     // If the parser consumed input before failing, it's a hard error
-                    if (res.input() != null && res.input().position() > current.position()) {
+                    //if (res.input() != null && res.input().position() > current.position()) {
+                    //    return res.cast();
+                    //}
+                    if (res.type() == ResultType.PARTIAL){
                         return res.cast();
                     }
-
                     // If we have a terminator, we MUST reach it
                     if (until != null) {
                         return res.cast();
