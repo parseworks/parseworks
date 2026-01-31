@@ -19,27 +19,10 @@ Requirements: Java 17 or higher.
 Maven (latest release):
 ```xml
 <dependency>
-   <groupId>io.github.parseworks</groupId>
-   <artifactId>parseworks</artifactId>
-   <version>2.2.0</version>
-</dependency>
-```
-
-Use the current SNAPSHOT (optional):
-
-Maven:
-```xml
-<repositories>
-  <repository>
-    <id>sonatype-snapshots</id>
-    <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-  </repository>
-</repositories>
-
-<dependency>
-  <groupId>io.github.parseworks</groupId>
-  <artifactId>parseworks</artifactId>
-  <version>2.2.1-SNAPSHOT</version>
+    <groupId>io.github.parseworks</groupId>
+    <artifactId>parseworks</artifactId>
+    <version>3.0.0-ALPHA</version>
+    <scope>compile</scope>
 </dependency>
 ```
 
