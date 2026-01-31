@@ -6,6 +6,8 @@ import io.github.parseworks.impl.result.PartialMatch;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import static io.github.parseworks.parsers.Combinators.attempt;
+
 /**
  * {@code ApplyBuilder} combines parsers via successive calls to {@code then} and {@code thenSkip}.
  * <p>
@@ -24,7 +26,23 @@ import java.util.function.Function;
  * @author jason bailey
  * @version $Id: $Id
  */
-public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
+public class ApplyBuilder<I, A, B> {
+
+    protected final Parser<I, A> pa;
+    protected final Parser<I, B> pb;
+
+    public ApplyBuilder(Parser<I, A> pa, Parser<I, B> pb) {
+        this.pa = pa;
+        this.pb = pb;
+    }
+
+    public Parser<I, A> pa() {
+        return pa;
+    }
+
+    public Parser<I, B> pb() {
+        return pb;
+    }
 
     /**
      * Creates a new {@code ApplyBuilder} instance with the given parsers.
@@ -226,14 +244,14 @@ public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
     }
 
     /**
-     * Adds a parser to be applied after the current parser.
+     * Adds a parser to be applied after the current parser, skipping the results of the current builder.
      *
      * @param pc  the parser to be applied
      * @param <C> the type of the next parser's result
-     * @return a new {@code ApplyBuilder} instance with the next parser
+     * @return a new parser that applies the current parsers and then the next parser, returning only the result of the next parser
      */
-    public <C> ApplyBuilder<I, C, B> skipThen(Parser<I, C> pc) {
-        return new ApplyBuilder<>(pa.skipThen(pc), pb);
+    public <C> Parser<I, C> skipThen(Parser<I, C> pc) {
+        return attempt(pa.thenSkip(pb).skipThen(pc));
     }
 
     /**
@@ -297,14 +315,14 @@ public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
         }
 
         /**
-         * Adds a parser to be applied after the current parser.
+         * Adds a parser to be applied after the current parser, skipping the results of the current builder.
          *
          * @param pd  the parser to be applied
          * @param <D> the type of the next parser's result
-         * @return a new {@code ApplyBuilder3} instance with the next parser
+         * @return a new parser that applies the current parsers and then the next parser, returning only the result of the next parser
          */
-        public <D> ApplyBuilder3<D> skipThen(Parser<I, D> pd) {
-            return new ApplyBuilder3<>(pc.skipThen(pd));
+        public <D> Parser<I, D> skipThen(Parser<I, D> pd) {
+            return attempt(pa.thenSkip(pb).thenSkip(pc).skipThen(pd));
         }
 
         /**
@@ -368,14 +386,14 @@ public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
             }
 
             /**
-             * Adds a parser to be applied after the current parser.
+             * Adds a parser to be applied after the current parser, skipping the results of the current builder.
              *
              * @param pe  the parser to be applied
              * @param <E> the type of the next parser's result
-             * @return a new {@code ApplyBuilder4} instance with the next parser
+             * @return a new parser that applies the current parsers and then the next parser, returning only the result of the next parser
              */
-            public <E> ApplyBuilder4<E> skipThen(Parser<I, E> pe) {
-                return new ApplyBuilder4<>(pd.skipThen(pe));
+            public <E> Parser<I, E> skipThen(Parser<I, E> pe) {
+                return attempt(pa.thenSkip(pb).thenSkip(pc).thenSkip(pd).skipThen(pe));
             }
 
             /**
@@ -439,14 +457,14 @@ public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
                 }
 
                 /**
-                 * Adds a parser to be applied after the current parser.
+                 * Adds a parser to be applied after the current parser, skipping the results of the current builder.
                  *
                  * @param pg  the parser to be applied
                  * @param <G> the type of the next parser's result
-                 * @return a new {@code ApplyBuilder5} instance with the next parser
+                 * @return a new parser that applies the current parsers and then the next parser, returning only the result of the next parser
                  */
-                public <G> ApplyBuilder5<G> skipThen(Parser<I, G> pg) {
-                    return new ApplyBuilder5<>(pe.skipThen(pg));
+                public <G> Parser<I, G> skipThen(Parser<I, G> pg) {
+                    return attempt(pa.thenSkip(pb).thenSkip(pc).thenSkip(pd).thenSkip(pe).skipThen(pg));
                 }
 
                 /**
@@ -510,14 +528,14 @@ public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
                     }
 
                     /**
-                     * Adds a parser to be applied after the current parser.
+                     * Adds a parser to be applied after the current parser, skipping the results of the current builder.
                      *
                      * @param ph  the parser to be applied
                      * @param <H> the type of the next parser's result
-                     * @return a new {@code ApplyBuilder6} instance with the next parser
+                     * @return a new parser that applies the current parsers and then the next parser, returning only the result of the next parser
                      */
-                    public <H> ApplyBuilder6<H> skipThen(Parser<I, H> ph) {
-                        return new ApplyBuilder6<>(pg.skipThen(ph));
+                    public <H> Parser<I, H> skipThen(Parser<I, H> ph) {
+                        return attempt(pa.thenSkip(pb).thenSkip(pc).thenSkip(pd).thenSkip(pe).thenSkip(pg).skipThen(ph));
                     }
 
                     /**
@@ -581,14 +599,14 @@ public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
                         }
 
                         /**
-                         * Adds a parser to be applied after the current parser.
+                         * Adds a parser to be applied after the current parser, skipping the results of the current builder.
                          *
                          * @param pj  the parser to be applied
                          * @param <J> the type of the next parser's result
-                         * @return a new {@code ApplyBuilder7} instance with the next parser
+                         * @return a new parser that applies the current parsers and then the next parser, returning only the result of the next parser
                          */
-                        public <J> ApplyBuilder7<J> skipThen(Parser<I, J> pj) {
-                            return new ApplyBuilder7<>(ph.skipThen(pj));
+                        public <J> Parser<I, J> skipThen(Parser<I, J> pj) {
+                            return attempt(pa.thenSkip(pb).thenSkip(pc).thenSkip(pd).thenSkip(pe).thenSkip(pg).thenSkip(ph).skipThen(pj));
                         }
 
                         /**
@@ -652,14 +670,14 @@ public record ApplyBuilder<I, A, B>(Parser<I, A> pa, Parser<I, B> pb) {
                             }
 
                             /**
-                             * Adds a parser to be applied after the current parser.
+                             * Adds a parser to be applied after the current parser, skipping the results of the current builder.
                              *
                              * @param pk  the parser to be applied
                              * @param <K> the type of the next parser's result
-                             * @return a new {@code ApplyBuilder8} instance with the next parser
+                             * @return a new parser that applies the current parsers and then the next parser, returning only the result of the next parser
                              */
-                            public <K> ApplyBuilder8<K> skipThen(Parser<I, K> pk) {
-                                return new ApplyBuilder8<>(pj.skipThen(pk));
+                            public <K> Parser<I, K> skipThen(Parser<I, K> pk) {
+                                return attempt(pa.thenSkip(pb).thenSkip(pc).thenSkip(pd).thenSkip(pe).thenSkip(pg).thenSkip(ph).thenSkip(pj).skipThen(pk));
                             }
                         }
                     }
