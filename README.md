@@ -1,5 +1,4 @@
 # parseWorks
-<img src="./resources/parseWorks.png" alt="parseWorks logo" title="parseWorks" width="300" align="right">
 
 Build parsers in Java with composable parser combinators. Use parseWorks to express grammars in code, get clear error messages, and keep your parsers fast and testable.
 
