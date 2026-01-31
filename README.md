@@ -28,11 +28,11 @@ Maven (latest release):
 Gradle:
 ```groovy
 repositories {
-  maven { url 'https://central.sonatype.com/repository/maven-snapshots/' }
+  maven { url 'https://central.sonatype.com/repository/maven/' }
 }
 
 dependencies {
-  implementation 'io.github.parseworks:parseworks:2.2.1-SNAPSHOT'
+  implementation 'io.github.parseworks:parseworks:3.0.0-ALPHA'
 }
 ```
 
