@@ -4,40 +4,22 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Represents a failure result in a parser combinator.
- * Both NoMatch and PartialMatch are types of Failure.
+ * Represents a failure result.
  *
- * @param <I> the type of the input symbols
- * @param <A> the type of the parsed value
+ * @param <I> input symbol type
+ * @param <A> result type
  */
 public interface Failure<I, A> extends Result<I, A> {
-    /**
-     * Returns the underlying failure that caused this failure.
-     *
-     * @return the underlying failure, or null if there is no cause
-     */
+    /** Returns the underlying failure cause, or null. */
     Failure<?, ?> cause();
 
-    /**
-     * Returns what was expected by the parser that failed.
-     *
-     * @return the expected input description
-     */
+    /** Returns what was expected by the failed parser. */
     String expected();
 
-    /**
-     * Returns a list of failures that were combined to form this failure.
-     * This is used when multiple alternative parsers fail at the same position.
-     *
-     * @return the list of combined failures, or null if not an aggregated failure
-     */
+    /** Returns combined failures from multiple alternative parsers. */
     List<Failure<I, A>> combinedFailures();
 
-    /**
-     * Returns a human-friendly error message for this failure.
-     *
-     * @return the error message
-     */
+    /** Returns a formatted error message. */
     @Override
     default String error() {
         List<Failure<I, A>> failures;

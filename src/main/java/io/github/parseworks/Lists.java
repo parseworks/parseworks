@@ -13,14 +13,7 @@ public final class Lists {
     private Lists() {
     }
 
-    /**
-     * Prepends an element to the beginning of a list.
-     *
-     * @param head the element to prepend
-     * @param tail the list to prepend to
-     * @param <T>  the type of elements in the list
-     * @return a new unmodifiable list with the head prepended
-     */
+    /** Prepends an element to a list. Returns a new unmodifiable list. */
     public static <T> List<T> prepend(T head, List<T> tail) {
         List<T> list = new ArrayList<>(tail.size() + 1);
         list.add(head);
@@ -28,14 +21,7 @@ public final class Lists {
         return Collections.unmodifiableList(list);
     }
 
-    /**
-     * Appends an element to the end of a list.
-     *
-     * @param list    the list to append to
-     * @param element the element to append
-     * @param <T>     the type of elements in the list
-     * @return a new unmodifiable list with the element appended
-     */
+    /** Appends an element to a list. Returns a new unmodifiable list. */
     public static <T> List<T> append(List<T> list, T element) {
         List<T> result = new ArrayList<>(list.size() + 1);
         result.addAll(list);
@@ -43,14 +29,7 @@ public final class Lists {
         return Collections.unmodifiableList(result);
     }
 
-    /**
-     * Appends all elements from a collection to the end of a list.
-     *
-     * @param list       the list to append to
-     * @param collection the collection of elements to append
-     * @param <T>        the type of elements in the list
-     * @return a new unmodifiable list with all elements appended
-     */
+    /** Appends a collection of elements to a list. Returns a new unmodifiable list. */
     public static <T> List<T> appendAll(List<T> list, Collection<? extends T> collection) {
         if (collection == null || collection.isEmpty()) {
             return Collections.unmodifiableList(new ArrayList<>(list));
@@ -74,15 +53,7 @@ public final class Lists {
         return Collections.unmodifiableList(result);
     }
 
-    /**
-     * Transforms each element of a list using a mapper function.
-     *
-     * @param list   the list to map
-     * @param mapper the function to apply to each element
-     * @param <T>    the type of elements in the input list
-     * @param <R>    the type of elements in the output list
-     * @return a new unmodifiable list with transformed elements
-     */
+    /** Transforms a list using a mapper function. Returns a new unmodifiable list. */
     public static <T, R> List<R> map(List<T> list, Function<? super T, ? extends R> mapper) {
         List<R> result = new ArrayList<>(list.size());
         for (T item : list) {
@@ -109,16 +80,7 @@ public final class Lists {
         return Collections.unmodifiableList(result);
     }
 
-    /**
-     * Folds the elements of a list from left to right using an accumulator.
-     *
-     * @param list     the list to fold
-     * @param identity the initial value of the accumulator
-     * @param folder   the function to combine the accumulator and each element
-     * @param <T>      the type of elements in the list
-     * @param <B>      the type of the result
-     * @return the final value of the accumulator
-     */
+    /** Folds a list from left to right. */
     public static <T, B> B foldLeft(List<T> list, B identity, BiFunction<B, ? super T, B> folder) {
         B result = identity;
         for (T t : list) {
@@ -127,16 +89,7 @@ public final class Lists {
         return result;
     }
 
-    /**
-     * Folds the elements of a list from right to left using an accumulator.
-     *
-     * @param list     the list to fold
-     * @param identity the initial value of the accumulator
-     * @param folder   the function to combine each element and the accumulator
-     * @param <T>      the type of elements in the list
-     * @param <B>      the type of the result
-     * @return the final value of the accumulator
-     */
+    /** Folds a list from right to left. */
     public static <T, B> B foldRight(List<T> list, B identity, BiFunction<? super T, B, B> folder) {
         B result = identity;
         ListIterator<T> it = list.listIterator(list.size());

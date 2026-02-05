@@ -14,119 +14,41 @@ import java.util.regex.Pattern;
 import static io.github.parseworks.parsers.Combinators.satisfy;
 
 /**
- * The {@code Lexical} class provides a comprehensive set of parsers for common text parsing tasks.
- * <p>
- * This utility class contains static parser definitions and methods for parsing:
- * <ul>
- *   <li>Numeric values (digits, integers, longs, doubles)</li>
- *   <li>Alphabetic and alphanumeric characters</li>
- *   <li>Whitespace</li>
- *   <li>Words and textual content</li>
- *   <li>Signs and special characters</li>
- * </ul>
- * <p>
- * The parsers in this class are designed to be composable building blocks for creating
- * more complex parsers. They follow functional programming principles, allowing them to
- * be combined using methods like {@code then()}, {@code or()}, {@code oneOrMore()}, etc.
- * <p>
- * Key parsers include:
- * <ul>
- *   <li>{@link Numeric#numeric} - Parses any digit character (0-9)</li>
- *   <li>{@link Numeric#nonZeroDigit} - Parses any non-zero digit character (1-9)</li>
- *   <li>{@link #alpha} - Parses any letter character</li>
- *   <li>{@link #alphaNumeric} - Parses any alphanumeric character</li>
- *   <li>{@link #whitespace} - Parses any whitespace character</li>
- *   <li>{@link Numeric#unsignedInteger} - Parses an unsigned integer</li>
- *   <li>{@link Numeric#integer} - Parses a signed integer</li>
- *   <li>{@link Numeric#doubleValue} - Parses a floating-point number</li>
- *   <li>{@link #word} - Parses a sequence of letters</li>
- * </ul>
- * <p>
- * Example usage:
+ * Common text parsers for characters, strings, and whitespace.
  * <pre>{@code
- * // Parse an integer
- * Parser<Character, Integer> parser = Numeric.integer;
- * Result<Character, Integer> result = parser.parse("-123");
- * int value = result.value();  // -123
- *
- * // Parse a word
- * Parser<Character, String> wordParser = Lexical.word;
- * String word = wordParser.parse("Hello123").value();  // "Hello"
- *
- * // Combine parsers
- * Parser<Character, Pair<String, Integer>> nameAndAge =
- *     Lexical.word.skip(whitespace).then(Numeric.integer);
+ * Parser<Character, String> greeting =
+ *     Lexical.string("Hello").thenSkip(Lexical.whitespace).then(Lexical.word);
  * }</pre>
- *
- * This class works closely with {@link Combinators} which provides the fundamental
- * parser combinators used to build these text parsing utilities.
- *
- * @author jason bailey
- * @version $Id: $Id
- * @see Combinators
- * @see Parser
  */
 public class Lexical {
 
 
     /**
-     * Creates a parser that matches a single alphabetical character (a-z, A-Z).
-     * <p>
-     * The {@code alpha} parser recognizes any letter as defined by {@link Character#isLetter(char)},
-     * which includes both uppercase and lowercase letters from the ASCII set and other Unicode
-     * letter characters. The parsing process works as follows:
-     * <ol>
-     *   <li>Checks if the current input character is a letter</li>
-     *   <li>If it is a letter, returns that character as the result and advances the input position</li>
-     *   <li>If it is not a letter, the parser fails</li>
-     * </ol>
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses Java's {@link Character#isLetter(char)} method to determine what constitutes a letter</li>
-     *   <li>Consumes exactly one character on success</li>
-     *   <li>Fails if the input is empty or the current character is not a letter</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Matches a single alphabetical character (a-z, A-Z).
      * <pre>{@code
-     * // Parse a single letter
-     * Parser<Character, Character> letterParser = alpha();
-     *
-     * // Succeeds with 'a' for input "abc"
-     * // Succeeds with 'Z' for input "Zed"
-     * // Fails for input "123" (no letters)
-     * // Fails for input "" (empty input)
+     * alpha.parse("abc").value(); // 'a'
+     * alpha.parse("123").matches(); // false
      * }</pre>
      *
-     * @see Numeric#numeric for parsing numeric digits
-     * @see #alphaNumeric for parsing alphanumeric characters
-     * @see Lexical#chr for parsing with a custom character predicate
+     * @see Numeric#numeric
+     * @see #alphaNumeric
      */
     public static final Parser<Character, Character> alpha = satisfy("<alphabet>", Character::isLetter);
 
     /**
-     * Parses a single alphanumeric character.
-     * This parser will succeed if the next input symbol is a letter or digit.
+     * Matches a single alphanumeric character.
      */
     public static final Parser<Character, Character> alphaNumeric = satisfy( "<alphanumeric>", Character::isLetterOrDigit);
 
     /**
-     * Creates a parser that trims whitespace from the input before and after parsing.
-     * <p>
-     * The {@code trim} parser applies the given parser to the input after skipping any leading
-     * whitespace, and then skips any trailing whitespace from the result. This is useful for
-     * ensuring that whitespace does not interfere with the parsing of the main content.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses {@link #skipWhitespace(Input)} to remove leading and trailing whitespace</li>
-     *   <li>Returns a new parser that applies the original parser to the trimmed input</li>
-     * </ul>
+     * Trims whitespace around the given parser.
+     * <pre>{@code
+     * trim(string("foo")).parse("  foo  ").value(); // "foo"
+     * }</pre>
      *
-     * @param parser the parser to apply after trimming whitespace
-     * @param <A>    the type of the parsed value
-     * @return a new parser that trims whitespace around the original parser
+     * @param parser parser to wrap
+     * @param <A>    result type
+     * @return trimmed parser
      */
     public static <A> Parser<Character,A>  trim(Parser<Character, A> parser) {
         return new Parser<>(in -> {
@@ -148,45 +70,26 @@ public class Lexical {
     }
 
     /**
-     * Parses a sequence of letters and returns them as a string.
-     * <p>
-     * The {@code word} parser accepts one or more consecutive letter characters
-     * (as defined by {@link Character#isLetter(char)}) and concatenates them into a
-     * string result. If no letters are found, it returns an empty string.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses {@link #alpha} parser with {@code oneOrMore()} to collect letter characters</li>
-     *   <li>Efficiently converts the character sequence to a string using StringBuilder</li>
-     *   <li>Returns the concatenated string of all matched letters</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Matches a sequence of letters and returns them as a string.
      * <pre>{@code
-     * // Parse a word
-     * Parser<Character, String> parser = word;
-     * parser.parse("Hello123").value();  // Returns "Hello"
-     * parser.parse("").value();          // Returns "" (empty string)
-     *
-     * // Use with other parsers
-     * Parser<Character, String> identifier = word.then(alphaNumeric.oneOrMore())
-     *     .map((w, rest) -> w + rest.stream()
-     *         .map(String::valueOf)
-     *         .collect(Collectors.joining()));
+     * word.parse("Hello123").value(); // "Hello"
      * }</pre>
-     *
-     * @see #alpha for parsing single letter characters
-     * @see #alphaNumeric for parsing alphanumeric characters
      */
     public static final Parser<Character, String> word = alpha.oneOrMore().map(Lists::join);
 
+    /**
+     * Matches a single whitespace character.
+     */
     public static final Parser<Character,Character> whitespace = satisfy("<whitespace>", Character::isWhitespace);
 
     /**
-     * Fast scan that collects characters until the first occurrence of the given needle.
-     * - Returns characters before the needle
-     * - Does NOT consume the needle (chain with thenSkip(string(needle)) if needed)
-     * - O(n) using indexOf-like scanning when input is a CharSequence/char[] backed input
+     * Collects characters until the first occurrence of the given needle.
+     * <pre>{@code
+     * takeUntil("-->").parse("comment-->").value(); // ['c','o','m','m','e','n','t']
+     * }</pre>
+     *
+     * @param needle delimiter string
+     * @return characters before the needle
      */
     public static Parser<Character, List<Character>> takeUntil(String needle) {
         Objects.requireNonNull(needle, "needle");
@@ -290,56 +193,15 @@ public class Lexical {
     }
 
     /**
-     * Creates a parser that matches an exact string of characters.
-     * <p>
-     * The {@code string()} method creates a parser that attempts to match the input exactly
-     * against the provided string. This parser succeeds only if the entire string is matched
-     * character by character. The parsing process works as follows:
-     * <ol>
-     *   <li>Compares each character in the input with the corresponding character in the target string</li>
-     *   <li>If all characters match in sequence, returns the entire matched string</li>
-     *   <li>If any character differs, fails with information about the mismatch point</li>
-     *   <li>If input is too short, fails with an EOF error</li>
-     * </ol>
-     * <p>
-     * Key features:
-     * <ul>
-     *   <li>Performs exact, case-sensitive string matching</li>
-     *   <li>Provides detailed error information showing where the match failed</li>
-     *   <li>Optimized for performance with direct character comparison</li>
-     *   <li>Special case handling for empty strings</li>
-     * </ul>
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses character-by-character comparison rather than multiple parsers</li>
-     *   <li>Returns the original string rather than rebuilding it from characters</li>
-     *   <li>Provides context in error messages showing partial matches</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Matches an exact string of characters.
      * <pre>{@code
-     * // Match specific keywords
-     * Parser<Character, String> ifKeyword = string("if");
-     * Parser<Character, String> elseKeyword = string("else");
-     *
-     * // Match operators
-     * Parser<Character, String> plusOperator = string("+");
-     * Parser<Character, String> minusOperator = string("-");
-     *
-     * // Match multi-character tokens
-     * Parser<Character, String> arrow = string("->");
-     * Parser<Character, String> equality = string("==");
-     *
-     * // Combine with other parsers
-     * Parser<Character, String> helloWorld = string("Hello").thenSkip(string(" ")).then(string("World"))
-     *     .map((hello, world) -> hello + " " + world);
+     * string("if").parse("if").value(); // "if"
      * }</pre>
      *
-     * @param str the exact string to match
-     * @return a parser that matches the specified string
-     * @see #regex(String) for flexible pattern matching
-     * @see #chr(char) for single character matching
+     * @param str exact string to match
+     * @return a parser matching the string
+     * @see #regex(String)
+     * @see #chr(char)
      */
     public static Parser<Character, String> string(String str) {
         return new Parser<>(in -> {
@@ -367,61 +229,13 @@ public class Lexical {
     }
 
     /**
-     * Creates a parser that accepts any character that appears in the provided string.
-     * <p>
-     * The {@code oneOf(String)} method creates a parser that succeeds when the current input
-     * character matches any character in the provided string. This parser is useful for defining
-     * character classes or sets of acceptable characters. The parsing process works as follows:
-     * <ol>
-     *   <li>Checks if the input is not at EOF</li>
-     *   <li>Tests if the current character appears in the provided string</li>
-     *   <li>If the character is found in the string, consumes it and returns it</li>
-     *   <li>If the character is not in the string or at EOF, fails with an error message</li>
-     * </ol>
-     * <p>
-     * Performance considerations:
-     * <ul>
-     *   <li>For small strings (less than 10 characters), uses {@link String#indexOf(int)} for lookup</li>
-     *   <li>For larger strings, creates a {@link HashSet} of characters for O(1) lookup performance</li>
-     *   <li>This optimization makes character class matching efficient even with large character sets</li>
-     * </ul>
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Delegates to {@link Combinators#satisfy(String, Predicate)} with appropriate predicates</li>
-     *   <li>Uses different implementation strategies based on input string length</li>
-     *   <li>Consumes exactly one character when successful</li>
-     *   <li>Returns the matched character as the result</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Matches any single character from the provided string.
      * <pre>{@code
-     * // Parse any digit
-     * Parser<Character, Character> digit = oneOf("0123456789");
-     *
-     * // Parse any hexadecimal digit
-     * Parser<Character, Character> hexDigit = oneOf("0123456789ABCDEFabcdef");
-     *
-     * // Parse any vowel
-     * Parser<Character, Character> vowel = oneOf("aeiouAEIOU");
-     *
-     * // Parse any operator
-     * Parser<Character, Character> operator = oneOf("+-*\/");
-     *
-     * // Using with other parsers
-     * Parser<Character, String> identifier =
-     *     oneOf("_$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-     *     .then(oneOf("_$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789").oneOrMore())
-     *     .map((first, rest) -> first + rest.stream()
-     *         .map(String::valueOf)
-     *         .collect(Collectors.joining()));
+     * oneOf("aeiou").parse("e").value(); // 'e'
      * }</pre>
      *
-     * @param str the string containing all acceptable characters
-     * @return a parser that accepts any character that appears in the provided string
-     * @see Lexical#chr(Predicate) for matching characters with arbitrary predicates
-     * @see #chr(char) for matching a specific character
-     * @see Combinators#oneOf(Object...) for the generic version of this parser
+     * @param str acceptable characters
+     * @return a parser matching any character in the string
      */
     public static Parser<Character, Character> oneOf(String str) {
         // For small strings (under 10 chars), this approach is efficient
@@ -439,56 +253,15 @@ public class Lexical {
     }
 
     /**
-     * Creates a parser that matches input against a regular expression pattern with specified flags.
-     * <p>
-     * The {@code regex()} method creates a parser that incrementally matches characters from the input
-     * stream against the provided regular expression pattern, using the specified Pattern flags.
-     * This parser handles both start (^) and end ($) anchors appropriately in the context of streaming input.
-     * <p>
-     * Valid flag values from {@link Pattern} include:
-     * <ul>
-     *   <li>{@link Pattern#CASE_INSENSITIVE} - Case-insensitive matching</li>
-     *   <li>{@link Pattern#MULTILINE} - Multiline mode, affects ^ and $ behavior</li>
-     *   <li>{@link Pattern#DOTALL} - Dot matches all characters including line terminators</li>
-     *   <li>{@link Pattern#UNICODE_CASE} - Unicode-aware case folding</li>
-     *   <li>{@link Pattern#CANON_EQ} - Canonical equivalence</li>
-     *   <li>{@link Pattern#LITERAL} - Treat pattern as a literal string</li>
-     *   <li>{@link Pattern#UNICODE_CHARACTER_CLASS} - Unicode character classes</li>
-     *   <li>{@link Pattern#COMMENTS} - Permits whitespace and comments in pattern</li>
-     * </ul>
-     * <p>
-     * Multiple flags can be combined using the bitwise OR operator (|).
-     * <p>
-     * Key features:
-     * <ul>
-     *   <li>Progressively reads characters one by one, building a buffer</li>
-     *   <li>Attempts matching after each character to support early success/failure</li>
-     *   <li>Properly respects start anchors (^) by only matching from the beginning</li>
-     *   <li>Properly respects end anchors ($) by only accepting matches at the end of input</li>
-     *   <li>For non-anchored patterns, returns the longest valid match</li>
-     *   <li>Efficiently handles streaming input by using {@link Matcher#hitEnd()} for optimization</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Matches input against a regular expression pattern.
      * <pre>{@code
-     * // Case-insensitive word parser
-     * Parser<Character, String> caseInsensitiveWord = regex("[a-z]+", Pattern.CASE_INSENSITIVE);
-     * caseInsensitiveWord.parse("Hello").value();  // Returns "Hello"
-     *
-     * // Multiline regex with DOTALL flag
-     * Parser<Character, String> multiline = regex(".*end", Pattern.DOTALL);
-     * multiline.parse("line1\nline2\nend").value();  // Returns "line1\nline2\nend"
-     *
-     * // Combined flags
-     * Parser<Character, String> complex = regex("# match digits\n\\d+",
-     *     Pattern.COMMENTS | Pattern.UNICODE_CHARACTER_CLASS);
+     * regex("[a-z]+", Pattern.CASE_INSENSITIVE).parse("ABC").value(); // "ABC"
      * }</pre>
      *
-     * @param regex the regular expression pattern to match against
-     * @param flags the flags to be used with this pattern, as defined in {@link Pattern}
-     * @return a parser that matches the input against the given regular expression with specified flags
-     * @see Pattern for information about Java regular expression syntax and flag constants
-     * @see #regex(String) for the simpler version with default flags
+     * @param regex regular expression pattern
+     * @param flags Pattern flags
+     * @return a parser matching the regex
+     * @see Pattern
      */
     public static Parser<Character, String> regex(String regex, int flags) {
         boolean hasEndAnchor = regex.endsWith("$") && !regex.endsWith("\\$");
@@ -554,148 +327,42 @@ public class Lexical {
     }
 
     /**
-     * Creates a parser that matches input against a regular expression pattern using default flags.
-     * <p>
-     * This is a convenience method that calls {@link #regex(String, int)} with flags set to 0,
-     * which means no special Pattern flags are enabled. The parser incrementally matches characters
-     * from the input stream against the provided regular expression pattern.
-     * <p>
-     * Key features:
-     * <ul>
-     *   <li>Progressively reads characters one by one, building a buffer</li>
-     *   <li>Attempts matching after each character to support early success/failure</li>
-     *   <li>Properly respects start anchors (^) by only matching from the beginning</li>
-     *   <li>Properly respects end anchors ($) by only accepting matches at the end of input</li>
-     *   <li>For non-anchored patterns, returns the longest valid match</li>
-     *   <li>Efficiently handles streaming input by using {@link Matcher#hitEnd()} for optimization</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Matches input against a regular expression pattern using default flags.
      * <pre>{@code
-     * // Parse a word (sequence of letters)
-     * Parser<Character, String> wordParser = regex("[a-zA-Z]+");
-     * wordParser.parse("Hello123").value();  // Returns "Hello"
-     *
-     * // Parse an identifier (letters, digits, underscore)
-     * Parser<Character, String> identifier = regex("[a-zA-Z_][a-zA-Z0-9_]*");
-     * identifier.parse("_var123").value();  // Returns "_var123"
-     *
-     * // Parse a number with optional decimal part
-     * Parser<Character, String> number = regex("\\d+(\\.\\d+)?");
-     * number.parse("42.5").value();  // Returns "42.5"
+     * regex("\\d+").parse("123").value(); // "123"
      * }</pre>
      *
-     * @param regex the regular expression pattern to match against
-     * @return a parser that matches the input against the given regular expression
-     * @see #regex(String, int) for creating a regex parser with specific flags
-     * @see Pattern for information about Java regular expression syntax
+     * @param regex regular expression pattern
+     * @return a parser matching the regex
+     * @see #regex(String, int)
      */
     public static Parser<Character, String> regex(String regex) {
         return regex(regex, 0);
     }
 
     /**
-     * Creates a parser that matches a specific character.
-     * <p>
-     * The {@code chr(char)} method creates a parser that tests if the current input character
-     * equals the specified character value. This parser succeeds only when the current input
-     * character exactly matches the target character. The parsing process works as follows:
-     * <ol>
-     *   <li>Checks if the input is not at EOF</li>
-     *   <li>Compares the current character with the specified character</li>
-     *   <li>If they match, consumes the character and returns it</li>
-     *   <li>If they don't match or at EOF, fails with an error message</li>
-     * </ol>
-     * <p>
-     * This parser is a specialized version of {@link Combinators#is(Object)} for character input. It's
-     * commonly used for parsing punctuation, operators, and other specific characters in
-     * text-based parsing.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Delegates to {@link Combinators#is(Object)} for equality checking</li>
-     *   <li>Consumes exactly one character when successful</li>
-     *   <li>Returns the matched character as the result</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Matches a specific character.
      * <pre>{@code
-     * // Parse specific characters
-     * Parser<Character, Character> comma = chr(',');
-     * Parser<Character, Character> semicolon = chr(';');
-     * Parser<Character, Character> plus = chr('+');
-     *
-     * // Combine to parse a simple addition expression
-     * Parser<Character, Integer> addExpr = digit.then(plus).then(digit)
-     *     .map((d1, op, d2) ->
-     *         Character.getNumericValue(d1) + Character.getNumericValue(d2));
-     *
-     * // Parse punctuated list items
-     * Parser<Character, List<String>> commaSeparated =
-     *     word.separatedByMany(chr(','));
+     * chr(',').parse(",").value(); // ','
      * }</pre>
      *
-     * @param c the specific character to match
-     * @return a parser that matches the specified character
-     * @see Combinators#is(Object) for the generic version of this parser
-     * @see Lexical#chr(Predicate) for matching characters based on predicates
-     * @see Lexical#string(String) for matching sequences of characters
+     * @param c character to match
+     * @return a parser matching the character
+     * @see Combinators#is
      */
     public static Parser<Character, Character> chr(char c) {
         return Combinators.is(c);
     }
 
     /**
-     * Creates a parser that accepts a single character matching the given predicate.
-     * <p>
-     * The {@code chr(Predicate)} method creates a parser that tests if the current input character
-     * satisfies the provided predicate function. This parser succeeds if the predicate returns true
-     * for the current character. The parsing process works as follows:
-     * <ol>
-     *   <li>Checks if the input is not at EOF</li>
-     *   <li>Applies the predicate to the current character</li>
-     *   <li>If the predicate is satisfied, consumes the character and returns it</li>
-     *   <li>If the predicate is not satisfied or at EOF, fails with an error message</li>
-     * </ol>
-     * <p>
-     * This parser is a specialized version of {@link Combinators#satisfy(String, Predicate)} for character input.
-     * It's a fundamental building block for text-based parsers, allowing character filtering based
-     * on arbitrary conditions.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Delegates to {@link Combinators#satisfy(String, Predicate)} with a generic "character" expected type</li>
-     *   <li>Consumes exactly one character when successful</li>
-     *   <li>Returns the matched character as the result</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Matches a single character matching the given predicate.
      * <pre>{@code
-     * // Parse any digit character
-     * Parser<Character, Character> digit = chr(Character::isDigit);
-     *
-     * // Parse any uppercase letter
-     * Parser<Character, Character> uppercase = chr(Character::isUpperCase);
-     *
-     * // Parse any whitespace character
-     * Parser<Character, Character> whitespace = chr(Character::isWhitespace);
-     *
-     * // Parse any character except 'x'
-     * Parser<Character, Character> notX = chr(c -> c != 'x');
-     *
-     * // Combining character parsers
-     * Parser<Character, String> hexDigit = chr(c ->
-     *     Character.isDigit(c) || "ABCDEFabcdef".indexOf(c) >= 0)
-     *     .oneOrMore().map(chars -> chars.stream()
-     *         .map(String::valueOf)
-     *         .collect(Collectors.joining()));
+     * chr(Character::isDigit).parse("1").value(); // '1'
      * }</pre>
      *
-     * @param predicate the condition that characters must satisfy
-     * @return a parser that matches a single character based on the predicate
-     * @see Combinators#satisfy(String, Predicate) for the generic version of this parser
-     * @see Lexical#chr(char) for matching a specific character
-     * @see Lexical#oneOf(String) for matching against a set of characters
+     * @param predicate condition for the character
+     * @return a parser matching characters by predicate
+     * @see Combinators#satisfy
      */
     public static Parser<Character, Character> chr(Predicate<Character> predicate) {
         return satisfy("<character>", predicate);

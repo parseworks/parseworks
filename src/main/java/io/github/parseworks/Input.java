@@ -7,79 +7,39 @@ import io.github.parseworks.impl.inputs.ReaderInput;
 import java.io.Reader;
 
 /**
- * {@code Input} represents a position in a stream of input symbols,
- * that {@link io.github.parseworks.Parser}s operate on.
+ * Represents a position in a stream of input symbols.
  *
- * @param <I> the input stream symbol type
- * @author jason bailey
- * @version $Id: $Id
+ * @param <I> input symbol type
  */
 public interface Input<I> {
-    /**
-     * Construct an {@code Input} from a {@code char} array.
-     *
-     * @param data the input data
-     * @return the input stream
-     */
+    /** Creates an {@code Input} from a {@code char} array. */
     static Input<Character> of(char[] data) {
         return new CharArrayInput(data);
     }
 
-    /**
-     * Construct an {@code Input} from a {@link java.lang.CharSequence}.
-     *
-     * @param s the input data
-     * @return the input stream
-     */
+    /** Creates an {@code Input} from a {@link CharSequence}. */
     static Input<Character> of(CharSequence s) {
         return new CharSequenceInput(s);
     }
 
-    /**
-     * Construct an {@code Input} from a {@link java.io.Reader}.
-     *
-     * @param rdr the input data
-     * @return the input stream
-     */
+    /** Creates an {@code Input} from a {@link Reader}. */
     static Input<Character> of(Reader rdr) {
         return new ReaderInput(rdr);
     }
 
-    /**
-     * Returns true if and only if this input is at the end of the input stream.
-     *
-     * @return true if this input is at the end of the input stream
-     */
+    /** Returns true if at the end of input. */
     boolean isEof();
 
-    /**
-     * Returns the symbol from the stream indicated by this input.
-     * Will throw if {@code isEof} is true.
-     *
-     * @return the next symbol
-     */
+    /** Returns the current symbol. Throws if {@code isEof} is true. */
     I current();
 
-    /**
-     * Get the next position in the input stream.
-     * Will throw if {@code isEof} is true.
-     *
-     * @return the next position in the input stream
-     */
+    /** Returns the next position. Throws if {@code isEof} is true. */
     Input<I> next();
 
-    /**
-     * Returns the current position in the input stream.
-     *
-     * @return the current position in the input stream
-     */
+    /** Returns the current position. */
     int position();
 
-    /**
-     * Skip a number of positions in the input stream.
-     * @param offset the number of positions to skip
-     * @return a new input positioned at the offset
-     */
+    /** Returns a new input advanced by the given offset. */
     Input<I> skip(int offset);
 
     default boolean hasMore(){

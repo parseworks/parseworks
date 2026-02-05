@@ -9,22 +9,20 @@ import java.util.function.Function;
 import static io.github.parseworks.parsers.Combinators.attempt;
 
 /**
- * {@code ApplyBuilder} combines parsers via successive calls to {@code then} and {@code thenSkip}.
+ * Fluent builder for combining multiple parsers sequentially.
  * <p>
- * {@code ApplyBuilder} provides a fluent interface for combining parsers.
- * The left two parsers are combined by calling {@link Parser#then Parser.then},
- * which returns an {@code ApplyBuilder} instance.
- * Each successive parser is incorporated by passing it to a call to {@code then} or {@code thenSkip}.
- * The chain of calls is concluded by calling {@code map} with a handler for the parse results.
- * <p>
- * {@code ApplyBuilder} is a more readable way of using {@link ApplyBuilder#apply(Parser, Parser)}.
- * For example, {@code pa.then(pb).then(pc).map(f)} is equivalent to {@code apply(apply(pa.map(f), pb), pc)}.
+ * Created by {@link Parser#then(Parser)}. Chain with {@code .then()}, {@code .thenSkip()},
+ * or {@code .skipThen()}, and conclude with {@code .map()}.
+ * <pre>{@code
+ * Parser<Character, Integer> sum =
+ *     Numeric.number.thenSkip(Lexical.chr('+'))
+ *                   .then(Numeric.number)
+ *                   .map((a, b) -> a + b);
+ * }</pre>
  *
- * @param <I> the type of the input to the parsers
- * @param <A> the type of the result of the first parser
- * @param <B> the type of the result of the second parser
- * @author jason bailey
- * @version $Id: $Id
+ * @param <I> input type
+ * @param <A> first parser result type
+ * @param <B> second parser result type
  */
 public class ApplyBuilder<I, A, B> {
 
@@ -88,110 +86,34 @@ public class ApplyBuilder<I, A, B> {
     }
 
     /**
-     * Creates a parser that applies a function to the result of another parser.
-     * <p>
-     * The {@code apply} method creates a composite parser that first runs the input parser {@code pa}
-     * and then transforms its result using the provided function {@code f}. The parsing process works
-     * as follows:
-     * <ol>
-     *   <li>First applies the parser {@code pa} to the input</li>
-     *   <li>If {@code pa} succeeds, applies the function {@code f} to its result</li>
-     *   <li>Returns a new parser that produces the transformed result</li>
-     * </ol>
-     * <p>
-     * This method is a fundamental building block for functional parser composition, enabling
-     * transformation of parser results without affecting the parsing logic. It implements the
-     * applicative functor pattern, allowing functions to be applied to values inside a parser context.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses {@link Parser#pure(Object)} to lift the function into a parser context</li>
-     *   <li>Delegates to {@link ApplyBuilder#apply(Parser, Parser)} for the actual application</li>
-     *   <li>Preserves the original parsing behavior but transforms the result type</li>
-     *   <li>Input consumption depends solely on the behavior of parser {@code pa}</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Applies a function to a parser's result (applicative functor pattern).
      * <pre>{@code
-     * // A parser that recognizes integers
-     * Parser<Character, Integer> intParser = Numeric.integer;
-     *
-     * // A function that doubles a number
      * Function<Integer, Integer> doubleIt = n -> n * 2;
-     *
-     * // Create a parser that recognizes integers and doubles them
-     * Parser<Character, Integer> doubledInt = ApplyBuilder.apply(doubleIt, intParser);
-     *
-     * // Succeeds with 84 for input "42"
-     * // Fails for input "abc" (not an integer)
+     * Parser<Character, Integer> doubled = ApplyBuilder.apply(doubleIt, Numeric.integer);
+     * doubled.parse("42").value();  // 84
      * }</pre>
      *
-     * @param f   the function to apply to the parser's result
-     * @param pa  the parser that provides the value to transform
-     * @param <I> the type of the input symbols
-     * @param <A> the type of the original parser's result
-     * @param <B> the type of the transformed result
-     * @return a parser that applies the function to the result of the input parser
-     * @see Parser#pure(Object) for creating a parser that always returns a constant value
-     * @see #apply(Parser, Object) for applying a parser-provided function to a constant value
-     * @see Parser#map(Function) for a similar operation that directly maps a parser's result
+     * @param f   function to apply
+     * @param pa  parser providing the value
+     * @return parser applying the function to the parsed value
+     * @see Parser#map(Function) for simpler transformation
      */
     public static <I, A, B> Parser<I, B> apply(Function<A, B> f, Parser<I, A> pa) {
         return ApplyBuilder.apply(Parser.pure(f), pa);
     }
 
     /**
-     * Creates a parser that applies a function produced by one parser to a constant value.
-     * <p>
-     * The {@code apply} method creates a composite parser that first runs the function-producing
-     * parser {@code pf} and then applies the resulting function to the constant value {@code a}.
-     * The parsing process works as follows:
-     * <ol>
-     *   <li>First applies the parser {@code pf} to the input to obtain a function</li>
-     *   <li>If {@code pf} succeeds, applies the parsed function to the constant value {@code a}</li>
-     *   <li>Returns a new parser that produces the transformed result</li>
-     * </ol>
-     * <p>
-     * This method is the dual of {@link #apply(Function, Parser)}, implementing the applicative
-     * functor pattern for parsers. It enables combining parsers with fixed values, which is
-     * useful for parameterizing parsers with external data.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Uses {@link Parser#pure(Object)} to lift the constant value into a parser context</li>
-     *   <li>Delegates to {@link ApplyBuilder#apply(Parser, Parser)} for the actual application</li>
-     *   <li>The input consumption depends solely on the behavior of parser {@code pf}</li>
-     *   <li>The constant value is never parsed from the input</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Applies a parser-produced function to a constant value.
      * <pre>{@code
-     * // A parser that recognizes a function symbol and returns a math function
      * Parser<Character, Function<Integer, Integer>> opParser =
-     *     Lexical.chr('+').as(n -> n + 1)
-     *     .or(Lexical.chr('-').as(n -> n - 1))
-     *     .or(Lexical.chr('*').as(n -> n * 2))
-     *     .or(Lexical.chr('/').as(n -> n / 2));
-     *
-     * // Apply that function to a constant value
-     * Parser<Character, Integer> appliedToTen = ApplyBuilder.apply(opParser, 10);
-     *
-     * // Succeeds with 11 for input "+"
-     * // Succeeds with 9 for input "-"
-     * // Succeeds with 20 for input "*"
-     * // Succeeds with 5 for input "/"
-     * // Fails for input "^" (not a recognized operator)
+     *     Lexical.chr('+').as(n -> n + 1);
+     * Parser<Character, Integer> result = ApplyBuilder.apply(opParser, 10);
+     * result.parse("+").value();  // 11
      * }</pre>
      *
-     * @param pf  the parser that provides the function to apply
-     * @param a   the constant value to which the function will be applied
-     * @param <I> the type of the input symbols
-     * @param <A> the type of the constant value
-     * @param <B> the type of the result after applying the function
-     * @return a parser that applies the parsed function to the constant value
-     * @see #apply(Function, Parser) for applying a constant function to a parser's result
-     * @see Parser#pure(Object) for creating a parser that always returns a constant value
-     * @see ApplyBuilder for combining multiple parsers with functions
+     * @param pf  parser providing the function
+     * @param a   constant value
+     * @return parser applying the parsed function to the constant
      */
     public static <I, A, B> Parser<I, B> apply(Parser<I, Function<A, B>> pf, A a) {
         return ApplyBuilder.apply(pf, Parser.pure(a));
@@ -244,18 +166,18 @@ public class ApplyBuilder<I, A, B> {
     }
 
     /**
-     * Adds a parser to be applied after the current parser, skipping the results of the current builder.
+     * Adds a parser to be applied after the current parser, DISCARDING the results
+     * of the current builder after validating they are correct and returning only
+     * the result of the next parser.
      *
-     * @param pc  the parser to be applied
-     * @param <C> the type of the next parser's result
-     * @return a new parser that applies the current parsers and then the next parser, returning only the result of the next parser
+     * @return a {@link Parser} (not chainable in a builder pattern)
      */
     public <C> Parser<I, C> skipThen(Parser<I, C> pc) {
         return attempt(pa.thenSkip(pb).skipThen(pc));
     }
 
     /**
-     * Adds a parser to be applied after the current parser.
+     * Adds a parser to the chain of parsers, allowing for further chaining.
      *
      * @param pc  the parser to be applied
      * @param <C> the type of the next parser's result
@@ -315,11 +237,11 @@ public class ApplyBuilder<I, A, B> {
         }
 
         /**
-         * Adds a parser to be applied after the current parser, skipping the results of the current builder.
+         * Adds a parser to be applied after the current parser, DISCARDING the results
+         * of the current builder after validating they are correct and returning only
+         * the result of the next parser.
          *
-         * @param pd  the parser to be applied
-         * @param <D> the type of the next parser's result
-         * @return a new parser that applies the current parsers and then the next parser, returning only the result of the next parser
+         * @return a {@link Parser} (not chainable in a builder pattern)
          */
         public <D> Parser<I, D> skipThen(Parser<I, D> pd) {
             return attempt(pa.thenSkip(pb).thenSkip(pc).skipThen(pd));
@@ -386,11 +308,11 @@ public class ApplyBuilder<I, A, B> {
             }
 
             /**
-             * Adds a parser to be applied after the current parser, skipping the results of the current builder.
+             * Adds a parser to be applied after the current parser, DISCARDING the results
+             * of the current builder after validating they are correct and returning only
+             * the result of the next parser.
              *
-             * @param pe  the parser to be applied
-             * @param <E> the type of the next parser's result
-             * @return a new parser that applies the current parsers and then the next parser, returning only the result of the next parser
+             * @return a {@link Parser} (not chainable in a builder pattern)
              */
             public <E> Parser<I, E> skipThen(Parser<I, E> pe) {
                 return attempt(pa.thenSkip(pb).thenSkip(pc).thenSkip(pd).skipThen(pe));
@@ -457,11 +379,11 @@ public class ApplyBuilder<I, A, B> {
                 }
 
                 /**
-                 * Adds a parser to be applied after the current parser, skipping the results of the current builder.
+                 * Adds a parser to be applied after the current parser, DISCARDING the results
+                 * of the current builder after validating they are correct and returning only
+                 * the result of the next parser.
                  *
-                 * @param pg  the parser to be applied
-                 * @param <G> the type of the next parser's result
-                 * @return a new parser that applies the current parsers and then the next parser, returning only the result of the next parser
+                 * @return a {@link Parser} (not chainable in a builder pattern)
                  */
                 public <G> Parser<I, G> skipThen(Parser<I, G> pg) {
                     return attempt(pa.thenSkip(pb).thenSkip(pc).thenSkip(pd).thenSkip(pe).skipThen(pg));

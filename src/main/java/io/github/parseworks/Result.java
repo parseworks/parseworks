@@ -4,14 +4,10 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * The `Result` interface represents the outcome of applying a parser to an input.
- * It can either be a Match result, containing the parsed value and the remaining input,
- * or a NoMatch result, containing an error message and the input at which the failure occurred.
+ * The outcome of applying a parser to an input.
  *
- * @param <I> the type of the input symbols
- * @param <A> the type of the parsed value
- * @author jason bailey
- * @version $Id: $Id
+ * @param <I> input symbol type
+ * @param <A> result type
  */
 public interface Result<I, A> {
 
@@ -22,27 +18,13 @@ public interface Result<I, A> {
      */
     ResultType type();
 
-    /**
-     * Returns true if this result is a Match.
-     *
-     * @return true if this result is a Match
-     */
+    /** Returns true if the parser matched. */
     boolean matches();
 
-    /**
-     * Returns the parsed value if this result is a Match.
-     * Throws an exception if this result is a NoMatch.
-     *
-     * @return the parsed value
-     * @throws java.lang.RuntimeException if this result is a NoMatch
-     */
+    /** Returns the parsed value. Throws if this is a NoMatch. */
      A value();
 
-    /**
-     * Returns the remaining input after parsing.
-     *
-     * @return the remaining input
-     */
+    /** Returns the input position after parsing. */
      Input<I> input();
 
     /**
@@ -53,20 +35,10 @@ public interface Result<I, A> {
      */
      <B> Result<I, B> cast();
 
-    /**
-     * Maps the parsed value to a new value using the given function.
-     *
-     * @param mapper the function to apply to the parsed value
-     * @param <B>    the new type of the parsed value
-     * @return a new result with the mapped value
-     */
+    /** Transforms the result value using the given function. */
      <B> Result<I, B> map(java.util.function.Function<A, B> mapper);
 
-    /**
-     * Returns the error message if this result is a NoMatch.
-     *
-     * @return the error message, or an empty string if this result is a Match
-     */
+    /** Returns the error message if this is a NoMatch. */
      String error();
 
     /**

@@ -16,110 +16,42 @@ import java.util.stream.StreamSupport;
 import static io.github.parseworks.parsers.Chains.chain;
 import static io.github.parseworks.parsers.Combinators.is;
 /**
- * A parser that consumes input of type {@code I} and produces results of type {@code A}.
- * <p>
- * This class provides methods for:
- * <ul>
- *   <li>Creating basic parsers ({@link #pure(Object)})</li>
- *   <li>Combining parsers ({@link #then}, {@link #or})</li>
- *   <li>Transforming results ({@link #map}, {@link #as})</li>
- * </ul>
- * <p>
- * Thread Safety: All methods are thread-safe for concurrent execution.
- * Each parser maintains a thread-local state for parsing operations.
+ * Core parser class for consuming input of type {@code I} and producing results of type {@code A}.
+ * <pre>{@code
+ * Parser<Character, Integer> parser = Numeric.integer;
+ * }</pre>
  *
- * @param <I> the type of input symbols to parse
- * @param <A> the type of values produced by the parser
+ * @param <I> input type
+ * @param <A> result type
  */
 public class Parser<I, A> {
 
 
 
     /**
-     * Transforms the result of this parser to a constant value, regardless of the actual parsed result.
-     * <p>
-     * The {@code as} method provides a way to acknowledge that a particular pattern was successfully
-     * parsed, but replace its value with a predefined constant. This is useful when:
-     * <ol>
-     *   <li>You need to recognize a pattern but care only about its presence, not its content</li>
-     *   <li>You want to map specific token patterns to semantic constants</li>
-     *   <li>You need to convert parsing results to domain-specific enumerations or values</li>
-     * </ol>
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>First, applies this parser to the input</li>
-     *   <li>If this parser succeeds, its result is discarded and replaced with the specified value</li>
-     *   <li>If this parser fails, the failure is propagated without providing the constant value</li>
-     *   <li>The input position advances, according to the original parser's consumption</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Replaces the result of this parser with a constant value on success.
      * <pre>{@code
-     * // Parse "true" or "false" strings and convert them directly to boolean values
-     * Parser<Character, Boolean> trueParser = Lexical.string("true").as(Boolean.TRUE);
-     * Parser<Character, Boolean> falseParser = Lexical.string("false").as(Boolean.FALSE);
-     * Parser<Character, Boolean> boolParser = trueParser.or(falseParser);
-     *
-     * // Succeeds with true for input "true"
-     * // Succeeds with false for input "false"
-     * // Fails for any other input
+     * Lexical.string("true").as(true).value(); // true
      * }</pre>
      *
-     * @param value the constant value to return when this parser succeeds
-     * @param <R>   the type of the constant value
-     * @return a parser that returns the constant value when this parser succeeds
-     * @see #map(Function) for transforming results with a function
-     * @see #skipThen(Parser) for discarding this parser's result
+     * @param value constant value to return
+     * @param <R>   result type
+     * @return a parser returning the constant value
      */
     public <R> Parser<I, R> as(R value) {
         return this.skipThen(pure(value));
     }
 
     /**
-     * Creates a parser that always succeeds with the given constant value without consuming input.
-     * <p>
-     * The {@code pure} method creates a parser that ignores its input and always succeeds with
-     * the specified value. The parsing process works as follows:
-     * <ol>
-     *   <li>When applied to any input, immediately succeeds without examining the input</li>
-     *   <li>Returns a success result containing the specified value</li>
-     *   <li>Preserves the original input position (does not consume any input)</li>
-     * </ol>
-     * <p>
-     * This method is a fundamental building block for parser composition, implementing the
-     * "pure" operation of the applicative functor pattern. It lifts plain values into the
-     * parser context, enabling them to be combined with other parsers.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Always succeeds regardless of the input</li>
-     *   <li>Does not modify or consume the input in any way</li>
-     *   <li>Often used with {@link ApplyBuilder#apply} methods to combine parsers functionally</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Creates a parser that always succeeds with the given value without consuming input.
      * <pre>{@code
-     * // Create a parser that always returns the value 42
-     * Parser<Character, Integer> constant = Parser.pure(42);
-     *
-     * // Combine with other parsers in a data transformation pipeline
-     * Parser<Character, User> userParser =
-     *     Parser.pure(User::new)
-     *           .apply(Lexical.string("name:").skipThen(Lexical.stringLiteral))
-     *           .apply(Lexical.string("age:").skipThen(Numeric.integer));
-     *
-     * // Can be used to create empty containers for collection operations
-     * Parser<Character, List<Integer>> emptyList = Parser.pure(new ArrayList<>());
+     * Parser.pure(42).parse("any").value(); // 42
      * }</pre>
      *
-     * @param value the constant value that the parser will always return
-     * @param <I>   the type of the input symbols (which will be ignored)
-     * @param <A>   the type of the constant value
+     * @param value value to return
+     * @param <I>   input type
+     * @param <A>   result type
      * @return a parser that always succeeds with the given value
-     * @see ApplyBuilder#apply(Function, Parser) for applying functions to parser results
-     * @see ApplyBuilder#apply(Parser, Object) for applying parser-produced functions to values
-     * @see ApplyBuilder for combining multiple parsers with transformation functions
      */
     public static <I, A> Parser<I, A> pure(A value) {
         return new Parser<>(input -> new Match<>(value, input));
@@ -153,47 +85,15 @@ public class Parser<I, A> {
     }
 
     /**
-     * Chains this parser with another parser, applying them in sequence and returning only the result of this parser.
-     * <p>
-     * The {@code thenSkip} method creates a parser that applies two parsers in sequence but keeps only the result
-     * of the first parser. This is useful when certain syntax elements must be consumed but their values aren't needed
-     * in the result. The parsing process works as follows:
-     * <ol>
-     *   <li>First applies this parser to the input</li>
-     *   <li>If this parser succeeds, applies the second parser to the remaining input</li>
-     *   <li>If both parsers succeed, returns the result of the first parser only</li>
-     *   <li>If either parser fails, the entire composite parser fails</li>
-     * </ol>
-     * <p>
-     * This method is particularly useful for parsing structures with required terminators, delimiters, or other
-     * syntax elements that must be present but whose values aren't semantically important. Common examples include
-     * semicolons at the end of statements, closing brackets, or trailing punctuation.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Both parsers must succeed for the composite parser to succeed</li>
-     *   <li>Input is consumed by both parsers when successful</li>
-     *   <li>Only the result value from the first parser is returned</li>
-     *   <li>Implemented as a special case of {@link #then} with a mapping function that discards the second result</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Applies two parsers in sequence and returns the result of this parser.
      * <pre>{@code
-     * // Parse an integer followed by a semicolon, keeping only the integer
-     * Parser<Character, Integer> number = Numeric.integer;
-     * Parser<Character, Character> semicolon = Lexical.chr(';');
-     * Parser<Character, Integer> statement = number.thenSkip(semicolon);
-     *
-     * // Succeeds with 42 for input "42;"
-     * // Fails for input "42" (missing semicolon)
-     * // Fails for input ";42" (wrong order)
+     * Parser<Character, Integer> p = Numeric.integer.thenSkip(Lexical.chr(';'));
+     * p.parse("42;").value(); // 42
      * }</pre>
      *
-     * @param pb  the next parser to apply in sequence (whose result will be discarded)
-     * @param <B> the type of result of the next parser
-     * @return a parser that applies this parser and then the next parser, returning only the result of this parser
-     * @see #skipThen(Parser) for the opposite operation (discard first result, keep second)
-     * @see #then(Parser) for keeping both parser results
+     * @param pb  next parser
+     * @param <B> result type of pb
+     * @return a parser returning this parser's result
      */
     public <B> Parser<I, A> thenSkip(Parser<I, B> pb) {
         return new Parser<>(in -> {
@@ -212,47 +112,15 @@ public class Parser<I, A> {
 
 
     /**
-     * Chains this parser with another parser, applying them in sequence and returning only the result of the second parser.
-     * <p>
-     * The {@code skipThen} method creates a parser that applies two parsers in sequence but keeps only the result
-     * of the second parser. This is useful when certain syntax elements must be consumed but their values aren't needed
-     * in the result. The parsing process works as follows:
-     * <ol>
-     *   <li>First applies this parser to the input</li>
-     *   <li>If this parser succeeds, applies the second parser to the remaining input</li>
-     *   <li>If both parsers succeed, returns the result of the second parser only</li>
-     *   <li>If either parser fails, the entire composite parser fails</li>
-     * </ol>
-     * <p>
-     * This method is particularly useful for parsing structures with required prefixes, introducer tokens, or other
-     * syntax elements that must be present but whose values aren't semantically important. Common examples include
-     * keywords preceding values, opening delimiters, or syntactic markers that indicate the start of a construct.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>Both parsers must succeed for the composite parser to succeed</li>
-     *   <li>Input is consumed by both parsers when successful</li>
-     *   <li>Only the result value from the second parser is returned</li>
-     *   <li>The first parser is used purely for its side effect of consuming input</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Applies two parsers in sequence and returns the result of the second parser.
      * <pre>{@code
-     * // Parse a "key:" prefix followed by an integer, keeping only the integer
-     * Parser<Character, String> keyPrefix = Lexical.string("key:");
-     * Parser<Character, Integer> number = Numeric.integer;
-     * Parser<Character, Integer> keyValue = keyPrefix.skipThen(number);
-     *
-     * // Succeeds with 42 for input "key:42"
-     * // Fails for input "42" (missing required prefix)
-     * // Fails for input "key:" (missing required value)
+     * Parser<Character, Integer> p = Lexical.string("key:").skipThen(Numeric.integer);
+     * p.parse("key:42").value(); // 42
      * }</pre>
      *
-     * @param pb  the next parser to apply in sequence (whose result will be kept)
-     * @param <B> the type of the result of the next parser
-     * @return a parser that applies this parser and then the next parser, returning only the result of the next parser
-     * @see #thenSkip(Parser) for the opposite operation (keep first result, discard second)
-     * @see #then(Parser) for keeping both parser results
+     * @param pb  next parser
+     * @param <B> result type of pb
+     * @return a parser returning pb's result
      */
     public <B> Parser<I, B> skipThen(Parser<I, B> pb) {
         return new Parser<>(in -> {
@@ -270,40 +138,16 @@ public class Parser<I, A> {
 
 
     /**
-     * Chains this parser with another parser, applying them in sequence and allowing for
-     * further parser composition.
-     * <p>
-     * The {@code then} method is a fundamental parser combinator that enables sequential
-     * parsing operations. When parsers are chained using this method:
-     * <ol>
-     *   <li>First, `this` parser is applied to the input</li>
-     *   <li>If `this` parser succeeds, the provided next parser is applied to the remaining input</li>
-     *   <li>The result is an {@code ApplyBuilder} that allows further parser composition
-     *       and eventually mapping the results to a final value</li>
-     * </ol>
-     * <p>
-     * Unlike {@code thenSkip} or {@code skipThen}, this method preserves both parse results
-     * for later processing through the {@code map} methods of the returned builder.
-     * <p>
-     * Example usage:
+     * Applies two parsers in sequence and returns an {@link ApplyBuilder} for combining results.
      * <pre>{@code
-     * // Parse a pair of digit and letter, returning them as a Pair
-     * Parser<Character, Character> digit = Lexical.chr(Character::isDigit);
-     * Parser<Character, Character> letter = Lexical.chr(Character::isLetter);
-     *
-     * Parser<Character, Pair<Character, Character>> digitLetterPair =
-     *     digit.then(letter).map((d, l) -> new Pair<>(d, l));
-     *
-     * // Succeeds with Pair('1', 'a') for input "1a"
-     * // Fails for input "a1" or "12"
+     * Parser<Character, String> p = Lexical.chr('a').then(Lexical.chr('b'))
+     *                                      .map((a, b) -> "" + a + b);
+     * p.parse("ab").value(); // "ab"
      * }</pre>
      *
-     * @param next the next parser to apply in sequence
-     * @param <B>  the type of the result of the next parser
-     * @return an ApplyBuilder that allows further parser composition
-     * @throws IllegalArgumentException if the next parameter is null
-     * @see #thenSkip(Parser) for keeping only this parser's result
-     * @see #skipThen(Parser) for keeping only the next parser's result
+     * @param next next parser
+     * @param <B>  result type of next
+     * @return an ApplyBuilder
      */
     public <B> ApplyBuilder<I, A, B> then(Parser<I, B> next) {
         return ApplyBuilder.of(this, next);
@@ -359,16 +203,16 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse arithmetic expressions with left-associative subtraction
-     * Parser<Character, Integer> number = intr;
+     * Parser<Character, Integer> number = Numeric.integer;
      * Parser<Character, BinaryOperator<Integer>> subtract =
-     *     chr('-').as((a, b) -> a - b);
+     *     Lexical.chr('-').as((a, b) -> a - b);
      *
      * // Parse subtraction expression or return 0 if none found
      * Parser<Character, Integer> expression =
      *     number.chainLeftZeroOrMany(subtract, 0);
      *
      * // Parses "5-3-2" as (5-3)-2 = 0
-     * // Returns 0
+     * // Returns 0 for empty input
      * }</pre>
      *
      * @param op the parser that recognizes and returns binary operators
@@ -456,9 +300,9 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse arithmetic expressions with right-associative exponentiation
-     * Parser<Character, Integer> number = intr;
+     * Parser<Character, Integer> number = Numeric.integer;
      * Parser<Character, BinaryOperator<Integer>> power =
-     *     chr('^').as((base, exp) -> (int)Math.pow(base, exp));
+     *     Lexical.chr('^').as((base, exp) -> (int)Math.pow(base, exp));
      *
      * // Parse exponentiation expression or return 1 if none found
      * Parser<Character, Integer> expression =
@@ -481,45 +325,15 @@ public class Parser<I, A> {
     }
 
     /**
-     * Creates a parser that tries this parser first, and if it fails, tries an alternative parser.
-     * <p>
-     * The {@code or} method implements choice between parsers, similar to the logical OR operation
-     * or the | (pipe) operator in regular expressions. It provides a way to try multiple parsing
-     * strategies in sequence until one succeeds. The parsing process works as follows:
-     * <ol>
-     *   <li>First applies this parser to the input</li>
-     *   <li>If this parser succeeds, its result is returned</li>
-     *   <li>If this parser fails, the alternative parser is applied to the <i>original</i> input</li>
-     *   <li>The result of the first successful parser is returned</li>
-     *   <li>If both parsers fail, the composite parser fails</li>
-     * </ol>
-     * <p>
-     * Important implementation details:
-     * <ul>
-     *   <li>The alternative parser is only tried if the first parser fails</li>
-     *   <li>If the first parser fails, no input is consumed before trying the alternative</li>
-     *   <li>This implements ordered choice - the first matching parser takes precedence</li>
-     *   <li>The result types of both parsers must be the same</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Tries this parser first, and if it fails, tries the alternative parser.
      * <pre>{@code
-     * // Parse either an integer or a string "null" as an Optional<Integer>
-     * Parser<Character, Integer> intParser = intr;
-     * Parser<Character, Integer> nullParser = string("null").as(null);
-     *
-     * Parser<Character, Integer> optionalInt = intParser.or(nullParser);
-     *
-     * // Succeeds with 42 for input "42"
-     * // Succeeds with null for input "null"
-     * // Fails for input "abc" or ""
+     * Parser<Character, Integer> p = Numeric.integer.or(Parser.pure(0));
+     * p.parse("42").value(); // 42
+     * p.parse("abc").value(); // 0
      * }</pre>
      *
-     * @param other the alternative parser to try if this parser fails
-     * @return a parser that tries this parser first, and if it fails, tries the alternative parser
-     * @throws IllegalArgumentException if the other parameter is null
-     * @see #orElse(Object) for providing a default value instead of an alternative parser
-     * @see Lexical#oneOf for choosing between multiple parsers
+     * @param other alternative parser
+     * @return a choice parser
      */
     public Parser<I, A> or(Parser<I, A> other) {
         return new Parser<>(in -> {
@@ -554,9 +368,9 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse arithmetic expressions with right-associative exponentiation
-     * Parser<Character, Integer> number = intr;
+     * Parser<Character, Integer> number = Numeric.integer;
      * Parser<Character, BinaryOperator<Integer>> power =
-     *     chr('^').as((base, exp) -> (int)Math.pow(base, exp));
+     *     Lexical.chr('^').as((base, exp) -> (int)Math.pow(base, exp));
      *
      * Parser<Character, Integer> expression = number.chainRightOneOrMore(power);
      *
@@ -577,142 +391,39 @@ public class Parser<I, A> {
     }
 
     /**
-     * Creates a repeating parser that applies this parser zero or more times until it fails,
-     * collecting all successful results into a list.
-     * <p>
-     * This method implements the Kleene star (*) operation from formal language theory,
-     * matching the pattern represented by this parser repeated any number of times (including zero).
-     * The parsing process works as follows:
-     * <ol>
-     *   <li>Attempts to apply this parser at the current input position</li>
-     *   <li>If successful, adds the result to the collection and advances the input position</li>
-     *   <li>Repeats until this parser fails or end of input is reached</li>
-     *   <li>Returns all collected results as an {@code FList}</li>
-     * </ol>
-     * <p>
-     * If this parser fails on the first attempt or the input is empty, an empty list is returned
-     * and the parser still succeeds.
-     * <p>
-     * Important implementation details:
-     * <ul>
-     *   <li>The parser checks for infinite loops by ensuring input position advances</li>
-     *   <li>This is a greedy operation that consumes as much input as possible</li>
-     *   <li>The resulting parser always succeeds, even with empty input</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Collects zero or more matches into a list.
      * <pre>{@code
-     * // Parse zero or more digits
-     * Parser<Character, Character> digit = Lexical.chr(Character::isDigit);
-     * Parser<Character, List<Character>> digits = digit.zeroOrMore();
-     *
-     * // Succeeds with [1,2,3] for input "123"
-     * // Succeeds with [] for input "abc" (empty list, no input consumed)
-     * // Succeeds with [1,2,3] for input "123abc" (consuming only "123")
+     * Lexical.chr('a').zeroOrMore().parse("aaa").value(); // ['a', 'a', 'a']
+     * Lexical.chr('a').zeroOrMore().parse("bbb").value(); // []
      * }</pre>
      *
-     * @return a parser that applies this parser zero or more times until it fails,
-     * returning a list of all successful parse results
-     * @see #oneOrMore() for a version that requires at least one match
-     * @see #repeat(int, int) for a version with explicit min and max counts
+     * @return a list parser
      */
     public Parser<I, List<A>> zeroOrMore() {
         return repeatInternal(0, Integer.MAX_VALUE, null);
     }
 
     /**
-     * Creates a parser that applies this parser one or more times until it fails,
-     * collecting all successful results into a list.
-     * <p>
-     * The {@code oneOrMore} method implements the Kleene plus (+) operation from formal language theory,
-     * matching the pattern represented by this parser repeated at least once. The parsing process
-     * works as follows:
-     * <ol>
-     *   <li>First applies this parser at the current input position</li>
-     *   <li>If successful, adds the result to the collection and advances the input position</li>
-     *   <li>Repeats until this parser fails or end of input is reached</li>
-     *   <li>Returns all collected results as a {@code List}</li>
-     * </ol>
-     * <p>
-     * This method is similar to {@link #zeroOrMore()}, but requires at least one successful match
-     * to succeed. If this parser fails on the first attempt, the entire parser fails.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>The parser checks for infinite loops by ensuring input position advances</li>
-     *   <li>This is a greedy operation that consumes as much input as possible</li>
-     *   <li>Fails if no matches are found</li>
-     *   <li>For guaranteed success regardless of input, use {@link #zeroOrMore()} instead</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Collects one or more matches into a list.
      * <pre>{@code
-     * // Parse one or more digits
-     * Parser<Character, Character> digit = Lexical.chr(Character::isDigit);
-     * Parser<Character, List<Character>> digits = digit.oneOrMore();
-     *
-     * // Succeeds with [1,2,3] for input "123"
-     * // Succeeds with [1,2,3] for input "123abc" (consuming only "123")
-     * // Fails for input "abc" (no digits found)
+     * Lexical.chr('a').oneOrMore().parse("aaa").value(); // ['a', 'a', 'a']
+     * Lexical.chr('a').oneOrMore().parse("bbb").matches(); // false
      * }</pre>
      *
-     * @return a parser that applies this parser one or more times until it fails,
-     * returning a list of all successful parse results
-     * @see #zeroOrMore() for a version that succeeds even with zero matches
-     * @see #repeat(int) for a version with an exact count
-     * @see #repeat(int, int) for a version with explicit min and max counts
+     * @return a list parser
      */
     public Parser<I, List<A>> oneOrMore() {
         return repeatInternal(1, Integer.MAX_VALUE, null);
     }
 
     /**
-     * Creates a repeating parser that applies this parser one or more times until a terminator parser succeeds,
-     * collecting all results into a list.
-     * <p>
-     * The {@code oneOrMoreUntil} method combines the behavior of {@link #oneOrMore()} with a termination condition.
-     * It repeatedly applies this parser until either:
-     * <ol>
-     *   <li>The terminator parser succeeds, indicating the end of the sequence</li>
-     *   <li>This parser fails after at least one successful parse</li>
-     *   <li>The end of input is reached</li>
-     * </ol>
-     * <p>
-     * This method is particularly useful for parsing delimited sequences where the delimiter isn't
-     * part of the elements being collected, such as:
-     * <ul>
-     *   <li>Content between opening and closing markers (e.g., string content until a quote)</li>
-     *   <li>Token sequences that end with a specific terminator (e.g., statements until semicolon)</li>
-     *   <li>Sections of input that continue until a boundary marker is reached</li>
-     * </ul>
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>At each position, first checks if the terminator succeeds</li>
-     *   <li>If the terminator succeeds, stops collecting and returns results so far</li>
-     *   <li>Requires at least one successful match to succeed (min=1)</li>
-     *   <li>The terminator parser is consumed when found (its input position advances)</li>
-     *   <li>Internally implemented using {@link #repeatInternal(int, int, Parser)}</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Collects one or more matches until the terminator succeeds.
      * <pre>{@code
-     * // Parse all characters until a semicolon
-     * Parser<Character, Character> anyChar = Combinators.any(Character.class);
-     * Parser<Character, Character> semicolon = Lexical.chr(';');
-     * Parser<Character, List<Character>> content = anyChar.oneOrMoreUntil(semicolon);
-     *
-     * // Succeeds with ['a','b','c'] for input "abc;" (consuming all input including semicolon)
-     * // Fails for input ";" (no characters found before semicolon)
-     * // Fails if no semicolon is found and no characters could be parsed
+     * Lexical.chr('a').oneOrMoreUntil(Lexical.chr(';')).parse("aaa;").value(); // ['a', 'a', 'a']
      * }</pre>
      *
-     * @param until the parser that signals when to stop collecting elements
-     * @return a parser that applies this parser one or more times until the terminator succeeds
-     * @throws IllegalArgumentException if the until parameter is null
-     * @see #zeroOrMoreUntil(Parser) for a version that succeeds even with zero matches
-     * @see #oneOrMore() for a version that collects until this parser fails
-     * @see #repeatInternal(int, int, Parser) for the underlying implementation
+     * @param until terminator parser
+     * @return a list parser
      */
     public Parser<I, List<A>> oneOrMoreUntil(Parser<I, ?> until) {
         return repeatInternal(1, Integer.MAX_VALUE, until);
@@ -720,36 +431,16 @@ public class Parser<I, A> {
 
 
     /**
-     * Creates a parser that succeeds only if the validation parser succeeds at the current position,
-     * without consuming any input from the validation.
-     * <p>
-     * The {@code onlyIf} method creates a conditional parser that first checks if the validation
-     * parser succeeds at the current position, and if so, proceeds with this parser. The
-     * validation parser's result is discarded, and no input is consumed by it. This is useful for
-     * implementing lookahead validation or parsing with preconditions.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>First applies the validation parser without consuming input</li>
-     *   <li>If validation succeeds, applies this parser</li>
-     *   <li>If validation fails, returns the validation failure</li>
-     *   <li>The validation parser's result is not used</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Succeeds only if validation succeeds without consuming input.
      * <pre>{@code
-     * // Parse a number only if it's preceded by a plus sign
-     * Parser<Character, Integer> positiveNumber = Numeric.integer.onlyIf(Lexical.chr('+'));
-     *
-     * // Parse an identifier only if it's not a keyword
-     * Parser<Character, String> identifier = Lexical.word.onlyIf(
-     *     Combinators.not(Lexical.string("if").or(Lexical.string("else")))
-     * );
+     * Parser<Character, Integer> p = Numeric.integer.onlyIf(Lexical.chr('+'));
+     * p.parse("+123").value(); // 123
+     * p.parse("-123").matches(); // false
      * }</pre>
      *
-     * @param validation the parser to use for validation
-     * @param <B> the type of the validation parser's result (not used)
-     * @return a new parser that succeeds only if both the validation and this parser succeed
+     * @param validation validation parser
+     * @param <B>        validation result type
+     * @return a conditional parser
      */
     public <B> Parser<I, A> onlyIf(Parser<I, B> validation) {
         return new Parser<>(input -> {
@@ -762,36 +453,15 @@ public class Parser<I, A> {
     }
 
     /**
-     * Creates a parser that succeeds with this parser's result only if followed by what the lookahead parser matches,
-     * without consuming the lookahead input.
-     * <p>
-     * The {@code peek} method creates a conditional parser that first applies this parser, and if successful,
-     * checks if the lookahead parser would succeed at the resulting position. The lookahead parser's result
-     * is discarded and no input is consumed by it. This is useful for implementing forward-looking validation
-     * or context-sensitive parsing.
-     * <p>
-     * Implementation details:
-     * <ul>
-     *   <li>First, applies this parser to consume input and value a result</li>
-     *   <li>Then checks if the lookahead parser succeeds at the new position</li>
-     *   <li>If both succeed, returns this parser's result</li>
-     *   <li>If either fails, returns the failure</li>
-     *   <li>The lookahead parser's result is never used</li>
-     *   <li>No input is consumed by the lookahead parser</li>
-     * </ul>
-     * <p>
-     * Example usage:
+     * Succeeds if followed by lookahead without consuming lookahead input.
      * <pre>{@code
-     * // Parse a number only if it's followed by a plus sign
-     * Parser<Character, Integer> numberBeforePlus = Numeric.integer.peek(Lexical.chr('+'));
-     *
-     * // Parse an identifier only if followed by an equals sign (assignment)
-     * Parser<Character, String> assignmentTarget = Lexical.word.peek(Lexical.chr('='));
+     * Parser<Character, String> p = Lexical.word.peek(Lexical.chr('='));
+     * p.parse("id=42").value(); // "id"
      * }</pre>
      *
-     * @param lookahead the parser to use for lookahead validation
-     * @param <B> the type of the lookahead parser's result (not used)
-     * @return a new parser that succeeds only if this parser succeeds and is followed by what the lookahead parser matches
+     * @param lookahead lookahead parser
+     * @param <B>       lookahead result type
+     * @return a lookahead parser
      */
     public <B> Parser<I, A> peek(Parser<I, B> lookahead) {
         return new Parser<>(input -> {
@@ -881,14 +551,10 @@ public class Parser<I, A> {
      * <p>
      * Example usage:
      * <pre>{@code
-     * // Parse an optional minus sign followed by a number
-     * Parser<Character, Character> minus = chr('-');
-     * Parser<Character, Optional<Character>> optionalMinus = minus.optional();
-     * Parser<Character, Integer> number = intr;
-     *
-     * // Combine to parse signed numbers
-     * Parser<Character, Integer> signedNumber = optionalMinus.then(number)
-     *     .map(sign -> num -> sign.isPresent() ? -num : num);
+     * // Parse signed numbers
+     * Parser<Character, Integer> number = Numeric.integer;
+     * Parser<Character, Integer> signedNumber = Lexical.chr('-').optional().then(number)
+     *     .map((sign, num) -> sign.isPresent() ? -num : num);
      *
      * // Succeeds with 42 for input "42"
      * // Succeeds with -42 for input "-42"
@@ -923,7 +589,7 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse an integer, or use 0 as default if parsing fails
-     * Parser<Character, Integer> parser = intr.orElse(0);
+     * Parser<Character, Integer> parser = Numeric.integer.orElse(0);
      *
      * // Succeeds with 42 for input "42"
      * // Succeeds with 0 for input "abc"
@@ -1201,14 +867,14 @@ public class Parser<I, A> {
      * Example usage:
      * <pre>{@code
      * // Parse a complete integer from the input
-     * Parser<Character, Integer> intParser = intr;
+     * Parser<Character, Integer> intParser = Numeric.integer;
      * Input<Character> input = Input.of("123");
      * Result<Character, Integer> result = intParser.parseAll(input);
      *
      * if (result.matches()) {
      *     Integer value = result.value(); // Successfully parsed value
      * } else {
-     *     String error = result.getErrorMessage(); // Error message for failure
+     *     String error = result.error(); // Error message for failure
      * }
      * }</pre>
      *
@@ -1485,37 +1151,15 @@ public class Parser<I, A> {
     }
 
     /**
-     * Transforms the result of this parser using the given function without affecting the parsing logic.
-     * <p>
-     * The {@code map} method is a fundamental parser combinator that allows transformation of successful
-     * parse results without changing how the input is consumed. It operates as follows:
-     * <ol>
-     *   <li>First applies this parser to the input</li>
-     *   <li>If this parser succeeds, applies the provided function to the result value</li>
-     *   <li>Returns a new parser that produces the transformed result</li>
-     *   <li>If this parser fails, the failure is propagated without applying the function</li>
-     * </ol>
-     * <p>
-     * This method is essential for converting parsed values to different types or structures while
-     * maintaining the same parsing behavior. The input position handling remains unchanged from the
-     * original parser.
-     * <p>
-     * Example usage:
+     * Transforms the result of this parser using the given function.
      * <pre>{@code
-     * // Parse a digit character and convert it to its integer value
-     * Parser<Character, Character> digitChar = chr(Character::isDigit);
-     * Parser<Character, Integer> digitValue = digitChar.map(c -> Character.getNumericValue(c));
-     *
-     * // Succeeds with 5 for input "5"
-     * // Fails for input "a"
+     * Parser<Character, Integer> p = Lexical.chr('5').map(Character::getNumericValue);
+     * p.parse("5").value(); // 5
      * }</pre>
      *
-     * @param func the function to apply to the parsed result
-     * @param <R>  the type of the transformed result
-     * @return a new parser that applies the given function to successful parse results
-     * @throws IllegalArgumentException if the function parameter is null
-     * @see #as(Object) for mapping to a constant value
-     * @see ApplyBuilder for mapping multiple parser results
+     * @param func transformation function
+     * @param <R>  transformed result type
+     * @return a transformed parser
      */
     public <R> Parser<I, R> map(Function<A, R> func) {
         return new Parser<>(in -> apply(in).map(func));
@@ -2189,35 +1833,14 @@ public class Parser<I, A> {
     }
 
     /**
-     * Labels this parser with a human-readable expectation that will be used if it fails.
-     * <p>
-     * This combinator does not change parsing behavior or successful results. When the
-     * underlying parser fails, the returned parser produces a new {@link NoMatch}
-     * that:
-     * <ul>
-     *   <li>replaces the failure's {@code expected} message with the provided label,</li>
-     *   <li>preserves the original failure as the cause (including its error type),</li>
-     *   <li>and keeps the input position so error messages point to the correct location.</li>
-     * </ul>
-     * This is useful for making error messages clearer and more domain-specific, e.g.
-     * changing a low-level message like "Expected letter" into a higher-level
-     * "Expected identifier".
-     * <p>
-     * Example:
+     * Labels this parser with a human-readable expectation for error messages.
      * <pre>{@code
-     * Parser<Character, String> identifier =
-     *     Lexical.alpha.then(Lexical.alphaNumeric.oneOrMore()).map(Lists::join)
-     *             .expecting("identifier");
-     *
-     * Result<Character, String> r = identifier.parse("123");
-     * // r.matches() is false, and the error message will include:
-     * //   "Expected identifier ..."
+     * Parser<Character, String> p = Lexical.word.expecting("identifier");
+     * p.parse("123").matches(); // false, error: "Expected identifier"
      * }</pre>
      *
-     * @param label a descriptive label for what this parser expects on failure, for example:
-     *              {@code "identifier"}, {@code "closing brace '}'"}, or {@code "digit"}
-     * @return a parser that yields the same success as this parser, but with a clearer failure
-     *         message when this parser fails
+     * @param label descriptive label
+     * @return a labeled parser
      */
     public <B> Parser<I, A> expecting(String label) {
         return new Parser<>(input -> {
@@ -2228,55 +1851,17 @@ public class Parser<I, A> {
     }
 
     /**
-     * Sequences this parser with a subsequent parser chosen from the value produced by this parser.
-     * <p>
-     * The {@code flatMap} combinator enables dependent (monadic) parsing only if the next parsing
-     * step is determined by the successful result of the previous step. Operationally it:
-     * <ol>
-     *   <li>Applies this parser to the current input.</li>
-     *   <li>If this parser fails, the failure is propagated unchanged.</li>
-     *   <li>If this parser succeeds with value {@code a} and advanced input, the provided function
-     *       {@code f} is invoked to obtain the next parser {@code f.apply(a)}.</li>
-     *   <li>The next parser is then applied starting at the advanced input position.</li>
-     * </ol>
-     * <p>
-     * Use {@code flatMap} when the shape of what you need to parse next depends on the value you
-     * just parsed (e.g., a length prefix, a tag that selects a subgrammar, etc.). For independent
-     * composition of multiple parsers (no dependency between results), prefer applicative builders
-     * such as {@link #then(Parser)} together with {@link #map(Function)} or {@link ApplyBuilder}.
-     * <p>
-     * Example: parse a length-prefixed string (e.g., {@code 5:Hello}).
+     * Sequences this parser with another parser chosen based on this parser's result.
      * <pre>{@code
-     * Parser<Character, Integer> len = Numeric.unsignedInteger;
-     * Parser<Character, String> colon = Lexical.string(":");
-     * Parser<Character, String> payload = len
-     *     .thenSkip(colon)
-     *     .flatMap(n -> Combinators
-     *         .any(Character.class)
-     *         .repeat(n)
-     *         .map(Lists::join)
-     *     );
-     * }</pre>
-     * <p>
-     * Example: branch to a different subparser based on a previously parsed tag.
-     * <pre>{@code
-     * Parser<Character, String> tag = Combinators.oneOf(
-     *     Lexical.string("A"),
-     *     Lexical.string("B")
+     * Parser<Character, String> p = Numeric.unsignedInteger.flatMap(n -> 
+     *     Lexical.chr(',').skipThen(Lexical.chr('a').repeat(n)).map(Lists::join)
      * );
-     * Parser<Character, Object> value = tag.flatMap(t ->
-     *     t.equals("A") ? parseA() : parseB()
-     * );
+     * p.parse("3,aaa").value(); // "aaa"
      * }</pre>
      *
-     * @param f  a function that, given the successful value of this parser, returns the next parser to run
-     * @param <B> the result type of the next parser
-     * @return a parser that first applies this parser and, on success, applies the parser returned by {@code f}
-     * @throws IllegalArgumentException if {@code f} is {@code null}
-     * @implNote If {@code f} returns {@code null}, this method reports an internal error to ease debugging.
-     * @see #map(Function) for transforming results without changing control flow
-     * @see #then(Parser) for applicative sequencing of independent parsers
-     * @see ApplyBuilder for building and mapping tuples of independent parser results
+     * @param f   function returning the next parser
+     * @param <B> next result type
+     * @return a monadic parser
      */
     public <B> Parser<I, B> flatMap(java.util.function.Function<A, Parser<I, B>> f) {
         if (f == null) {

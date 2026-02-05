@@ -3,14 +3,9 @@ package io.github.parseworks.impl;
 import java.util.Arrays;
 
 /**
- * A specialized map implementation that maps integer keys to object values.
- * This class is optimized for scenarios where integer keys are used frequently,
- * avoiding the boxing/unboxing overhead of using {@code Map<Integer, Object>}.
- * <p>
- * This implementation uses parallel arrays for keys and values with linear search,
- * making it efficient for small to medium size maps.
+ * Specialized map from {@code int} keys to object values to avoid boxing.
  *
- * @param <V> the type of values stored in this map
+ * @param <V> value type
  */
 public class IntObjectMap<V> {
     private static final int DEFAULT_CAPACITY = 16;
