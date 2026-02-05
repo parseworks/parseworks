@@ -5,7 +5,6 @@ import io.github.parseworks.impl.result.Match;
 import io.github.parseworks.impl.result.NoMatch;
 import io.github.parseworks.impl.result.PartialMatch;
 import io.github.parseworks.parsers.Chains;
-import io.github.parseworks.parsers.Lexical;
 
 import java.util.*;
 import java.util.function.BinaryOperator;

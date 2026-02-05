@@ -34,14 +34,6 @@ public class ApplyBuilder<I, A, B> {
         this.pb = pb;
     }
 
-    public Parser<I, A> pa() {
-        return pa;
-    }
-
-    public Parser<I, B> pb() {
-        return pb;
-    }
-
     /**
      * Creates a new {@code ApplyBuilder} instance with the given parsers.
      *
