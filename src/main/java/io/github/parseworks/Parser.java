@@ -1757,26 +1757,36 @@ public class Parser<I, A> {
 
     private static class CheckParser<I, A> extends Parser<I, A> {
 
-        private final ThreadLocal<IntObjectMap<Object>> contextLocal = ThreadLocal.withInitial(IntObjectMap::new);
-        
+        private final ThreadLocal<IntObjectMap<ArrayDeque<Parser<?, ?>>>> contextLocal =
+            ThreadLocal.withInitial(IntObjectMap::new);
+
+        @Override
         public Result<I, A> apply(Input<I> in) {
-            int lastPosition = in.position();
+            int pos = in.position();
+            IntObjectMap<ArrayDeque<Parser<?, ?>>> ctx = contextLocal.get();
 
-            IntObjectMap<Object> config = this.contextLocal.get();
-
-            // Check for infinite recursion
-            if (config.get(lastPosition) == this) {
-                return new NoMatch<>(in, "no infinite recursion");
+            ArrayDeque<Parser<?, ?>> stack = ctx.get(pos);
+            if (stack == null) {
+                stack = new ArrayDeque<>();
+                ctx.put(pos, stack);
             }
 
-            config.put(lastPosition, this);
+            for (Parser<?, ?> p : stack) {
+                if (p == this) {
+                    return new NoMatch<>(in, "no infinite recursion");
+                }
+            }
+
+            stack.push(this);
             try {
                 return applyHandler.apply(in);
             } catch (RuntimeException e) {
                 return new NoMatch<>(in, "parser to function correctly");
             } finally {
-                // Remove the parser from the context after parsing
-                config.remove(lastPosition);
+                stack.pop();
+                if (stack.isEmpty()) {
+                    ctx.remove(pos);
+                }
             }
         }
     }
