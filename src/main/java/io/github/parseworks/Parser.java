@@ -1860,7 +1860,11 @@ public class Parser<I, A> {
     }
 
     /**
-     * Sequences this parser with another parser chosen based on this parser's result.
+     * This parser applies a function to the result of this parser, returning a new parser.
+     * This is a monadic operation that allows chaining parsers based on the result of the current parser.
+     * The following example shows where we want to parse a number of characters exactly, based on the initial number
+     * provided.
+     * This allows for dynamic parsing based on the result of the current parser.
      * <pre>{@code
      * Parser<Character, String> p = Numeric.unsignedInteger.flatMap(n -> 
      *     Lexical.chr(',').skipThen(Lexical.chr('a').repeat(n)).map(Lists::join)
