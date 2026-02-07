@@ -106,6 +106,17 @@ public class ParserTest {
     }
 
     @Test
+    public void testFlatMapDependentCount() {
+        Parser<Character, String> parser = Numeric.unsignedInteger.flatMap(n ->
+            Lexical.chr(',').skipThen(Lexical.chr('a').repeat(n)).map(Lists::join)
+        );
+
+        Result<Character, String> result = parser.parse("3,aaa");
+        assertTrue(result.matches());
+        assertEquals("aaa", result.value());
+    }
+
+    @Test
     public void testMultipleThen() {
         Parser<Character, Character> a = Lexical.chr('a');
         Parser<Character, Character> b = Lexical.chr('b');
