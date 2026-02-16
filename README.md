@@ -20,7 +20,7 @@ Maven (latest release):
 <dependency>
     <groupId>io.github.parseworks</groupId>
     <artifactId>parseworks</artifactId>
-    <version>3.0.0-ALPHA</version>
+    <version>3.0.0</version>
     <scope>compile</scope>
 </dependency>
 ```
@@ -32,7 +32,7 @@ repositories {
 }
 
 dependencies {
-  implementation 'io.github.parseworks:parseworks:3.0.0-ALPHA'
+  implementation 'io.github.parseworks:parseworks:3.0.0'
 }
 ```
 
