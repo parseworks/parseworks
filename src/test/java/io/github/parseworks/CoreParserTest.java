@@ -1,12 +1,10 @@
 package io.github.parseworks;
 
-import io.github.parseworks.impl.inputs.CharSequenceInput;
 import io.github.parseworks.parsers.Lexical;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
 
