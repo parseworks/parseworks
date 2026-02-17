@@ -47,7 +47,7 @@ import static io.github.parseworks.parsers.Numeric.*;
 
 // Define a parser for a simple addition expression
 Parser<Character, Integer> sum =
-    number.thenSkip(Lexical.chr('+')).then(number).map(Integer::sum);
+    Numeric.number.thenSkip(Lexical.chr('+')).then(number).map(Integer::sum);
 
     // Parse the input "1+2"
     int value = sum.parse(Input.of("1+2")).value();
