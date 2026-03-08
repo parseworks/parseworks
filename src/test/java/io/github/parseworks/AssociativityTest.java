@@ -65,21 +65,21 @@ public class AssociativityTest {
 
     @Test
     public void testLeftAssociative() {
-        BinaryOperator<Integer> add = Integer::sum;
-        Parser<Character, Integer> leftAssocParser = number.chainLeftZeroOrMore(chr('+').as(add), 0);
+        BinaryOperator<Long> add = Long::sum;
+        Parser<Character, Long> leftAssocParser = number.chainLeftZeroOrMore(chr('+').as(add), 0l);
 
         String input = "1+2+3";
-        Result<Character, Integer> result = leftAssocParser.parse(Input.of(input));
+        Result<Character, Long> result = leftAssocParser.parse(Input.of(input));
         assertEquals(6, result.value());
     }
 
     @Test
     public void testRightAssociative() {
-        BinaryOperator<Integer> power = (a, b) -> (int) Math.pow(a, b);
+        BinaryOperator<Long> power = (a, b) -> (long) Math.pow(a, b);
         var rightAssocParser = number.chainRightOneOrMore(chr('^').as(power));
 
         String input = "2^3^2";
-        Result<Character, Integer> result = rightAssocParser.parse(Input.of(input));
+        Result<Character, Long> result = rightAssocParser.parse(Input.of(input));
         assertEquals(512, result.value());
     }
 

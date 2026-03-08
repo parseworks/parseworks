@@ -151,11 +151,11 @@ public class ParserTest {
 
     @Test
     public void testChainr1() {
-        Parser<Character, Integer> number = Numeric.number;
-        Parser<Character, BinaryOperator<Integer>> plus = Lexical.chr('+').map(op -> Integer::sum);
-        Parser<Character, Integer> parser = number.chainRightOneOrMore(plus);
+        Parser<Character, Long> number = Numeric.number;
+        Parser<Character, BinaryOperator<Long>> plus = Lexical.chr('+').map(op -> Long::sum);
+        Parser<Character, Long> parser = number.chainRightOneOrMore(plus);
         Input<Character> input = Input.of("1+2+3");
-        Result<Character, Integer> result = parser.parse(input);
+        Result<Character, Long> result = parser.parse(input);
         assertTrue(result.matches());
         assertEquals(6, result.value());
     }
@@ -188,9 +188,9 @@ public class ParserTest {
 
     @Test
     public void testNumber() {
-        Parser<Character, Integer> parser = Numeric.number;
+        Parser<Character, Long> parser = Numeric.number;
         Input<Character> input = Input.of("12345");
-        Result<Character, Integer> result = parser.parse(input);
+        Result<Character, Long> result = parser.parse(input);
         assertTrue(result.matches());
         assertEquals(12345, result.value());
     }
@@ -214,11 +214,11 @@ public class ParserTest {
 
     @Test
     public void testChainl() {
-        Parser<Character, Integer> number = Numeric.number;
-        Parser<Character, BinaryOperator<Integer>> plus = Lexical.chr('-').map(op -> (a, b) -> a - b);
-        Parser<Character, Integer> parser = number.chainLeftOneOrMore(plus);
+        Parser<Character, Long> number = Numeric.number;
+        Parser<Character, BinaryOperator<Long>> plus = Lexical.chr('-').map(op -> (a, b) -> a - b);
+        Parser<Character, Long> parser = number.chainLeftOneOrMore(plus);
         Input<Character> input = Input.of("1-2-3");
-        Result<Character, Integer> result = parser.parse(input);
+        Result<Character, Long> result = parser.parse(input);
         assertTrue(result.matches());
         assertEquals(-4, result.value());
     }
@@ -464,7 +464,7 @@ public class ParserTest {
 
     @Test
     public void testChainZeroOrMore() {
-        Parser<Character, Integer> number = Numeric.number;
+        Parser<Character, Integer> number = Numeric.integer;
         Parser<Character, BinaryOperator<Integer>> plus = Lexical.chr('+').map(op -> Integer::sum);
 
         // Test chainLeftZeroOrMany

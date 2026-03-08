@@ -249,58 +249,58 @@ public class NumericParsersTest {
     @Test
     public void testNumber() {
         // Test single digit
-        Result<Character, Integer> singleDigitResult = number.parse("5");
+        Result<Character, Integer> singleDigitResult = integer.parse("5");
         assertTrue(singleDigitResult.matches());
         assertEquals(5, singleDigitResult.value());
 
         // Test multiple digits
-        Result<Character, Integer> multiDigitResult = number.parse("123");
+        Result<Character, Integer> multiDigitResult = integer.parse("123");
         assertTrue(multiDigitResult.matches());
         assertEquals(123, multiDigitResult.value());
 
         // Test leading zero
-        Result<Character, Integer> leadingZeroResult = number.parse("0123");
+        Result<Character, Integer> leadingZeroResult = integer.parse("0123");
         assertTrue(leadingZeroResult.matches());
-        assertEquals(123, leadingZeroResult.value());
+        assertEquals(0, leadingZeroResult.value());
 
         // Test zero
-        Result<Character, Integer> zeroResult = number.parse("0");
+        Result<Character, Integer> zeroResult = integer.parse("0");
         assertTrue(zeroResult.matches());
         assertEquals(0, zeroResult.value());
 
         // Test failure for non-digit
-        Result<Character, Integer> nonDigitResult = number.parse("a");
-        assertTrue(!nonDigitResult.matches());
+        Result<Character, Integer> nonDigitResult = integer.parse("a");
+        assertFalse(nonDigitResult.matches());
     }
 
     @Test
     public void testHex() {
         // Test lowercase prefix
-        Result<Character, Integer> lowercasePrefixResult = hex.parse("0x1a");
+        Result<Character, Long> lowercasePrefixResult = hex.parse("0x1a");
         assertTrue(lowercasePrefixResult.matches());
         assertEquals(26, lowercasePrefixResult.value());
 
         // Test uppercase prefix
-        Result<Character, Integer> uppercasePrefixResult = hex.parse("0X1A");
+        Result<Character, Long> uppercasePrefixResult = hex.parse("0X1A");
         assertTrue(uppercasePrefixResult.matches());
         assertEquals(26, uppercasePrefixResult.value());
 
         // Test mixed case digits
-        Result<Character, Integer> mixedCaseResult = hex.parse("0xaBcD");
+        Result<Character, Long> mixedCaseResult = hex.parse("0xaBcD");
         assertTrue(mixedCaseResult.matches());
         assertEquals(0xABCD, mixedCaseResult.value());
 
         // Test zero
-        Result<Character, Integer> zeroResult = hex.parse("0x0");
+        Result<Character, Long> zeroResult = hex.parse("0x0");
         assertTrue(zeroResult.matches());
         assertEquals(0, zeroResult.value());
 
         // Test failure for invalid prefix
-        Result<Character, Integer> invalidPrefixResult = hex.parse("0y1a");
+        Result<Character, Long> invalidPrefixResult = hex.parse("0y1a");
         assertTrue(!invalidPrefixResult.matches());
 
         // Test failure for missing hex digits
-        Result<Character, Integer> missingDigitsResult = hex.parse("0x");
+        Result<Character, Long> missingDigitsResult = hex.parse("0x");
         assertTrue(!missingDigitsResult.matches());
     }
 }

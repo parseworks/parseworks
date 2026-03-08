@@ -33,10 +33,10 @@ public class ReadMeTest {
 
         // This is a test class for the README.md file.
         // It is used to validate the code snippets in the README.md file.
-        Parser<Character, Integer> sum =
-                number.thenSkip(chr('+')).then(number).map(Integer::sum);
+        Parser<Character, Long> sum =
+                number.thenSkip(chr('+')).then(number).map(Long::sum);
 
-        int sumResult = sum.parse(Input.of("1+2")).value();
+        long sumResult = sum.parse(Input.of("1+2")).value();
         assertEquals(3, sumResult); // 3
 
         //sum.parse(Input.of("1+z")).errorOptional().ifPresent(System.out::println);

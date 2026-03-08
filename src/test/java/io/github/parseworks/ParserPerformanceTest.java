@@ -6,11 +6,11 @@ import io.github.parseworks.parsers.Numeric;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static io.github.parseworks.parsers.Combinators.attempt;
-import static io.github.parseworks.parsers.Combinators.oneOf;
-import static io.github.parseworks.parsers.Lexical.chr;
+import static io.github.parseworks.parsers.Combinators.*;
+import static io.github.parseworks.parsers.Lexical.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -51,36 +51,26 @@ public class ParserPerformanceTest {
         // Whitespace and separators
         Parser<Character, List<Character>> ws = chr(Character::isWhitespace).zeroOrMore();
         Parser<Character, Character> commaOnly = chr(',');
-        Parser<Character, Character> comma = ws.skipThen(commaOnly).thenSkip(ws); // optional spaces around comma
+        Parser<Character, Character> comma = trim(commaOnly); // optional spaces around comma
         Parser<Character, Character> eol = chr('\n');
 
         // QUOTED FIELD: "..." with doubled quotes inside
-        Parser<Character, String> escapedQuote = Lexical.string("\\\"");
-        Parser<Character, Character> notQuote = chr(c -> c != '"');
-        Parser<Character, String> quotedChunk = Combinators.oneOf(
-            escapedQuote.map(s -> "\\\""),            // "" -> "
-            notQuote.map(Object::toString)             // any non-quote char
-        ).oneOrMore().map(Lists::join);
 
-        Parser<Character, String> quotedField =
-            chr('"').skipThen(quotedChunk).thenSkip(chr('"'));
+        Parser<Character,String> quotedField = escapedString('"','\\', Map.of( '"', '"'));
 
         // UNQUOTED FIELD: runs until comma or EOL; use conditional to ensure we don't start with a quote
-        Parser<Character, String> unquotedFieldCore =
-            chr(c -> c != ',' && c != '\n' && c != '\r')
-                .oneOrMore()
-                .map(Lists::join);
+        Parser<Character, String> unquotedFieldCore = takeWhile(c -> c != ',' && c != '\n' && c != '\r');;
 
         // Conditional: only allow the unquoted variant if the next char is NOT a quote
-        Parser<Character, String> unquotedField = unquotedFieldCore.onlyIf(Combinators.not(chr('\"')));
+        Parser<Character,String> unquotedField = unquotedFieldCore.onlyIf(not(chr('\"')));
 
         // TYPED VALUES via oneOf: boolean, null, number OR fallback to quoted/unquoted text
-        Parser<Character, String> boolToken = oneOf(
+        Parser<Character,String> boolToken = oneOf(
             Lexical.string("true"),
             Lexical.string("false")
         );
 
-        Parser<Character, String> nullToken = oneOf(
+        Parser<Character,String> nullToken = oneOf(
             Lexical.string("NULL"),
             Lexical.string("null")
         );
