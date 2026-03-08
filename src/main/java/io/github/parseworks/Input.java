@@ -1,20 +1,21 @@
 package io.github.parseworks;
 
-import io.github.parseworks.impl.inputs.CharArrayInput;
-import io.github.parseworks.impl.inputs.CharSequenceInput;
-import io.github.parseworks.impl.inputs.ReaderInput;
+import io.github.parseworks.impl.inputs.*;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.Reader;
+import java.nio.CharBuffer;
+import java.util.stream.Collectors;
 
 /**
  * Represents a position in a stream of input symbols.
- *
- * @param <I> input symbol type
+ *e
  */
 public interface Input<I> {
     /** Creates an {@code Input} from a {@code char} array. */
     static Input<Character> of(char[] data) {
-        return new CharArrayInput(data);
+        return new CharSequenceInput(CharBuffer.wrap(data));
     }
 
     /** Creates an {@code Input} from a {@link CharSequence}. */
@@ -23,9 +24,14 @@ public interface Input<I> {
     }
 
     /** Creates an {@code Input} from a {@link Reader}. */
-    static Input<Character> of(Reader rdr) {
-        return new ReaderInput(rdr);
+    static Input<Character> of(Reader rdr) throws IOException {
+        try (BufferedReader bufferedReader = new BufferedReader(rdr)) {
+            String result = bufferedReader.lines().collect(Collectors.joining("\n"));
+            return new CharSequenceInput(result); // String is a CharSequence
+        }
     }
+
+    CharSequence data();
 
     /** Returns true if at the end of input. */
     boolean isEof();
@@ -46,4 +52,3 @@ public interface Input<I> {
         return !isEof();
     }
 }
-
