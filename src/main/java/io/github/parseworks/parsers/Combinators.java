@@ -276,7 +276,7 @@ public class Combinators {
 
     /**
      * Parses a single item that satisfies the given predicate.
-     *
+     * @deprecated for #{@link #satisfy(String, CharPredicate)}
      * @param expectedType error message if not satisfied
      * @param predicate    condition to satisfy
      * @param <I>          input type
@@ -290,6 +290,29 @@ public class Combinators {
             I item = in.current();
             if (predicate.test(item)) {
                 return new Match<>(item, in.next());
+            } else {
+                return new NoMatch<>(in, expectedType);
+            }
+        });
+    }
+
+    /**
+     * Parses a single character that satisfies the given predicate.
+     *
+     * @param expectedType error message if not satisfied
+     * @param predicate    condition to satisfy
+     * @return a satisfy parser
+     */
+    public static Parser<Character, Character> satisfy(String expectedType, CharPredicate predicate) {
+        return new Parser<>(in -> {
+            CharSequence data = in.data();
+            int pos = in.position();
+            if (pos >= data.length()) {
+                return new NoMatch<>(in, expectedType);
+            }
+            char item = data.charAt(pos);
+            if (predicate.test(item)) {
+                return new Match<>(item, in.skip(1));
             } else {
                 return new NoMatch<>(in, expectedType);
             }

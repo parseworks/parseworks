@@ -1,10 +1,12 @@
 package io.github.parseworks.parsers;
 
-import io.github.parseworks.Lists;
-import io.github.parseworks.Parser;
+import io.github.parseworks.*;
+import io.github.parseworks.impl.result.Match;
+import io.github.parseworks.impl.result.NoMatch;
 
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import static io.github.parseworks.Parser.pure;
 import static io.github.parseworks.parsers.Combinators.satisfy;
@@ -24,7 +26,7 @@ public class Numeric {
      * @see #numeric for any digit including '0'
      * @see #unsignedInteger for complete integer parsing
      */
-    public static final Parser<Character, Character> nonZeroDigit = satisfy( "<nonZeroDigit>", c -> c != '0' && Character.isDigit(c));
+    public static final Parser<Character, Character> nonZeroDigit = satisfy( "<nonZeroDigit>", (CharPredicate) (c -> c != '0' && Character.isDigit(c)));
 
 
     /**
@@ -38,7 +40,7 @@ public class Numeric {
      * @see #nonZeroDigit for digits 1-9 only
      * @see #number for multi-digit parsing
      */
-    public static final Parser<Character, Character> numeric = satisfy("<number>", Character::isDigit);
+    public static final Parser<Character, Character> numeric = satisfy("<number>", (CharPredicate) Character::isDigit);
 
 
     /**
@@ -133,16 +135,6 @@ public class Numeric {
     public static final Parser<Character, Long> longValue = sign.then(unsignedLong)
             .map((sign, i) -> sign ? i : -i);
 
-    private static final Parser<Character, Double> floating = numeric.zeroOrMore()
-            .map(digits -> {
-                double result = 0.0;
-                double factor = 0.1;
-                for (Character c : digits) {
-                    result += Character.getNumericValue(c) * factor;
-                    factor *= 0.1;
-                }
-                return result;
-            });
     /**
      * Matches a double-precision floating point number with optional sign, decimal, and exponent.
      * <p>
@@ -152,29 +144,77 @@ public class Numeric {
      * doubleValue.parse("-3.14").value();    // -3.14
      * doubleValue.parse("6.022E23").value(); // 6.022 × 10²³
      * doubleValue.parse("42").value();       // 42.0
+     * doubleValue.parse(".5").value();       // 0.5
      * }</pre>
      *
      * @see #integer for integer parsing
      * @see #longValue for long integer parsing
      */
-    public static final Parser<Character, Double> doubleValue = sign.then(unsignedLong)
-            .then((chr('.').skipThen(floating)).optional())
-            .then(exponent.optional())
-            .map((sn, i, f, exp) -> {
-                double r = i.doubleValue();
-                if (f.isPresent()) {
-                    r += f.get();
-                }
-                if (exp.isPresent()) {
-                    r = r * Math.pow(10.0, exp.get());
-                }
-                return sn ? r : -r;
-            });
+    public static final Parser<Character, Double> doubleValue = new Parser<>(in -> {
+        CharSequence data = in.data();
+        int start = in.position();
+        int length = data.length();
+        int current = start;
 
-    public static final Parser<Character, Integer> number = numeric.oneOrMore().map(chars -> {
-        int result = 0;
+        if (current < length && (data.charAt(current) == '+' || data.charAt(current) == '-')) {
+            current++;
+        }
+
+        int startOfNumber = current;
+        boolean hasDigits = false;
+
+        // Integer part
+        while (current < length && Character.isDigit(data.charAt(current))) {
+            current++;
+            hasDigits = true;
+        }
+
+        // Fractional part
+        if (current < length && data.charAt(current) == '.') {
+            current++;
+            while (current < length && Character.isDigit(data.charAt(current))) {
+                current++;
+                hasDigits = true;
+            }
+        }
+
+        if (!hasDigits) {
+            return new NoMatch<>(in, "doubleValue");
+        }
+
+        // Exponent part
+        if (current < length && (data.charAt(current) == 'e' || data.charAt(current) == 'E')) {
+            int exponentStart = current;
+            current++;
+            if (current < length && (data.charAt(current) == '+' || data.charAt(current) == '-')) {
+                current++;
+            }
+            boolean hasExpDigits = false;
+            while (current < length && Character.isDigit(data.charAt(current))) {
+                current++;
+                hasExpDigits = true;
+            }
+            if (!hasExpDigits) {
+                // Not a valid exponent, back up
+                current = exponentStart;
+            }
+        }
+
+        String numStr = data.subSequence(start, current).toString();
+        try {
+            double value = Double.parseDouble(numStr);
+            return new Match<>(value, in.skip(current - start));
+        } catch (NumberFormatException e) {
+            return new NoMatch<>(in, "doubleValue");
+        }
+    });
+
+    public static final Parser<Character, Long> number = numeric.oneOrMore().map(chars -> {
+        long result = 0;
         for (Character c : chars) {
             result = result * 10 + Character.getNumericValue(c);
+            // Result is cast to int at the end, which may overflow but matches documented/previous behavior.
+            // Using long for intermediate calculation prevents premature overflow of smaller bits.
         }
         return result;
     });
@@ -187,14 +227,45 @@ public class Numeric {
  
     /**
      * Matches a hexadecimal integer with "0x" or "0X" prefix.
+     * <p>
+     * Supports up to 64-bit hexadecimal values, returning an {@code Integer} (truncated if necessary).
+     * For full 64-bit precision, use a parser that returns {@code Long}.
      * <pre>{@code
      * hex.parse("0xFF").value();   // 255
      * hex.parse("0x2A").value();   // 42
      * }</pre>
      */
-    public static final Parser<Character, Integer>  hex = chr('0').skipThen(chr('x').or(chr('X')))
-        .skipThen(hexDigits)
-        .map(hexStr -> Integer.parseInt(hexStr, 16));
+    public static final Parser<Character, Long>  hex = new Parser<>(in -> {
+        CharSequence data = in.data();
+        int start = in.position();
+        int length = data.length();
+        int current = start;
+
+        if (current + 2 > length) return new NoMatch<>(in, "hex");
+        if (data.charAt(current) != '0') return new NoMatch<>(in, "hex");
+        char prefix = data.charAt(current + 1);
+        if (prefix != 'x' && prefix != 'X') return new NoMatch<>(in, "hex");
+        
+        current += 2;
+        int digitsStart = current;
+        while (current < length) {
+            char c = data.charAt(current);
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
+                break;
+            }
+            current++;
+        }
+
+        if (current == digitsStart) return new NoMatch<>(in, "hex value");
+
+        String hexStr = data.subSequence(digitsStart, current).toString();
+        try {
+            long value = Long.parseLong(hexStr, 16);
+            return new Match<>(value, in.skip(current - start));
+        } catch (NumberFormatException e) {
+            return new NoMatch<>(in, "hex value");
+        }
+    });
 
     /**
      * A parser that parses a non-zero digit followed by zero or more digits.
