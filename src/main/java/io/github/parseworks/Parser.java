@@ -451,6 +451,19 @@ public class Parser<I, A> {
         });
     }
 
+    public <B> Parser<I, A> onlyIf(CharPredicate validation) {
+        return new Parser<>(input -> {
+            if (input.isEof() || !(input.current() instanceof Character c)) {
+                return new NoMatch<>(input, "Expected Character at " + input.position());
+            }
+            var result = validation.test(c);
+            if (!result) {
+                return new NoMatch<>(input, "Predicate failed" );
+            }
+            return this.apply(input);
+        });
+    }
+
     /**
      * Succeeds if followed by lookahead without consuming lookahead input.
      * <pre>{@code
@@ -1399,6 +1412,8 @@ public class Parser<I, A> {
      * <p>
      * The implementation includes a check to prevent infinite loops in cases where the parser
      * succeeds but doesn't advance the input position.
+     * @deprecated use {@link Lexical.takeWhile}
+     *
      *
      * @param condition a parser that returns a boolean indicating whether to continue collecting
      * @return a parser that collects elements while the condition is true
